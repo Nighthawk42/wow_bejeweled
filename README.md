@@ -1,6 +1,6 @@
 "Bejeweled has returned to Azeroth!" A game made by PopCap Games, Inc.
 
-WoW Patch 7.0 Peggle Addon An updated Bejeweled addon that has long abandoned.
+WoW Patch 7.0 Peggle Addon An updated Bejeweled addon that has long been abandoned.
 
 Just download the zip and place the "Bejeweled" folder into the /Interface/AddOns/ folder.
 
