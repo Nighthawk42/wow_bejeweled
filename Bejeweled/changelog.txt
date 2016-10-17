@@ -1,4 +1,12 @@
 ===============================================
+Changed in 7.0
+===============================================
+
+- Upgraded to function with World of Warcraft: Legion - Patch 7.0.3.
+
+- Version increment changed to match World of Warcraft Interface version.
+
+===============================================
 Changed in 1.1
 ===============================================
 
