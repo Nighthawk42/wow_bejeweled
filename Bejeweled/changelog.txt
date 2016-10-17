@@ -1,0 +1,85 @@
+===============================================
+Changed in 1.1
+===============================================
+
+- Upgraded the score system to a new format. Users will be prompted to convert their score data, which will cause all friend/guild high scores to reset, as well as personal best scores in Classic and Timed modes, but all other data, including skill points, will remain intact. If the user opts to not convert to the new score system, all scores will remain intact, but there will be no communication of new scores to friends and guild mates. If a user decides to upgrade later on, a button is available on the new "High Scores" tab to allow the conversion.
+
+- Renamed the "Personal" tab to "Stats"
+
+- Added "High Score" tab to the Feats of Skill screen and removed the Friends and Guild tabs. The High Scores tab displays both the friends and the guild scores, with the display chosen via radio selectors.
+
+- Added "Total Games Played" to stats screen. This is the total games played on all characters.
+
+- Added "Achievements" tab to the Feats of Skill screen and removed the Fun and Game achievements from the Bejeweling skill screen, so that the achievements get more room and are easier to track. This tab also lists how many achievements have been unlocked and how many achievements have been completed.
+
+- Added a new setting to the Options screen called "Show full skill-up text", under the "Display skill gains in Chat Interface" setting. This new option will display the name of the skill that granted the skill up in the chat interface, so there won't be any confusion about how skill points were gained.
+
+- Added default flight times for Northrend, instead of requiring the user to build the database from scratch.
+
+- Adjusted some achievements to make them a little easier to obtain.
+
+- Fixed an issue where the "Times entered combat while playing" stat was incorrectly adding numbers when the player wasn't actually playing a game.
+
+- Fixed an issue where some classic mode skill-up events were triggering in timed mode. This was not intended and has been fixed.
+
+- Fixed an issue where matching jewels in L or T shapes would could result in granting skill points for creating a hyper cube, when a power gem was actually created.
+
+- Fixed an issue where jumping on a flight path with Bejeweled set to auto-start upon flight start, or auto-open upon flight start, would cause various problems if the player was shapeshifted or wearing a costume.
+
+- Fixed an issue where gems would fall off the game board when the mouse moved over the gems in certain situations
+
+- Fixed an issue where hyper cubes would not transfer from level 1 to level 2, and would re-appear in level 3.
+
+- Fixed an issue where players were granted jewel clear points and counts when bomb jewels would drop down to clear out part of the stage when no more moves were available in timed mode.
+
+- Fixed an issue where some flight path addons would conflict with Bejeweled, resulting in flight path games starting with 0:00 remaining, or causing an error upon lift off.
+
+===============================================
+Changed in 1.03
+===============================================
+
+- Added a new option to the Options screen called "One score per person on high score lists." Turning this on will make it so only one score per person will be on your high score lists. No longer will the best player in your guild dominate your high score list, if you choose not to see it.
+
+- Fixed an issue where players were being awarded the "Die from falling damage" achievement when they were actually surviving. That was not intended and has been fixed.
+
+- Fixed an issue where accepting a ready check in a raid was not triggering the achievement "Say yes to a raid ready check." It should now trigger when you say yes.
+
+- Fixed an issue where trying to do the "Die from combat damage" achievement wouldn't trigger if damage done at any point might have been absorbed or blocked or anything else but a numeric value, resulting in an error and preventing this achievement from completing.
+
+- Fixed an issue where game elements such as the power gem and hyper cubes would transfer over to new games if they existed in the prior game. This would include transferring empty jewels, waiting to explode jewels, and more, which would result in a variety of strange situations such as holes appearing in the game board, jewels exploding for no reason, and starting new games with special jewels already available.
+
+- Fixed an issue where the minimap icon would not remember if it was hidden upon logging in and would automatically show itself.
+
+- Fixed an issue where when the game window was shown without a game in progress, the "progress" bar would be slightly filled.
+
+- Fixed an issue where the user could still click jewels while the game was paused.
+
+- Fixed an issue where the guild high-score list would appear to be losing names if the guild roster was never opened before viewing the high scores.
+
+===============================================
+Changed in 1.02 
+===============================================
+
+- Added slash command "reset" which will reset your current profile in the game. To use, simply type "/bejeweled reset" in the chat box. THIS WILL RESET ALL YOUR DATA AS IF YOU HAD JUST INSTALLED THE MOD FOR THE FIRST TIME. TO RESET HIGH SCORES, ALL FRIENDS/GUILDMEMBERS WILL NEED TO RESET THEIR DATA. 
+
+- The minimap icon can now be hidden or shown via the Options window. 
+
+- The minimap icon can now be dragged away from the minimap if the icon is dragged far enough to detach it from the map. Dragging the icon back onto the minimap will reattach it. 
+
+===============================================
+Changed in 1.01 
+===============================================
+
+- Fixed an issue where having "New game on flight start" turned on would cause the game to appear when a flight started, even though the game did not have "auto-show on flight" start turned on. Now, it will only start a new game if the window is shown or if the auto show is turned on. 
+
+- Fixed an issue where the "Die from combat" Fun Achievement was not working properly due to some errors generated from unique damage dealt (such as evaded, blocked, or resisted damage) 
+
+- Fixed an issue where the minimap icon's tooltip would not disappear when mousing away from the minimap icon 
+
+- Fixed an issue where the score sync was too crazy and was generating WAAAAY more addon communications than required. Now, the scores are checked at log-in and whenever someone posts a new score (before, it would sync whenever someone logged in or out from the friend and guild list, even if that person did not have the addon, resulting in addon communication spam which would tie up game bandwidth a little bit) 
+
+- Fixed an issue where the friend and guild scores would not display properly, removing scores occasionally when viewing them multiple times 
+
+- Fixed a localization issue that would cause an error for some WOW clients running in a locale other than English whenever looting an item. 
+
+- Fixed a rare issue where generating a floating score might return an error. 
