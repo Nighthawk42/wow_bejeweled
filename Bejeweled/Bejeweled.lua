@@ -1,5 +1,5 @@
 local Bejeweled = Bejeweled or {}
-Bejeweled.version = "Version 1.1"
+Bejeweled.version = "Version 7.0"
 Bejeweled.splashDisplayTime = 3
 local t = "Interface\\AddOns\\Bejeweled"
 local l = "Interface\\AddOns\\Bejeweled\\images\\"
@@ -381,7 +381,7 @@ BejeweledProfile = {
         ["showFlightTooltips"] = 1,
         ["defaultPublish"] = "GUILD"
     },
-    ["version"] = 1.1,
+    ["version"] = 7.0,
     ["scoresUpdated"] = true,
     ["scoresPopup"] = true,
     ["scoreList"] = {
@@ -3462,7 +3462,7 @@ function Bejeweled:UpdateSavedVariablesDatabase()
     local o = UnitName("player")
     if (BejeweledProfile) then
         if not BejeweledProfile.version then
-            BejeweledProfile.version = 1.1
+            BejeweledProfile.version = 7.0
             BejeweledProfile.scoresUpdated = nil
             BejeweledProfile.scoresPopup = nil
             BejeweledProfile.settings.defaultPublish = "GUILD"
@@ -7593,7 +7593,7 @@ local function m()
     t:SetWidth(386)
     t:Show()
     t:SetJustifyH("CENTER")
-    t:SetText("For the latest build, go to popcap.com/wow")
+    t:SetText("For more awesome games visit www.popcap.com".."Get new updates at www.github.com/Nighthawk42/wow_bejeweled")
     a = CreateFrame("Frame", "", i)
     a:SetPoint("Top", 0, -10) a:SetWidth(s + 6 - 24)
     a:SetHeight(w + 6 - 68)
