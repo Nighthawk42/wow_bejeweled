@@ -2611,7 +2611,8 @@ local function lt(a, r, o, i, n, d)
     t:SetVertexColor(unpack(he[d]))
     t.fxType = We
     t.fxFrame = 1
-    DrawRouteLine(t, Bejeweled.gameBoard, r, -o, i, -n, 128, "TOPLEFT") DrawRouteLine(t.highlight, Bejeweled.gameBoard, r, -o, i, -n, 128, "TOPLEFT") t:Show()
+	-- FixMe:  DrawRouteLine no longer exists.  This is what generates the 'Lightning' effect when you use an 'Ultra' gem.  The gem still works, but the effect is now missing.
+    -- DrawRouteLine(t, Bejeweled.gameBoard, r, -o, i, -n, 128, "TOPLEFT") DrawRouteLine(t.highlight, Bejeweled.gameBoard, r, -o, i, -n, 128, "TOPLEFT") t:Show()
     t.highlight:Show()
     return t;
 end
@@ -5948,11 +5949,12 @@ local function D()
             t.buttonGo:Enable()
             t.timer.elapsed = 0
             t.timer.timeElapsed = 0
-            t.timer.timeRemaining = t.flightTime or 0
+            t.timer.timeRemaining = t.flightTime or 0 
             t.timer.legJourney = 0
             t.timer.learning = t.learning
             t.timer:Show()
-            Bejeweled.timedWindow.timeRemainingValue:SetFormattedText("%d min %d sec", Bejeweled:SecondsConvert(t.flightTime))
+            -- Bejeweled.timedWindow.timeRemainingValue:SetFormattedText("%d min %d sec", Bejeweled:SecondsConvert(t.flightTime)) -- This is the legacy implementation of what attempts to estimate flight path time.
+			Bejeweled.timedWindow.timeRemainingValue:SetFormattedText("%d min %d sec", Bejeweled:SecondsConvert(120)) -- FixMe - Workaround:  Setting Default Flight Time to 120 so we don't divide by zero
             if (Bejeweled.timedWindow:IsVisible()) then
                 Bejeweled.timedWindow:SetHeight(L - 30)
                 Bejeweled.timedWindow.flightCheckbox:Show()
@@ -6160,14 +6162,18 @@ local function y(t)
     for e = 1, #r do
         B(r, 1);
     end
-    SetMapToCurrentZone()
-    local t = ge[GetCurrentMapContinent()] or BejeweledData.flightTimes[GetCurrentMapContinent()]
-    if not (t) then
-        BejeweledData.flightTimes[GetCurrentMapContinent()] = {}
-        t = BejeweledData.flightTimes[GetCurrentMapContinent()];
-    end
+	-- FixMe:  This triggers when we talk to a flight master.  There is no 'TaxiNodeSetCurrent', 'GetCurrentMapContinent', or 'SetMapToCurrentZone'.  
+	--		   As such, we just remove this entirely.  
+    -- SetMapToCurrentZone()
+    -- local t = ge[GetCurrentMapContinent()] or BejeweledData.flightTimes[GetCurrentMapContinent()]
+    -- if not (t) then
+    --     BejeweledData.flightTimes[GetCurrentMapContinent()] = {}
+    --     t = BejeweledData.flightTimes[GetCurrentMapContinent()];
+    -- end
     local m = TaxiNodeGetType(i)
-    if (m == "REACHABLE") then
+	-- FixMe:    This block of code attempts to determine how much time a flight path will take to complete.
+	-- 			 We don't want to ever hit this 'if' block (it's calling funcs that no longer exist), so we just ask it to eval 1 == 0 to avoid it.
+    if (m == "REACHABLE" and 1 == 0) then
         TaxiNodeSetCurrent(i)
         if (h > NUM_TAXI_ROUTES) then
             NUM_TAXI_ROUTES = h;
@@ -7988,9 +7994,12 @@ end
 
 local function k()
     Bejeweled.skillLimit = true
-    if (select(4, GetMapContinents())) then
-        Bejeweled.skillLimit = nil;
-    end
+	
+	-- FixMe:  GetMapContinents() no longer exists.  We lose so dynamic information on the map, but that's OK!
+    -- if (select(4, GetMapContinents())) then
+    --   Bejeweled.skillLimit = nil;
+    -- end
+	
     hooksecurefunc("TakeTaxiNode", M)
     hooksecurefunc("TaxiNodeOnButtonEnter", y) v = x(1378301, 4)
     local x = A()
