@@ -5002,10 +5002,10 @@ local function V()
                 while (t.throttleCount < 20) do
                     o, e, n = strsplit("~", B(t.queue, 1))
                     if ((e == "GUILD") and IsInGuild()) then
-                        SendAddonMessage(xe, o, e, n)
+                        C_ChatInfo.SendAddonMessage(xe, o, e, n)
                         t.throttleCount = t.throttleCount + 1
                     elseif (e == "WHISPER") and (n ~= "") then
-                        SendAddonMessage(xe, o, e, n)
+                        C_ChatInfo.SendAddonMessage(xe, o, e, n)
                         t.throttleCount = t.throttleCount + 1;
                     end
                     if (#t.queue == 0) then
