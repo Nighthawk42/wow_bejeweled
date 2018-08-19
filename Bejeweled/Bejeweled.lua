@@ -7832,7 +7832,7 @@ function Bejeweled:Initialize_OptionsScreen()
             end
             if (t == "LSHIFT" or t == "RSHIFT" or t == "LCTRL" or t == "RCTRL" or t == "LALT" or t == "RALT") then
                 t = G(t, 2)
-                if (e.keybindModifier == "") then
+                if (e.keybindModifier == "" or e.keybindModifier == nil) then
                     e.keybindModifier = t
                 else
                     if not string.find(e.keybindModifier, t) then
