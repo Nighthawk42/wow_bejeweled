@@ -6,3 +6,4 @@ Please use a bug reporting addon before opening issues.
 
 Any help getting this addon working 100% is welcome.
 
+### If anyone wishes to fork this, feel free. I'm on a long hiatus from WoW and updates will be sporadic ###
