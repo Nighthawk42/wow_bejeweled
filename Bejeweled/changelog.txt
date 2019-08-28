@@ -1,4 +1,10 @@
 ===============================================
+Changed in 1.13.2
+===============================================
+- Upgraded to support World of Warcraft: Classic - Patch 1.13.2
+- Version increment changed to match World of Warcraft: Classic Interface version.
+
+===============================================
 Changed in 8.2
 ===============================================
 

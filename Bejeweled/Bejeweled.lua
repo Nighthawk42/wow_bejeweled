@@ -1,5 +1,5 @@
 local Bejeweled = Bejeweled or {}
-Bejeweled.version = "Version 8.2.0"
+Bejeweled.version = "Version 1.13.2"
 Bejeweled.splashDisplayTime = 3
 local t = "Interface\\AddOns\\Bejeweled"
 local l = "Interface\\AddOns\\Bejeweled\\images\\"
@@ -381,7 +381,7 @@ BejeweledProfile = {
         ["showFlightTooltips"] = 1,
         ["defaultPublish"] = "GUILD"
     },
-    ["version"] = "8.2.0",
+    ["version"] = "1.13.2",
     ["scoresUpdated"] = true,
     ["scoresPopup"] = true,
     ["scoreList"] = {
@@ -3463,7 +3463,7 @@ function Bejeweled:UpdateSavedVariablesDatabase()
     local o = UnitName("player")
     if (BejeweledProfile) then
         if not BejeweledProfile.version then
-            BejeweledProfile.version = "8.2.0"
+            BejeweledProfile.version = "1.13.2"
             BejeweledProfile.scoresUpdated = nil
             BejeweledProfile.scoresPopup = nil
             BejeweledProfile.settings.defaultPublish = "GUILD"
