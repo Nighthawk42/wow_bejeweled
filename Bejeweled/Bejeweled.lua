@@ -922,8 +922,8 @@ local function _t(t)
     if (BejeweledProfile.settings.publishScores) then
         Bejeweled.network:Send("HSPub", o, "GUILD", "")
         local i, n
-        for i = 1, GetNumFriends() do
-            n, _, _, _, online = GetFriendInfo(i) if (online) then
+        for i = 1,  C_FriendList.GetNumFriends() do
+            n, _, _, _, online =  C_FriendList.GetFriendInfo(i) if (online) then
                 Bejeweled.network:Send("HSPub", o, "WHISPER", n);
             end
         end
@@ -1862,8 +1862,8 @@ function Bejeweled:ScrubLists()
                 if (i ~= "PopCap Games") and (i ~= S) then
                     a = nil
                     if (d == 1) then
-                        for e = 1, GetNumFriends() do
-                            r = GetFriendInfo(e)
+                        for e = 1, C_FriendList.GetNumFriends() do
+                            r = C_FriendList.GetFriendInfo(e)
                             if (i == r) then
                                 a = true
                                 break;
@@ -3309,8 +3309,8 @@ local function nt(o, r)
             if (r == "friends") then
                 o["classicName" .. t]:SetText(a .. n)
             else
-                for e = 1, GetNumFriends() do
-                    if (n == GetFriendInfo(e)) then
+                for e = 1, C_FriendList.GetNumFriends() do
+                    if (n == C_FriendList.GetFriendInfo(e)) then
                         o["classicName" .. t]:SetText(a .. n)
                         break;
                     end
@@ -3342,8 +3342,8 @@ local function nt(o, r)
             if (r == "friends") then
                 o["timedName" .. t]:SetText(a .. n)
             else
-                for e = 1, GetNumFriends() do
-                    if (n == GetFriendInfo(e)) then
+                for e = 1, C_FriendList.GetNumFriends() do
+                    if (n == C_FriendList.GetFriendInfo(e)) then
                         o["timedName" .. t]:SetText(a .. n)
                         break;
                     end
@@ -5022,8 +5022,8 @@ local function V()
             if (o == "HSPub") then
                 if (t == "WHISPER") then
                     local i, o
-                    for i = 1, GetNumFriends() do
-                        o = GetFriendInfo(i) if (o == e) then
+                    for i = 1, C_FriendList.GetNumFriends() do
+                        o = C_FriendList.GetFriendInfo(i) if (o == e) then
                             Ee(e, n, t)
                             break;
                         end
@@ -6335,8 +6335,8 @@ local function B()
         if (t.dataDump) then
             Bejeweled.network:Send("HSPub", t.dataDump, "GUILD", "")
             local o, n
-            for o = 1, GetNumFriends() do
-                n, _, _, _, online = GetFriendInfo(o) if (online) then
+            for o = 1, C_FriendList.GetNumFriends() do
+                n, _, _, _, online = C_FriendList.GetFriendInfo(o) if (online) then
                     Bejeweled.network:Send("HSPub", t.dataDump, "WHISPER", n);
                 end
             end
