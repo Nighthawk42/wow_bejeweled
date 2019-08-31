@@ -3292,7 +3292,7 @@ local function nt(o, r)
     local a = "|cFF00FFFF"
     local S = "|cFF00FF00"
     local d = UnitName("player")
-    local s = GetNumFriends()
+    local s = C_FriendList.GetNumFriends()
     for t = 1, 10 do
         n, i, l = unpack(h.classic[t]) if (n == "PopCap Games") then
             n = "|cFFFFFFFF" .. n
