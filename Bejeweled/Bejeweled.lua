@@ -7953,8 +7953,8 @@ local function S(i, t, l, o)
         Bejeweled.network:Send("LogSync", "", "GUILD", "")
         Bejeweled.network:Send("HSPub", n, "GUILD", "")
         local o, t
-        for o = 1, GetNumFriends() do
-            t, _, _, _, online = GetFriendInfo(o) if (online) then
+        for o = 1, C_FriendList.GetNumFriends() do
+            t, _, _, _, online = C_FriendList.GetFriendInfo(o) if (online) then
                 Bejeweled.network:Send("LogSync", "", "WHISPER", t)
                 Bejeweled.network:Send("HSPub", n, "WHISPER", t);
             end
