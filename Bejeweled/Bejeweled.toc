@@ -1,6 +1,6 @@
-## Interface: 80000
+## Interface: 90002
 ## Title: Bejeweled
-## Version: 8.0.1
+## Version: 9.0.2
 ## Notes: The popular game Bejeweled, for World of Warcraft!
 ## Author: PopCap Games, Inc.
 ## X-ArcadePanel: getglobal("BejeweledWindow"):Show();
