@@ -1,4 +1,20 @@
 ===============================================
+Changed in 8.2
+===============================================
+
+- Upgraded to function with World of Warcraft: Battle for Azeroth - Patch 8.2.0
+
+- Version increment changed to match World of Warcraft Interface version.
+
+===============================================
+Changed in 8.0
+===============================================
+
+- Upgraded to function with World of Warcraft: Battle for Azeroth - Patch 8.0.1
+
+- Version increment changed to match World of Warcraft Interface version.
+
+===============================================
 Changed in 7.0
 ===============================================
 
