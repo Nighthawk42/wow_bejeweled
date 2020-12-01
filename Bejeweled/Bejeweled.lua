@@ -1605,7 +1605,7 @@ end
 
 function Bejeweled:VariablesLoaded()
     if IsInGuild() then
-        GuildRoster();
+        C_GuildInfo.GuildRoster();
     end
     BejeweledProfile.skill.friendList = BejeweledProfile.skill.friendList or { c = 0 }
     BejeweledProfile.skill.guildList = BejeweledProfile.skill.guildList or { c = 0 }
@@ -2702,7 +2702,7 @@ local function Je(d, i, n, o, a, l)
         B(d.floatingTextQueue, 1)
         t:SetText(o)
     else
-        t = Bejeweled:CreateCaption(i, n, o, r, 50, 1, 1, 1, true);
+        t = Bejeweled:CreateCaption(i, n, o, r, 30, 1, 1, 1, true);
     end
     t.x = i
     t.y = n
@@ -3285,7 +3285,7 @@ end
 
 local function nt(o, r)
     if IsInGuild() then
-        GuildRoster();
+        C_GuildInfo.GuildRoster();
     end
     Bejeweled:ScrubLists()
     local t, t, n, i, l
@@ -5003,10 +5003,10 @@ local function V()
                 while (t.throttleCount < 20) do
                     o, e, n = strsplit("~", B(t.queue, 1))
                     if ((e == "GUILD") and IsInGuild()) then
-                        SendAddonMessage(xe, o, e, n)
+                        C_ChatInfo.SendAddonMessage(xe, o, e, n)
                         t.throttleCount = t.throttleCount + 1
                     elseif (e == "WHISPER") and (n ~= "") then
-                        SendAddonMessage(xe, o, e, n)
+                        C_ChatInfo.SendAddonMessage(xe, o, e, n)
                         t.throttleCount = t.throttleCount + 1;
                     end
                     if (#t.queue == 0) then
@@ -7947,7 +7947,7 @@ local function S(i, t, l, o)
         o = l[v] or ""
         local n = n .. i .. "*" .. n .. o
         if IsInGuild() then
-            GuildRoster();
+            C_GuildInfo.GuildRoster();
         end
         Bejeweled.network:Send("LogSync", "", "GUILD", "")
         Bejeweled.network:Send("HSPub", n, "GUILD", "")
