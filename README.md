@@ -5,4 +5,3 @@ Just download the zip and place the "Bejeweled" folder into the /Interface/AddOn
 Please use a bug reporting addon before opening issues.
 
 Any help getting this addon working 100% is welcome.
-

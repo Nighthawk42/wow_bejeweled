@@ -7591,7 +7591,6 @@ local function m()
     t:SetPoint("Topright", -12, -12)
     t:SetText(Bejeweled.version)
     t:Show()
-	
     a = CreateFrame("Frame", "", i, "BackdropTemplate")
     a:SetPoint("Top", 0, -10) a:SetWidth(s + 6 - 24)
     a:SetHeight(w + 6 - 68)
@@ -7614,11 +7613,11 @@ local function m()
     t:SetPoint("Topleft", 12, -42)
     t:SetWidth(336)
     t:Show()
-    t:SetText("Programmer: |cFFFFFFFFMichael Fromwiller|r\n" .. "Artist: |cFFFFFFFFTysen Henderson|r\n" .. "Producer: |cFFFFFFFFT. Carl Kwoh|r\n" .. "PopCap QA: |cFFFFFFFFShawn Conard, Ryan Newitt,\nJonathan Green|r\n\n" .. "Original Bejeweled:\n|cFFFFFFFFJason Kapalka, Brian Fiete, John Vechey|r\n\n")
+    t:SetText("Programmer: |cFFFFFFFFMichael Fromwiller|r\n" .. "Artist: |cFFFFFFFFTysen Henderson|r\n" .. "Producer: |cFFFFFFFFT. Carl Kwoh|r\n" .. "PopCap QA: |cFFFFFFFFShawn Conard, Ryan Newitt,\nJonathan Green|r\n\n" .. "Maintained by:\n|cFFFFFFFFNighthawk42, and Contributors|r\n\n" .. "Original Bejeweled:\n|cFFFFFFFFJason Kapalka, Brian Fiete, John Vechey|r\n\n")
     t:SetJustifyH("CENTER")
     t = Bejeweled:CreateCaption(0, 0, "", n, 13, 1, .85, .1)
     t:ClearAllPoints()
-    t:SetPoint("Topleft", 17, -175)
+    t:SetPoint("Topleft", 17, -215)
     t:SetWidth(326)
     t:Show()
     t:SetText("Special Thanks:\n" .. '|cFFFFFFFFMorphieus "Lothaer" (Spinebreaker-A), Eleya (Eredar-A), Anthony Coleman, Ben Lyon, and Jeff Weinstein.|r\n\n' .. "Beta Testers:\n" .. "|cFFFFFFFFNaiad (Ysera-H), Nie (Ysera-H), BraveOne (Aerie Peak-A), Brutall (Ysera-H), AvaCam (Gurubashi-H), Kepec (Kael'thas-A), Eldurin (Dalaran-A), Fnear (Cenarius-A), Jonsnow (Kael'thas EU-A), Ed|r")
@@ -7809,10 +7808,6 @@ function Bejeweled:Initialize_OptionsScreen()
     end)
 	
     i:SetScript("OnKeyDown", function(frame, keyInput)
-		if(frame.keybindModifier == nil) then
-			frame.keybindModifier = ""
-		end
-	
         if (keyInput == "ESCAPE") then
             frame:EnableKeyboard(false)
             frame.keybindButton:SetText("None")
@@ -7828,9 +7823,10 @@ function Bejeweled:Initialize_OptionsScreen()
             if (keyInput == "UNKNOWN") then
                 return;
             end
+        
             if (keyInput == "LSHIFT" or keyInput == "RSHIFT" or keyInput == "LCTRL" or keyInput == "RCTRL" or keyInput == "LALT" or keyInput == "RALT") then
                 keyInput = G(keyInput, 2)
-                if (frame.keybindModifier == "") then
+                if (frame.keybindModifier == "" or frame.keybindModifier == nil) then
                     frame.keybindModifier = keyInput
                 else
                     if not string.find(frame.keybindModifier, keyInput) then
