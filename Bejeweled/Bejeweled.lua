@@ -1,5 +1,5 @@
 local Bejeweled = Bejeweled or {}
-Bejeweled.version = "Version 8.2.0"
+Bejeweled.version = "Version 9.2.0"
 Bejeweled.splashDisplayTime = 3
 local t = "Interface\\AddOns\\Bejeweled"
 local l = "Interface\\AddOns\\Bejeweled\\images\\"
@@ -381,7 +381,7 @@ BejeweledProfile = {
         ["showFlightTooltips"] = 1,
         ["defaultPublish"] = "GUILD"
     },
-    ["version"] = "8.2.0",
+    ["version"] = "9.0.2",
     ["scoresUpdated"] = true,
     ["scoresPopup"] = true,
     ["scoreList"] = {
@@ -922,8 +922,8 @@ local function _t(t)
     if (BejeweledProfile.settings.publishScores) then
         Bejeweled.network:Send("HSPub", o, "GUILD", "")
         local i, n
-        for i = 1, GetNumFriends() do
-            n, _, _, _, online = GetFriendInfo(i) if (online) then
+        for i = 1, C_FriendList.GetNumFriends() do
+            n, _, _, _, online = C_FriendList.GetFriendInfo(i) if (online) then
                 Bejeweled.network:Send("HSPub", o, "WHISPER", n);
             end
         end
@@ -1605,7 +1605,7 @@ end
 
 function Bejeweled:VariablesLoaded()
     if IsInGuild() then
-        GuildRoster();
+        C_GuildInfo.GuildRoster();
     end
     BejeweledProfile.skill.friendList = BejeweledProfile.skill.friendList or { c = 0 }
     BejeweledProfile.skill.guildList = BejeweledProfile.skill.guildList or { c = 0 }
@@ -1652,32 +1652,33 @@ function Bejeweled:ShowLegal()
     Bejeweled.window:SetPoint("Center")
     Bejeweled.window:SetAlpha(1)
     Bejeweled.window.splash.firstGame = true
-    local t = CreateFrame("Frame", "BejeweledLegalPopup", Bejeweled.window)
-    t:SetWidth(f * 2)
-    t:SetHeight(L + 32)
-    t:SetToplevel(true)
-    t:SetFrameStrata("High") t:SetPoint("Center")
-    t:EnableMouse(true)
-    local n = C()
-    n.edgeFile = "Interface\\Glues\\Common\\TextPanel-Border" n.bgFile = l .. "windowBackground"
-    n.edgeSize = 32
-    n.tileSize = 128
-    n.insets.top = 3
-    t:SetBackdrop(n)
-    t:SetBackdropColor(.6, .6, .6, 1)
-    t:SetBackdropBorderColor(1, .8, .45)
-    t:SetMovable(true)
-    local n = t:CreateFontString(nil, "Overlay")
-    n:SetFont(STANDARD_TEXT_FONT, 12, "Outline")
-    n:SetTextColor(1, 1, 1)
-    n:SetPoint("Top", 0, -38)
-    n:SetWidth(f * 1.8)
-    n:SetText("Bejeweled\n\n\n" .. "(c)2000, 2008 PopCap Games, Inc.  All rights reserved.  This application is " .. "being made available free of charge for your personal, non-commercial entertainment " .. 'use, and is provided "as is", without any warranties.  PopCap Games, Inc. will have ' .. "no liability to you or anyone else if you choose to use it.  See readme.txt for details.")
-    n:Show()
-    local t = CreateFrame("Button", "", t, "OptionsButtonTemplate") t:SetPoint("Bottom", 0, 16)
-    t:SetText(OKAY)
-    t:SetScript("OnClick", function(t)
-        t:GetParent():Hide()
+    local Frame_LegalPopup = CreateFrame("Frame", "BejeweledLegalPopup", Bejeweled.window, "BackdropTemplate")
+    Frame_LegalPopup:SetWidth(f * 2)
+    Frame_LegalPopup:SetHeight(L + 32)
+    Frame_LegalPopup:SetToplevel(true)
+    Frame_LegalPopup:SetFrameStrata("High") Frame_LegalPopup:SetPoint("Center")
+    Frame_LegalPopup:EnableMouse(true)
+    local LegalTextSplash = C()
+    LegalTextSplash.edgeFile = "Interface\\Glues\\Common\\TextPanel-Border" n.bgFile = l .. "windowBackground"
+    LegalTextSplash.edgeSize = 32
+    LegalTextSplash.tileSize = 128
+    LegalTextSplash.insets.top = 3
+    Frame_LegalPopup:SetBackdrop(LegalTextSplash)
+    Frame_LegalPopup:SetBackdropColor(.6, .6, .6, 1)
+    Frame_LegalPopup:SetBackdropBorderColor(1, .8, .45)
+    Frame_LegalPopup:SetMovable(true)
+    local LegalTextSplash = Frame_LegalPopup:CreateFontString(nil, "Overlay")
+    LegalTextSplash:SetFont(STANDARD_TEXT_FONT, 12, "Outline")
+    LegalTextSplash:SetTextColor(1, 1, 1)
+    LegalTextSplash:SetPoint("Top", 0, -38)
+    LegalTextSplash:SetWidth(f * 1.8)
+    LegalTextSplash:SetText("Bejeweled\n\n\n" .. "(c)2000, 2008 PopCap Games, Inc.  All rights reserved.  This application is " .. "being made available free of charge for your personal, non-commercial entertainment " .. 'use, and is provided "as is", without any warranties.  PopCap Games, Inc. will have ' .. "no liability to you or anyone else if you choose to use it.  See readme.txt for details.")
+    LegalTextSplash:Show()
+    local Frame_LegalPopup_OkayButton = CreateFrame("Button", "", Frame_LegalPopup, "OptionsButtonTemplate") Frame_LegalPopup_OkayButton:SetPoint("Bottom", 0, 16)
+    Frame_LegalPopup_OkayButton:SetText(OKAY)
+    Frame_LegalPopup_OkayButton:SetScript("OnClick", function(t)
+		print("test-d")
+        Frame_LegalPopup_OkayButton:GetParent():Hide()
         BejeweledData.legalDisplayed = true
         Bejeweled.window.splash.elapsed = 0
     end)
@@ -1862,8 +1863,8 @@ function Bejeweled:ScrubLists()
                 if (i ~= "PopCap Games") and (i ~= S) then
                     a = nil
                     if (d == 1) then
-                        for e = 1, GetNumFriends() do
-                            r = GetFriendInfo(e)
+                        for e = 1, C_FriendList.GetNumFriends() do
+                            r = C_FriendList.GetFriendInfo(e)
                             if (i == r) then
                                 a = true
                                 break;
@@ -2453,7 +2454,7 @@ local function Me()
 end
 
 local function At(a, o, i, n, t, e, l)
-    local e = CreateFrame("Frame", "", e)
+    local e = CreateFrame("Frame", "", e, "BackdropTemplate")
     e:SetPoint("Topleft", o, -i)
     e:SetWidth(n)
     e:SetHeight(t)
@@ -2701,7 +2702,7 @@ local function Je(d, i, n, o, a, l)
         B(d.floatingTextQueue, 1)
         t:SetText(o)
     else
-        t = Bejeweled:CreateCaption(i, n, o, r, 50, 1, 1, 1, true);
+        t = Bejeweled:CreateCaption(i, n, o, r, 30, 1, 1, 1, true);
     end
     t.x = i
     t.y = n
@@ -3284,7 +3285,7 @@ end
 
 local function nt(o, r)
     if IsInGuild() then
-        GuildRoster();
+        C_GuildInfo.GuildRoster();
     end
     Bejeweled:ScrubLists()
     local t, t, n, i, l
@@ -3292,7 +3293,7 @@ local function nt(o, r)
     local a = "|cFF00FFFF"
     local S = "|cFF00FF00"
     local d = UnitName("player")
-    local s = GetNumFriends()
+    local s = C_FriendList.GetNumFriends()
     for t = 1, 10 do
         n, i, l = unpack(h.classic[t]) if (n == "PopCap Games") then
             n = "|cFFFFFFFF" .. n
@@ -3309,8 +3310,8 @@ local function nt(o, r)
             if (r == "friends") then
                 o["classicName" .. t]:SetText(a .. n)
             else
-                for e = 1, GetNumFriends() do
-                    if (n == GetFriendInfo(e)) then
+                for e = 1, C_FriendList.GetNumFriends() do
+                    if (n == C_FriendList.GetFriendInfo(e)) then
                         o["classicName" .. t]:SetText(a .. n)
                         break;
                     end
@@ -3342,8 +3343,8 @@ local function nt(o, r)
             if (r == "friends") then
                 o["timedName" .. t]:SetText(a .. n)
             else
-                for e = 1, GetNumFriends() do
-                    if (n == GetFriendInfo(e)) then
+                for e = 1, C_FriendList.GetNumFriends() do
+                    if (n == C_FriendList.GetFriendInfo(e)) then
                         o["timedName" .. t]:SetText(a .. n)
                         break;
                     end
@@ -3463,7 +3464,7 @@ function Bejeweled:UpdateSavedVariablesDatabase()
     local o = UnitName("player")
     if (BejeweledProfile) then
         if not BejeweledProfile.version then
-            BejeweledProfile.version = "8.2.0"
+            BejeweledProfile.version = "9.0.2"
             BejeweledProfile.scoresUpdated = nil
             BejeweledProfile.scoresPopup = nil
             BejeweledProfile.settings.defaultPublish = "GUILD"
@@ -3503,7 +3504,7 @@ function Bejeweled:UpdateSavedVariablesDatabase()
         t.insets.right = 3
         n:SetBackdrop(t)
         n:SetBackdropColor(.7, .7, .7, 1)
-        local t = CreateFrame("Button", "", n, "UIPanelCloseButton") t:SetToplevel(true)
+        local t = CreateFrame("Button", "", n, "UIPanelCloseButton" and "BackdropTemplate") t:SetToplevel(true)
         t:SetPoint("Topright", n, "Topright", 2, 2) t:SetWidth(32)
         t:SetHeight(32)
         t:SetScript("OnClick", function(e)
@@ -4917,7 +4918,7 @@ local function Se(l, w)
 end
 
 local function A()
-    local e = CreateFrame("Frame", "", UIParent)
+    local e = CreateFrame("Frame", "", UIParent, "BackdropTemplate")
     e:SetWidth(1)
     e:SetHeight(1)
     e:EnableMouse(false)
@@ -5022,8 +5023,8 @@ local function V()
             if (o == "HSPub") then
                 if (t == "WHISPER") then
                     local i, o
-                    for i = 1, GetNumFriends() do
-                        o = GetFriendInfo(i) if (o == e) then
+                    for i = 1, C_FriendList.GetNumFriends() do
+                        o = C_FriendList.GetFriendInfo(i) if (o == e) then
                             Ee(e, n, t)
                             break;
                         end
@@ -5042,7 +5043,7 @@ local function V()
 end
 
 local function O()
-    local n = CreateFrame("Frame", "BejeweledSound", Bejeweled.window)
+    local n = CreateFrame("Frame", "BejeweledSound", Bejeweled.window, "BackdropTemplate")
     n:SetWidth(1)
     n:SetHeight(1)
     n:SetPoint("Top")
@@ -5283,14 +5284,14 @@ local function E()
 end
 
 local function g()
-    local t = CreateFrame("Frame", "BejeweledWindow", UIParent)
+    local t = CreateFrame("Frame", "BejeweledWindow", UIParent, "BackdropTemplate")
     t:SetWidth(q)
     t:SetHeight(me)
     t:SetPoint("Center")
     t:EnableMouse(true)
     t:SetToplevel(true)
     t:Hide()
-    t.mouseBounds = CreateFrame("Frame", "", t)
+    t.mouseBounds = CreateFrame("Frame", "", t, "BackdropTemplate")
     t.mouseBounds:SetPoint("Topleft", -20, 20)
     t.mouseBounds:SetPoint("Bottomright", 20, -20)
     t.mouseBounds:Show()
@@ -5334,7 +5335,7 @@ local function g()
             T(false);
         end
     end)
-    local o = CreateFrame("Button", "", t, "UIPanelCloseButton")
+    local o = CreateFrame("Button", "", t, "UIPanelCloseButton" and "BackdropTemplate")
     o:SetToplevel(true)
     o:SetPoint("Topright", t, "Topright", 2, 2)
     o:SetWidth(32)
@@ -5345,7 +5346,7 @@ local function g()
         end
     end)
     if (bCrowbar) then
-        local e = CreateFrame("Frame", "", t)
+        local e = CreateFrame("Frame", "", t, "BackdropTemplate")
         e:SetWidth(32)
         e:SetHeight(32)
         e:SetPoint("Right", o, "Left", -2, 0)
@@ -5388,7 +5389,7 @@ local function g()
     o:SetHeight(64)
     t.icon = o
     local o = Bejeweled.const.largeText["Bejeweled"]
-    local i = CreateFrame("Frame", "", t)
+    local i = CreateFrame("Frame", "", t, "BackdropTemplate")
     i:SetPoint("Topleft", t)
     i:SetPoint("Topright", t, -8, 0)
     i:SetHeight(o[2])
@@ -5399,7 +5400,7 @@ local function g()
     i:SetHeight(o[2])
     i:SetTexCoord(o[3], o[4], o[5], o[6])
     t.logo = i
-    local o = CreateFrame("Frame", "", t)
+    local o = CreateFrame("Frame", "", t, "BackdropTemplate")
     o:SetPoint("Bottomright", 0, 0)
     o:SetWidth(32)
     o:SetHeight(32)
@@ -5466,7 +5467,7 @@ local function g()
         t.icon:SetHeight(64 * i)
         Bejeweled.resizeUpdate = true;
     end)
-    local n = CreateFrame("Frame", "BejeweledShowHideButton", UIParent)
+    local n = CreateFrame("Frame", "BejeweledShowHideButton", UIParent, "BackdropTemplate")
     n:SetWidth(1)
     n:SetHeight(1)
     n:SetPoint("Bottomright")
@@ -5478,7 +5479,7 @@ local function g()
         end
     end)
     t.showHideButton = n
-    n = CreateFrame("Frame", "BejeweledMouseOverScreen", t)
+    n = CreateFrame("Frame", "BejeweledMouseOverScreen", t, "BackdropTemplate")
     n:SetPoint("Topleft")
     n:SetPoint("Bottomright")
     n:EnableMouse(true)
@@ -5513,7 +5514,7 @@ local function g()
 end
 
 local function P()
-    local t = CreateFrame("Frame", "BejeweledMenu", Bejeweled.window)
+    local t = CreateFrame("Frame", "BejeweledMenu", Bejeweled.window, "BackdropTemplate")
     t:SetWidth(f)
     t:SetHeight(L - 20)
     t:SetPoint("Center")
@@ -5533,7 +5534,7 @@ local function P()
     t:SetBackdropColor(.6, .6, .6, 1)
     t:SetBackdropBorderColor(1, .8, .45)
     t:SetMovable(true)
-    local o = CreateFrame("Button", "", t, "UIPanelCloseButton")
+    local o = CreateFrame("Button", "", t, "UIPanelCloseButton" and "BackdropTemplate")
     o:SetPoint("Topright", t, "Topright", 0, 2)
     o:SetWidth(38)
     o:SetHeight(38)
@@ -5650,7 +5651,7 @@ local function P()
 end
 
 local function N()
-    local t = CreateFrame("Frame", "BejeweledPopup", Bejeweled.window)
+    local t = CreateFrame("Frame", "BejeweledPopup", Bejeweled.window, "BackdropTemplate")
     t:SetWidth(f + 60)
     t:SetHeight(L / 1.2)
     t:SetPoint("Center")
@@ -5668,7 +5669,7 @@ local function N()
     t:SetBackdropColor(.6, .6, .6, 1)
     t:SetBackdropBorderColor(1, .8, .45)
     t:SetMovable(true)
-    local n = CreateFrame("Button", "", t, "UIPanelCloseButton")
+    local n = CreateFrame("Button", "", t, "UIPanelCloseButton" and "BackdropTemplate")
     n:SetToplevel(true)
     n:SetPoint("Topright", t, "Topright", 0, 2)
     n:SetWidth(38)
@@ -5728,7 +5729,7 @@ local function N()
         Bejeweled.popup:Hide()
     end)
     t.button1 = n
-    local n = CreateFrame("Button", "", t, "OptionsButtonTemplate")
+    local n = CreateFrame("Button", "", t, "OptionsButtonTemplate" )
     n:SetPoint("Bottom", 0, 15)
     n:SetText("Feats of Skill")
     n:SetWidth(f - 20)
@@ -5751,7 +5752,7 @@ local function N()
 end
 
 local function W()
-    local t = CreateFrame("Frame", "BejeweledGameModeMenu", Bejeweled.window)
+    local t = CreateFrame("Frame", "BejeweledGameModeMenu", Bejeweled.window, "BackdropTemplate")
     t:SetWidth(f)
     t:SetHeight(L - 100)
     t:SetPoint("Center")
@@ -5768,7 +5769,7 @@ local function W()
     t:SetBackdropColor(.6, .6, .6, 1)
     t:SetBackdropBorderColor(1, .8, .45)
     t:SetMovable(true)
-    local n = CreateFrame("Button", "", t, "UIPanelCloseButton")
+    local n = CreateFrame("Button", "", t, "UIPanelCloseButton" and "BackdropTemplate")
     n:SetToplevel(true)
     n:SetPoint("Topright", t, "Topright", 0, 2)
     n:SetWidth(38)
@@ -5817,7 +5818,7 @@ local function W()
 end
 
 local function F()
-    local t = CreateFrame("Frame", "BejeweledClassicMenu", Bejeweled.window)
+    local t = CreateFrame("Frame", "BejeweledClassicMenu", Bejeweled.window, "BackdropTemplate")
     t:SetWidth(f)
     t:SetHeight(L - 100)
     t:SetPoint("Center")
@@ -5834,7 +5835,7 @@ local function F()
     t:SetBackdropColor(.6, .6, .6, 1)
     t:SetBackdropBorderColor(1, .8, .45)
     t:SetMovable(true)
-    local n = CreateFrame("Button", "", t, "UIPanelCloseButton")
+    local n = CreateFrame("Button", "", t, "UIPanelCloseButton" and "BackdropTemplate")
     n:SetToplevel(true)
     n:SetPoint("Topright", t, "Topright", 0, 2)
     n:SetWidth(38)
@@ -5889,7 +5890,7 @@ local function F()
 end
 
 local function D()
-    local n = CreateFrame("Frame", "BejeweledFlightOptionMenu", UIParent)
+    local n = CreateFrame("Frame", "BejeweledFlightOptionMenu", UIParent, "BackdropTemplate")
     n:SetWidth(f)
     n:SetHeight(L)
     n:SetToplevel(true)
@@ -5908,7 +5909,7 @@ local function D()
     n:SetBackdropColor(.6, .6, .6, 1)
     n:SetBackdropBorderColor(1, .8, .45)
     n:SetMovable(true)
-    local t = CreateFrame("Button", "", n, "UIPanelCloseButton")
+    local t = CreateFrame("Button", "", n, "UIPanelCloseButton" and "BackdropTemplate")
     t:SetToplevel(true)
     t:SetPoint("Topright", n, "Topright", 0, 2)
     t:SetWidth(38)
@@ -6001,7 +6002,7 @@ local function D()
     end
     t:SetScript("OnClick", t.OnClickScript)
     n.buttonGo = t
-    local t = CreateFrame("Frame", "BejeweledFlightTimer", UIParent)
+    local t = CreateFrame("Frame", "BejeweledFlightTimer", UIParent, "BackdropTemplate")
     t:SetPoint("Top")
     t:SetWidth(1)
     t:SetHeight(1)
@@ -6013,7 +6014,7 @@ local function D()
 end
 
 local function R()
-    local o = CreateFrame("Frame", "BejeweledTimedMenu", Bejeweled.window)
+    local o = CreateFrame("Frame", "BejeweledTimedMenu", Bejeweled.window, "BackdropTemplate")
     o:SetWidth(f)
     o:SetHeight(L - 30)
     o:SetPoint("Center")
@@ -6029,7 +6030,7 @@ local function R()
     o:SetBackdropColor(.6, .6, .6, 1)
     o:SetBackdropBorderColor(1, .8, .45)
     o:SetMovable(true)
-    local t = CreateFrame("Button", "", o, "UIPanelCloseButton") t:SetToplevel(true)
+    local t = CreateFrame("Button", "", o, "UIPanelCloseButton" and "BackdropTemplate") t:SetToplevel(true)
     t:SetPoint("Topright", o, "Topright", 0, 2) t:SetWidth(38)
     t:SetHeight(38)
     local t = o:CreateFontString(nil, "Overlay")
@@ -6247,7 +6248,7 @@ end
 
 local function B()
     local n = Bejeweled.window
-    local o = CreateFrame("Frame", "BejeweledSummaryScreen", getglobal("BejeweledGameBoardAnchor"))
+    local o = CreateFrame("Frame", "BejeweledSummaryScreen", getglobal("BejeweledGameBoardAnchor"), "BackdropTemplate")
     o:SetPoint("Top", 0, -3) o:SetWidth(s + 6)
     o:SetHeight(w + 6)
     local a = C()
@@ -6264,7 +6265,7 @@ local function B()
     t:ClearAllPoints()
     t:SetPoint("Top", 0, -10)
     t:Show()
-    local l = CreateFrame("Frame", "", o)
+    local l = CreateFrame("Frame", "", o, "BackdropTemplate")
     l:SetPoint("Top", 0, -36) l:SetWidth(s + 6 - 24)
     l:SetHeight(w + 6 - 48)
     l:SetBackdrop(a)
@@ -6335,8 +6336,8 @@ local function B()
         if (t.dataDump) then
             Bejeweled.network:Send("HSPub", t.dataDump, "GUILD", "")
             local o, n
-            for o = 1, GetNumFriends() do
-                n, _, _, _, online = GetFriendInfo(o) if (online) then
+            for o = 1, C_FriendList.GetNumFriends() do
+                n, _, _, _, online = C_FriendList.GetFriendInfo(o) if (online) then
                     Bejeweled.network:Send("HSPub", t.dataDump, "WHISPER", n);
                 end
             end
@@ -6439,7 +6440,7 @@ local function B()
         end)
         return n;
     end
-    t = CreateFrame("Frame", "", o)
+    t = CreateFrame("Frame", "", o, "BackdropTemplate")
     t:SetPoint("Center")
     t:SetWidth(340)
     t:SetHeight(200)
@@ -6518,7 +6519,7 @@ local function u()
     local o = Bejeweled.window
     local t
     local t = getglobal("BejeweledGameBoard")
-    local a = CreateFrame("Frame", "BejeweledFeatsOfSkillScreen", t)
+    local a = CreateFrame("Frame", "BejeweledFeatsOfSkillScreen", t, "BackdropTemplate")
     a:SetPoint("Top", 0, -3 - 22) a:SetWidth(s + 6)
     a:SetHeight(w + 6 - 22)
     a:EnableMouse(true)
@@ -6548,7 +6549,7 @@ local function u()
     end)
     Bejeweled.featsOfSkillScreen = a
     local n = 1.2
-    local t = CreateFrame("Frame", "", a)
+    local t = CreateFrame("Frame", "", a, "BackdropTemplate")
     t:SetPoint("Bottomleft", a, "Topleft", 4, -14)
     t:SetWidth(88)
     t:SetHeight(32)
@@ -6563,7 +6564,7 @@ local function u()
     t:SetID(1)
     t:SetScript("OnMouseDown", U)
     a.tab1 = t
-    t = CreateFrame("Frame", "", a)
+    t = CreateFrame("Frame", "", a, "BackdropTemplate")
     t:SetPoint("Topleft", a.tab1, "Topright")
     t:SetWidth(48)
     t:SetHeight(32)
@@ -6580,7 +6581,7 @@ local function u()
     t:SetID(2)
     t:SetScript("OnMouseDown", U)
     a.tab2 = t
-    t = CreateFrame("Frame", "", a)
+    t = CreateFrame("Frame", "", a, "BackdropTemplate")
     t:SetPoint("Topleft", a.tab2, "Topright")
     t:SetWidth(93)
     t:SetHeight(32)
@@ -6597,7 +6598,7 @@ local function u()
     t:SetID(3)
     t:SetScript("OnMouseDown", U)
     a.tab3 = t
-    t = CreateFrame("Frame", "", a)
+    t = CreateFrame("Frame", "", a, "BackdropTemplate")
     t:SetPoint("Topleft", a.tab3, "Topright")
     t:SetWidth(104)
     t:SetHeight(32)
@@ -6614,7 +6615,7 @@ local function u()
     t:SetID(4)
     t:SetScript("OnMouseDown", U)
     a.tab4 = t
-    local i = CreateFrame("Frame", "", a)
+    local i = CreateFrame("Frame", "", a, "BackdropTemplate")
     i:SetPoint("Top", 0, -10) i:SetWidth(s + 6 - 24)
     i:SetHeight(w + 6 - 68)
     a.tab1Content = i
@@ -6623,7 +6624,7 @@ local function u()
     t:SetPoint("Top", 0, -2)
     t:Show()
     i.title = t
-    local n = CreateFrame("Frame", "BejeweledSkillBar", i)
+    local n = CreateFrame("Frame", "BejeweledSkillBar", i, "BackdropTemplate")
     n:SetPoint("Top", 0, -20) n:SetWidth(s + 6 - 24)
     n:SetHeight(32)
     d = C()
@@ -6773,7 +6774,7 @@ local function u()
         end
         return l or (0);
     end
-    local o = CreateFrame("Frame", "", i)
+    local o = CreateFrame("Frame", "", i, "BackdropTemplate")
     o:SetPoint("Top", 0, -20) o:SetWidth(s + 6 - 24)
     o:SetHeight(32)
     d = C()
@@ -6808,17 +6809,17 @@ local function u()
     o:SetHeight(20)
     o:SetTexCoord(0, 0, 0, 0)
     n.rightIcon = o
-    local o = CreateFrame("Frame", "", i)
+    local o = CreateFrame("Frame", "", i, "BackdropTemplate")
     o:SetPoint("Top", 0, -52) o:SetWidth(s + 6 - 24)
     o:SetHeight(21 * 15)
     o:SetBackdrop(d)
     o:SetBackdropColor(.2, .2, .2, 1)
     o:SetBackdropBorderColor(1, 1, 1)
     o:Show()
-    local f = CreateFrame("ScrollFrame", "BejeweledSkillListScroller", o, "UIPanelScrollFrameTemplate")
+    local f = CreateFrame("ScrollFrame", "BejeweledSkillListScroller", o, "UIPanelScrollFrameTemplate" and "BackdropTemplate")
     f:SetPoint("Topleft", 0, -9)
     f:SetPoint("Bottomright", -32, 9)
-    local S = CreateFrame("Frame", "BejeweledSkillList", o)
+    local S = CreateFrame("Frame", "BejeweledSkillList", o, "BackdropTemplate")
     S:SetPoint("Top", 0, -9) S:SetWidth(s + 6 - 24)
     S:SetHeight(21 * 15 * 3)
     S:Show()
@@ -6903,7 +6904,7 @@ local function u()
         t.text = Bejeweled:CreateCaption(27, 0, Bejeweled.const.skillDataNames[n], t, h, 1, .82, 0)
         c = t
         for l = 1, #Bejeweled.const.skillData[n] do
-            t = CreateFrame("Frame", "", o)
+            t = CreateFrame("Frame", "", o, "BackdropTemplate")
             t:SetWidth(o:GetWidth())
             t:SetHeight(h + 1)
             t:SetPoint("Topleft", c, "Bottomleft", 0, -2)
@@ -6997,7 +6998,7 @@ local function u()
         end
     end
     i:SetScript("OnShow", i.UpdateSkillScreen)
-    i = CreateFrame("Frame", "", a)
+    i = CreateFrame("Frame", "", a, "BackdropTemplate")
     i:SetPoint("Top", 0, -10)
     i:SetWidth(s + 6 - 24)
     i:SetHeight(w + 6 - 68)
@@ -7035,7 +7036,7 @@ local function u()
     t:ClearAllPoints()
     t:SetPoint("Top", 0, -2)
     t:Show()
-    o = CreateFrame("Frame", "", i)
+    o = CreateFrame("Frame", "", i, "BackdropTemplate")
     o:SetPoint("Top", 0, -26) o:SetWidth(s + 6 - 24)
     o:SetHeight(6 * 20 + 6)
     o:SetBackdrop(d)
@@ -7085,7 +7086,7 @@ local function u()
     t:ClearAllPoints()
     t:SetPoint("Top", 0, -24 - 132)
     t:Show()
-    o = CreateFrame("Frame", "", i)
+    o = CreateFrame("Frame", "", i, "BackdropTemplate")
     o:SetPoint("Top", 0, -36 - 20 - 122) o:SetWidth(s + 6 - 24)
     o:SetHeight(9 * 20 + 4)
     o:SetBackdrop(d)
@@ -7148,7 +7149,7 @@ local function u()
     t:ClearAllPoints()
     t:SetPoint("TopRight", -10, -n) n = n + 18
     i.totalPower = t
-    i = CreateFrame("Frame", "", a)
+    i = CreateFrame("Frame", "", a, "BackdropTemplate")
     i:SetPoint("Top", 0, -10) i:SetWidth(s + 6 - 24)
     i:SetHeight(w + 6 - 68)
     i:Hide()
@@ -7191,7 +7192,7 @@ local function u()
     t:ClearAllPoints()
     t:SetPoint("Top", 0, -2 - 9 - 9 - 2)
     t:Show()
-    o = CreateFrame("Frame", "", i)
+    o = CreateFrame("Frame", "", i, "BackdropTemplate")
     o:SetPoint("Top", 0, -26 - 9 - 2) o:SetWidth(s + 6 - 24)
     o:SetHeight(150 + 6)
     o:SetBackdrop(d)
@@ -7220,7 +7221,7 @@ local function u()
     t:ClearAllPoints()
     t:SetPoint("Top", 0, -26 - 154 - 4 - 9)
     t:Show()
-    o = CreateFrame("Frame", "", i)
+    o = CreateFrame("Frame", "", i, "BackdropTemplate")
     o:SetPoint("Top", 0, -26 - 154 - 26) o:SetWidth(s + 6 - 24)
     o:SetHeight(150 + 6)
     o:SetBackdrop(d)
@@ -7245,7 +7246,7 @@ local function u()
         t:SetPoint("Topright", -10, -(n * 14 - 7))
         i["timedScore" .. n] = t;
     end
-    i = CreateFrame("Frame", "", a)
+    i = CreateFrame("Frame", "", a, "BackdropTemplate")
     i:SetPoint("Top", 0, -10)
     i:SetWidth(s + 6 - 24)
     i:SetHeight(w + 6 - 68)
@@ -7266,17 +7267,17 @@ local function u()
     t:Show()
     t.caption = "Achievements must be completed with the addon shown\nand a game in progress.\nAchievements Unlocked: %d of %d\nAchievements Completed: %d"
     i.title = t
-    o = CreateFrame("Frame", "", i)
+    o = CreateFrame("Frame", "", i, "BackdropTemplate")
     o:SetPoint("Top", 0, -52) o:SetWidth(s + 6 - 24)
     o:SetHeight(21 * 15)
     o:SetBackdrop(d)
     o:SetBackdropColor(.2, .2, .2, 1)
     o:SetBackdropBorderColor(1, 1, 1)
     o:Show()
-    f = CreateFrame("ScrollFrame", "BejeweledAchievementListScroller", o, "UIPanelScrollFrameTemplate")
+    f = CreateFrame("ScrollFrame", "BejeweledAchievementListScroller", o, "UIPanelScrollFrameTemplate" and "BackdropTemplate")
     f:SetPoint("Topleft", 0, -9)
     f:SetPoint("Bottomright", -32, 9)
-    S = CreateFrame("Frame", "BejeweledAchievementList", o)
+    S = CreateFrame("Frame", "BejeweledAchievementList", o, "BackdropTemplate")
     S:SetPoint("Top", 0, -9) S:SetWidth(s + 6 - 24)
     S:SetHeight(21 * 15 * 3)
     S:Show()
@@ -7287,7 +7288,7 @@ local function u()
     c = nil
     for n = 6, 7 do
         for a = 1, #Bejeweled.const.skillData[n] do
-            t = CreateFrame("Frame", "", o)
+            t = CreateFrame("Frame", "", o, "BackdropTemplate")
             t:SetWidth(387) t:SetHeight(59) t:SetScale(.87)
             if not c then
                 t:SetPoint("Topleft", 14, 0)
@@ -7410,7 +7411,7 @@ local function m()
     local n = Bejeweled.window
     local t
     local t = getglobal("BejeweledGameBoard")
-    local i = CreateFrame("Frame", "BejeweledAboutScreen", t)
+    local i = CreateFrame("Frame", "BejeweledAboutScreen", t, "BackdropTemplate")
     i:SetPoint("Top", 0, -3 - 22) i:SetWidth(s + 6)
     i:SetHeight(w + 6 - 22)
     i:EnableMouse(true)
@@ -7438,7 +7439,7 @@ local function m()
         Bejeweled.animator.hintObj:SetAlpha(1)
     end)
     Bejeweled.aboutScreen = i
-    local t = CreateFrame("Frame", "", i)
+    local t = CreateFrame("Frame", "", i, "BackdropTemplate")
     t:SetPoint("Bottomleft", i, "Topleft", 5, -14)
     t:SetWidth(133)
     t:SetHeight(34)
@@ -7453,7 +7454,7 @@ local function m()
     t:SetID(1)
     t:SetScript("OnMouseDown", U)
     i.tab1 = t
-    t = CreateFrame("Frame", "", i)
+    t = CreateFrame("Frame", "", i, "BackdropTemplate")
     t:SetPoint("Bottomleft", i, "Topleft", 139, -14)
     t:SetWidth(133)
     t:SetHeight(34)
@@ -7470,7 +7471,7 @@ local function m()
     t:SetID(2)
     t:SetScript("OnMouseDown", U)
     i.tab2 = t
-    t = CreateFrame("Frame", "", i)
+    t = CreateFrame("Frame", "", i, "BackdropTemplate")
     t:SetPoint("Bottomright", i, "Topright", -2, -14)
     t:SetWidth(133)
     t:SetHeight(34)
@@ -7487,11 +7488,11 @@ local function m()
     t:SetID(3)
     t:SetScript("OnMouseDown", U)
     i.tab3 = t
-    local a = CreateFrame("Frame", "", i)
+    local a = CreateFrame("Frame", "", i, "BackdropTemplate")
     a:SetPoint("Top", 0, -10) a:SetWidth(s + 6 - 24)
     a:SetHeight(w + 6 - 68)
     i.tab1Content = a
-    local n = CreateFrame("Frame", "", a)
+    local n = CreateFrame("Frame", "", a, "BackdropTemplate")
     n:SetPoint("Topleft", 5, -5) n:SetWidth(376)
     n:SetHeight(118)
     n:SetBackdrop(r)
@@ -7511,7 +7512,7 @@ local function m()
     t:SetPoint("Center", 85, 0)
     t:SetWidth(160)
     t:Show()
-    n = CreateFrame("Frame", "", a)
+    n = CreateFrame("Frame", "", a, "BackdropTemplate")
     n:SetPoint("Topleft", 5, -5 - 118) n:SetWidth(376)
     n:SetHeight(118)
     n:SetBackdrop(r)
@@ -7531,7 +7532,7 @@ local function m()
     t:SetPoint("Center", 85, 0)
     t:SetWidth(140)
     t:Show()
-    n = CreateFrame("Frame", "", a)
+    n = CreateFrame("Frame", "", a, "BackdropTemplate")
     n:SetPoint("Topleft", 5, -5 - 236) n:SetWidth(376)
     n:SetHeight(118)
     n:SetBackdrop(r)
@@ -7551,13 +7552,13 @@ local function m()
     t:SetPoint("Center", 85, 0)
     t:SetWidth(140)
     t:Show()
-    a = CreateFrame("Frame", "", i)
+    a = CreateFrame("Frame", "", i, "BackdropTemplate")
     a:SetPoint("Top", 0, -10)
     a:SetWidth(s + 6 - 24)
     a:SetHeight(w + 6 - 86)
     a:Hide()
     i.tab2Content = a
-    n = CreateFrame("Frame", "", a)
+    n = CreateFrame("Frame", "", a, "BackdropTemplate")
     n:SetPoint("Topleft", 10, -10) n:SetPoint("Bottomright", -10, -20)
     n:SetBackdrop(r)
     n:SetBackdropColor(.2, .2, .2, 1)
@@ -7582,6 +7583,7 @@ local function m()
     t:SetFont(STANDARD_TEXT_FONT, 11, "Outline")
     t:SetTextColor(1, 1, 1)
     t:SetPoint("Bottom", 0, 12)
+    t:SetText("Latest Version at:\nhttps://github.com/Kautzman/wow_bejeweled")
     t:Show()
     t = n:CreateFontString(nil, "Overlay")
     t:SetFont(STANDARD_TEXT_FONT, 12, "Outline")
@@ -7589,22 +7591,12 @@ local function m()
     t:SetPoint("Topright", -12, -12)
     t:SetText(Bejeweled.version)
     t:Show()
-    t = Bejeweled:CreateCaption(0, 0, "", n, 16, 1, .4, .8)
-    t:SetFont(STANDARD_TEXT_FONT, 16)
-    t:SetShadowColor(0, 0, 0)
-    t:SetShadowOffset(1, -1)
-    t:ClearAllPoints()
-    t:SetPoint("Top", n, "Bottom", 0, -2)
-    t:SetWidth(386)
-    t:Show()
-    t:SetJustifyH("CENTER")
-    t:SetText("For more great games visit popcap.com|r\n".."Get updates at https://git.io/fAv3y")
-    a = CreateFrame("Frame", "", i)
+    a = CreateFrame("Frame", "", i, "BackdropTemplate")
     a:SetPoint("Top", 0, -10) a:SetWidth(s + 6 - 24)
     a:SetHeight(w + 6 - 68)
     a:Hide()
     i.tab3Content = a
-    n = CreateFrame("Frame", "", a)
+    n = CreateFrame("Frame", "", a, "BackdropTemplate")
     n:SetPoint("Topleft", 10, -10) n:SetPoint("Bottomright", -10, -10)
     n:SetBackdrop(r)
     n:SetBackdropColor(.2, .2, .2, 1)
@@ -7621,7 +7613,8 @@ local function m()
     t:SetPoint("Topleft", 12, -42)
     t:SetWidth(336)
     t:Show()
-    t:SetText("Programmer: |cFFFFFFFFMichael Fromwiller|r\n" .. "Artist: |cFFFFFFFFTysen Henderson|r\n" .. "Producer: |cFFFFFFFFT. Carl Kwoh|r\n" .. "PopCap QA: |cFFFFFFFFShawn Conard, Ryan Newitt,\nJonathan Green|r\n\n" .. "Maintained by:\n|cFFFFFFFFNighthawk42, and Contributors|r\n\n" .. "Original Bejeweled:\n|cFFFFFFFFJason Kapalka, Brian Fiete, John Vechey|r\n\n")
+    t:SetFont(STANDARD_TEXT_FONT, 11, "Outline")
+    t:SetText("Programmer: |cFFFFFFFFMichael Fromwiller|r\n" .. "Artist: |cFFFFFFFFTysen Henderson|r\n" .. "Producer: |cFFFFFFFFT. Carl Kwoh|r\n" .. "PopCap QA: |cFFFFFFFFShawn Conard, Ryan Newitt,\nJonathan Green|r\n\n" .. "Maintained by:\n|cFFFFFFFFKadecgos, Nighthawk42, and Contributors|r\n\n" .. "Original Bejeweled:\n|cFFFFFFFFJason Kapalka, Brian Fiete, John Vechey|r\n\n")
     t:SetJustifyH("CENTER")
     t = Bejeweled:CreateCaption(0, 0, "", n, 13, 1, .85, .1)
     t:ClearAllPoints()
@@ -7639,7 +7632,7 @@ function Bejeweled:Initialize_OptionsScreen()
     Bejeweled.const.windowFadeIn.endAlpha = BejeweledProfile.settings.gameAlpha
     Bejeweled.const.windowFadeOut.startAlpha = BejeweledProfile.settings.gameAlpha
     Bejeweled.const.windowFadeOut.endAlpha = BejeweledProfile.settings.mouseoffAlpha
-    local t = CreateFrame("Frame", "BejeweledOptionsScreen", getglobal("BejeweledGameBoard"))
+    local t = CreateFrame("Frame", "BejeweledOptionsScreen", getglobal("BejeweledGameBoard"), "BackdropTemplate")
     t:SetPoint("Top", 0, -3) t:SetWidth(s + 6)
     t:SetHeight(w + 6)
     t:EnableMouse(true)
@@ -7668,7 +7661,7 @@ function Bejeweled:Initialize_OptionsScreen()
     n:ClearAllPoints()
     n:SetPoint("Top", 0, -10)
     n:Show()
-    local o = CreateFrame("Frame", "", t)
+    local o = CreateFrame("Frame", "", t, "BackdropTemplate")
     o:SetPoint("Top", 0, -36) o:SetWidth(s + 6 - 24)
     o:SetHeight(w + 6 - 48)
     o:SetBackdrop(a)
@@ -7796,6 +7789,7 @@ function Bejeweled:Initialize_OptionsScreen()
     Bejeweled:CreateCheckbox(60, -t, "On Log-In", "openLogin", 1, o)
     Bejeweled:CreateCheckbox(190, -t, "On Enter Combat", "closeCombat", 1, o)
     t = t + 16
+	
     i:SetScript("OnKeyUp", function(e, t)
         if (t == "LSHIFT" or t == "RSHIFT" or t == "LCTRL" or t == "RCTRL" or t == "LALT" or t == "RALT") then
             local t = ""
@@ -7813,59 +7807,61 @@ function Bejeweled:Initialize_OptionsScreen()
             end
         end
     end)
-    i:SetScript("OnKeyDown", function(e, t)
-        if (t == "ESCAPE") then
-            e:EnableKeyboard(false)
-            e.keybindButton:SetText("None")
-            e.keybindButton:UnlockHighlight()
-            e.keybindButton.savedText = nil
+	
+    i:SetScript("OnKeyDown", function(frame, keyInput)
+        if (keyInput == "ESCAPE") then
+            frame:EnableKeyboard(false)
+            frame.keybindButton:SetText("None")
+            frame.keybindButton:UnlockHighlight()
+            frame.keybindButton.savedText = nil
             BejeweledProfile.settings.keybinding = nil
-            ClearOverrideBindings(e)
+            ClearOverrideBindings(frame)
         else
-            if (GetBindingFromClick(t) == "SCREENSHOT") then
+            if (GetBindingFromClick(keyInput) == "SCREENSHOT") then
                 RunBinding("SCREENSHOT")
                 return;
             end
-            if (t == "UNKNOWN") then
+            if (keyInput == "UNKNOWN") then
                 return;
             end
-            if (t == "LSHIFT" or t == "RSHIFT" or t == "LCTRL" or t == "RCTRL" or t == "LALT" or t == "RALT") then
-                t = G(t, 2)
-                if (e.keybindModifier == "" or e.keybindModifier == nil) then
-                    e.keybindModifier = t
+        
+            if (keyInput == "LSHIFT" or keyInput == "RSHIFT" or keyInput == "LCTRL" or keyInput == "RCTRL" or keyInput == "LALT" or keyInput == "RALT") then
+                keyInput = G(keyInput, 2)
+                if (frame.keybindModifier == "" or frame.keybindModifier == nil) then
+                    frame.keybindModifier = keyInput
                 else
-                    if not string.find(e.keybindModifier, t) then
-                        e.keybindModifier = e.keybindModifier .. "-" .. t;
+                    if not string.find(frame.keybindModifier, keyInput) then
+                        frame.keybindModifier = frame.keybindModifier .. "-" .. keyInput;
                     end
                 end
                 return
-            elseif (e.newKeybindButton ~= "") then
+            elseif (frame.newKeybindButton ~= "") then
                 return;
             end
             local n = ""
-            e.keybindModifier = ""
+            frame.keybindModifier = ""
             if (IsAltKeyDown()) then
-                e.keybindModifier = "ALT"
+                frame.keybindModifier = "ALT"
                 n = "-";
             end
             if (IsControlKeyDown()) then
-                e.keybindModifier = e.keybindModifier .. n .. "CTRL"
+                frame.keybindModifier = frame.keybindModifier .. n .. "CTRL"
                 n = "-";
             end
             if (IsShiftKeyDown()) then
-                e.keybindModifier = e.keybindModifier .. n .. "SHIFT";
+                frame.keybindModifier = frame.keybindModifier .. n .. "SHIFT";
             end
-            if (e.keybindModifier == "") then
-                e.newKeybindButton = t
+            if (frame.keybindModifier == "") then
+                frame.newKeybindButton = keyInput
             else
-                e.newKeybindButton = e.keybindModifier .. "-" .. t;
+                frame.newKeybindButton = frame.keybindModifier .. "-" .. keyInput;
             end
-            e:EnableKeyboard(false)
-            e.keybindButton:SetText(e.newKeybindButton)
-            e.keybindButton:UnlockHighlight()
-            e.keybindButton.savedText = nil
-            SetOverrideBindingClick(e, true, e.newKeybindButton, "BejeweledShowHideButton")
-            BejeweledProfile.settings.keybinding = e.newKeybindButton;
+            frame:EnableKeyboard(false)
+            frame.keybindButton:SetText(frame.newKeybindButton)
+            frame.keybindButton:UnlockHighlight()
+            frame.keybindButton.savedText = nil
+            SetOverrideBindingClick(frame, true, frame.newKeybindButton, "BejeweledShowHideButton")
+            BejeweledProfile.settings.keybinding = frame.newKeybindButton;
         end
     end);
 end
@@ -7948,13 +7944,13 @@ local function S(i, t, l, o)
         o = l[v] or ""
         local n = n .. i .. "*" .. n .. o
         if IsInGuild() then
-            GuildRoster();
+            C_GuildInfo.GuildRoster();
         end
         Bejeweled.network:Send("LogSync", "", "GUILD", "")
         Bejeweled.network:Send("HSPub", n, "GUILD", "")
         local o, t
-        for o = 1, GetNumFriends() do
-            t, _, _, _, online = GetFriendInfo(o) if (online) then
+        for o = 1, C_FriendList.GetNumFriends() do
+            t, _, _, _, online = C_FriendList.GetFriendInfo(o) if (online) then
                 Bejeweled.network:Send("LogSync", "", "WHISPER", t)
                 Bejeweled.network:Send("HSPub", n, "WHISPER", t);
             end
@@ -8031,11 +8027,11 @@ local function k()
     local t = 0
     local t = 0
     local t, t
-    local t = CreateFrame("Frame", "BejeweledGameBoardAnchor", r)
+    local t = CreateFrame("Frame", "BejeweledGameBoardAnchor", r, "BackdropTemplate")
     t:SetPoint("Topleft", 20, -60)
     t:SetPoint("Topright", -20, -60)
     t:SetHeight(w + 12)
-    gameBoard = CreateFrame("Frame", "BejeweledGameBoard", t)
+    gameBoard = CreateFrame("Frame", "BejeweledGameBoard", t, "BackdropTemplate")
     gameBoard:SetPoint("Top") gameBoard:SetWidth(s + 14)
     gameBoard:SetHeight(w + 12)
     local t = C()
@@ -8048,7 +8044,7 @@ local function k()
     B()
     u()
     m()
-    local S = CreateFrame("Frame", "BejeweledGame", gameBoard)
+    local S = CreateFrame("Frame", "BejeweledGame", gameBoard, "BackdropTemplate")
     S:SetWidth(s)
     S:SetHeight(w)
     S:SetPoint("Topleft", 8, -4)
@@ -8057,7 +8053,7 @@ local function k()
     local a, a, i
     for t = 0, 3 do
         for e = 0, 3 do
-            i = CreateFrame("Frame", "", S)
+            i = CreateFrame("Frame", "", S, "BackdropTemplate")
             i:SetPoint("Topleft", (e * 100), -(t * 100))
             i:SetWidth(s / 4)
             i:SetHeight(w / 4)
@@ -8073,11 +8069,11 @@ local function k()
             i:SetFrameLevel(S:GetFrameLevel());
         end
     end
-    Bejeweled.foreground = CreateFrame("Frame", "BejeweledGame", gameBoard)
+    Bejeweled.foreground = CreateFrame("Frame", "BejeweledGame", gameBoard, "BackdropTemplate")
     Bejeweled.foreground:SetWidth(s + 14)
     Bejeweled.foreground:SetHeight(w + 12)
     Bejeweled.foreground:SetPoint("Topleft", 0, 0)
-    local a = CreateFrame("Frame", "", Bejeweled.foreground)
+    local a = CreateFrame("Frame", "", Bejeweled.foreground, "BackdropTemplate")
     local d = Bejeweled.const.largeText["Strip"]
     a:ClearAllPoints()
     a:SetPoint("Center") a:SetWidth(1)
@@ -8116,13 +8112,13 @@ local function k()
         n:SetAlpha(1)
         Bejeweled.gameStatusText.background:SetAlpha(1);
     end
-    local d = CreateFrame("Frame", "BejeweledStatusBar", r)
+    local d = CreateFrame("Frame", "BejeweledStatusBar", r, "BackdropTemplate")
     d:SetPoint("Bottomleft", -10, 10)
     d:SetPoint("Bottomright", -32, 10)
     d:SetHeight(32)
     d:SetFrameLevel(r:GetFrameLevel() + 2)
     Bejeweled.statusBar = d
-    local a = CreateFrame("Frame", "BejeweledLevelBorder", d)
+    local a = CreateFrame("Frame", "BejeweledLevelBorder", d, "BackdropTemplate")
     a:SetPoint("Bottomleft", 0, 0)
     a:SetHeight(32)
     a:SetWidth(122)
@@ -8145,7 +8141,7 @@ local function k()
     Bejeweled.levelTextCaption:SetJustifyH("LEFT")
     Bejeweled.levelTextCaption:SetPoint("Topleft", Bejeweled.levelText, "Topright", -5, 0)
     Bejeweled.levelTextCaption:SetPoint("Bottomright", -16, 1)
-    local s = CreateFrame("Frame", "BejeweledDataBorder", d)
+    local s = CreateFrame("Frame", "BejeweledDataBorder", d, "BackdropTemplate")
     s:SetPoint("Bottomleft", a, "Bottomright", -40, 0)
     s:SetHeight(32)
     s:SetWidth(72)
@@ -8156,7 +8152,7 @@ local function k()
     Bejeweled.dataText = Bejeweled:CreateCaption(0, 0, "", s, 10, 1, 1, 1, true)
     Bejeweled.dataText:ClearAllPoints()
     Bejeweled.dataText:SetPoint("Center", 0, 1)
-    local a = CreateFrame("Frame", "BejeweledLevelBar", d)
+    local a = CreateFrame("Frame", "BejeweledLevelBar", d, "BackdropTemplate")
     a:SetPoint("Left", s, "Right", -18, 0)
     a:SetPoint("Bottomright", d, "Bottomright", 0, 0)
     a:SetHeight(32)
@@ -8170,7 +8166,7 @@ local function k()
     a:SetBackdropColor(.1, .1, .1, 0)
     a:SetFrameLevel(d:GetFrameLevel() + 2)
     Bejeweled.levelBar = a
-    local f = CreateFrame("Frame", "", d)
+    local f = CreateFrame("Frame", "", d, "BackdropTemplate")
     f:SetPoint("Left", s, "Right", -18, 0)
     f:SetPoint("Bottomright", d, "Bottomright", 0, 0)
     f:SetHeight(32)
@@ -8201,13 +8197,13 @@ local function k()
     a.SetTimer = kt
     a.StartTimer = Ft
     a.StopTimer = Pt
-    a.timer = CreateFrame("Frame", "", r)
+    a.timer = CreateFrame("Frame", "", r, "BackdropTemplate")
     a.timer:SetWidth(1)
     a.timer:SetHeight(1)
     a.timer:SetPoint("Top")
     a.timer:Hide()
     a.timer:SetScript("OnUpdate", fe)
-    local a = CreateFrame("Frame", "BejeweledLevelBarButton", r)
+    local a = CreateFrame("Frame", "BejeweledLevelBarButton", r, "BackdropTemplate")
     a:SetPoint("Topleft", d, "Topleft", 50, 0)
     a:SetPoint("Bottomright", d, "Bottomright")
     a:EnableMouse(true)
@@ -8259,7 +8255,7 @@ local function k()
     a:SetBackdropColor(.1, .1, .1, 0)
     a:SetFrameLevel(d:GetFrameLevel() + 4)
     Bejeweled.levelBarButton = a
-    local f = CreateFrame("Frame", "", a)
+    local f = CreateFrame("Frame", "", a, "BackdropTemplate")
     f:SetPoint("Topleft")
     f:SetPoint("Bottomright")
     f:SetHeight(32)
@@ -8282,7 +8278,7 @@ local function k()
     a.text = Bejeweled:CreateCaption(0, 0, "New Game", a, 12, 1, .85, 0)
     a.text:ClearAllPoints()
     a.text:SetPoint("Center", 0, 1)
-    local d = CreateFrame("Frame", "", a)
+    local d = CreateFrame("Frame", "", a, "BackdropTemplate")
     d:SetPoint("Topright", a, "Topleft", 20, 0)
     d:SetHeight(32)
     d:SetWidth(70)
@@ -8298,7 +8294,7 @@ local function k()
     t.insets.right = 2
     d:SetBackdrop(t)
     d:SetBackdropColor(0, 0, 0, 0)
-    i = CreateFrame("Frame", "", gameBoard)
+    i = CreateFrame("Frame", "", gameBoard, "BackdropTemplate")
     i:SetPoint("Center")
     i:SetWidth(64)
     i:SetHeight(64)
@@ -8308,7 +8304,7 @@ local function k()
     i:SetScale(3)
     i:Hide()
     Bejeweled.pausedText = i
-    i = CreateFrame("Frame", "BejeweledSplash", gameBoard) i:SetPoint("Topleft")
+    i = CreateFrame("Frame", "BejeweledSplash", gameBoard, "BackdropTemplate") i:SetPoint("Topleft")
     i:SetPoint("Bottomright")
     i.art = i:CreateTexture(nil, "ARTWORK")
     i.art:SetPoint("Topleft", gameBoard, "Topleft", 12, -7)
