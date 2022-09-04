@@ -1,4 +1,15 @@
 ===============================================
+Changed in 10.0.0
+===============================================
+
+-- Upgraded to function with World of Warcraft: Dragonflight - Patch 10.0
+
+KNOWN ISSUES:
+
+- Resizing is unbounded.  You can make the window impossibly small or way too huge.  This is likely to be fixed soon™.
+- Hypercubes do not draw the 'beam' between breaks.  This is likely to not be fixed as it uses DrawLine which has since been deprecated.
+
+===============================================
 Changed in 9.2.0
 ===============================================
 

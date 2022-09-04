@@ -1,6 +1,6 @@
 local Bejeweled = Bejeweled or {}
-Bejeweled.version = "Version 9.2.5"
-Bejeweled.splashDisplayTime = 3
+Bejeweled.version = "Version 10.0.0 - Beta"
+Bejeweled.splashDisplayTime = 2
 local t = "Interface\\AddOns\\Bejeweled"
 local l = "Interface\\AddOns\\Bejeweled\\images\\"
 local ut = "Interface\\AddOns\\Bejeweled\\sounds\\"
@@ -543,10 +543,9 @@ local function Tt(t)
         else
             t.bar:SetWidth((t.score - t.minScore + .5) / (t.maxScore - t.minScore) * (t:GetWidth() - 4));
         end
-    else
-        local n = (t.score / t.timer.timeElapsed);
+    else		
         if (t.score > 0) then
-            Bejeweled.levelText:SetFormattedText("%.2f", n);
+            Bejeweled.levelText:SetFormattedText("%.2f", t.score / t.timer.timeElapsed);
         else
             Bejeweled.levelText:SetFormattedText("%.2f", 0);
         end
@@ -1284,7 +1283,9 @@ local function T(r)
                         t:SetAlpha(t.oldAlphaJewel / 2);
                     end
                 else
-                    t:SetAlpha((t.oldAlphaJewel or (.5)) * 2)
+					t:SetAlpha(1)
+					-- TODO: Fix dynamic Alpha
+                    -- t:SetAlpha((t.oldAlphaJewel or (.5)) * 2)
                     t.oldAlphaJewel = nil;
                 end
             else
@@ -1334,7 +1335,9 @@ local function T(r)
                     if (t.wasShown) then
                         t.wasShown = nil
                         if not (t.contents) then
-                            t:SetAlpha((t.oldAlpha or (.5)) * 2);
+							t:SetAlpha(1);
+							-- TODO: Fix dynamic Alpha
+                            -- t:SetAlpha((t.oldAlpha or (.5)) * 2);
                         end
                         t.oldAlpha = nil;
                     end
@@ -1674,7 +1677,7 @@ function Bejeweled:ShowLegal()
     LegalTextSplash:SetWidth(f * 1.8)
     LegalTextSplash:SetText("Bejeweled\n\n\n" .. "(c)2000, 2008 PopCap Games, Inc.  All rights reserved.  This application is " .. "being made available free of charge for your personal, non-commercial entertainment " .. 'use, and is provided "as is", without any warranties.  PopCap Games, Inc. will have ' .. "no liability to you or anyone else if you choose to use it.  See readme.txt for details.")
     LegalTextSplash:Show()
-    local Frame_LegalPopup_OkayButton = CreateFrame("Button", "", Frame_LegalPopup, "OptionsButtonTemplate") Frame_LegalPopup_OkayButton:SetPoint("Bottom", 0, 16)
+    local Frame_LegalPopup_OkayButton = CreateFrame("Button", "", Frame_LegalPopup, "UIPanelButtonTemplate") Frame_LegalPopup_OkayButton:SetPoint("Bottom", 0, 16)
     Frame_LegalPopup_OkayButton:SetText(OKAY)
     Frame_LegalPopup_OkayButton:SetScript("OnClick", function(t)
 		print("test-d")
@@ -2462,7 +2465,7 @@ local function At(a, o, i, n, t, e, l)
     if (l) then
         e.texture = e:CreateTexture(nil, "OVERLAY")
     else
-        e.texture = e:CreateTexture(nil, "ART");
+        e.texture = e:CreateTexture(nil, "ARTWORK");
     end
     e.texture:SetWidth(n)
     e.texture:SetHeight(t)
@@ -3519,7 +3522,7 @@ function Bejeweled:UpdateSavedVariablesDatabase()
         t:SetText("The score storage system has been changed in this version. In order to continue to send high scores to other players you must upgrade to the new system, which will wipe your existing scores. If you do not upgrade, you will not broadcast or receive scores. Would you like to upgrade now?")
         t:SetWidth(290)
         t:Show()
-        local t = CreateFrame("Button", "BejeweledUpdateYes", n, "OptionsButtonTemplate") t:SetPoint("Bottomleft", 40, 20)
+        local t = CreateFrame("Button", "BejeweledUpdateYes", n, "UIPanelButtonTemplate") t:SetPoint("Bottomleft", 40, 20)
         t:SetText("Yes")
         t:SetWidth(100)
         t:SetHeight(28)
@@ -3528,7 +3531,7 @@ function Bejeweled:UpdateSavedVariablesDatabase()
             BejeweledProfile.scoreList = nil
             ReloadUI()
         end)
-        t = CreateFrame("Button", "BejeweledUpdateNo", n, "OptionsButtonTemplate") t:SetPoint("Bottomright", -40, 20)
+        t = CreateFrame("Button", "BejeweledUpdateNo", n, "UIPanelButtonTemplate") t:SetPoint("Bottomright", -40, 20)
         t:SetText("No")
         t:SetWidth(100)
         t:SetHeight(28)
@@ -3537,7 +3540,7 @@ function Bejeweled:UpdateSavedVariablesDatabase()
             e:GetParent():Hide()
         end)
         Bejeweled.updatePopup = n
-        t = CreateFrame("Button", "BejeweledUpdateNo", n, "OptionsButtonTemplate") t:SetPoint("Bottomright", -40, 20)
+        t = CreateFrame("Button", "BejeweledUpdateNo", n, "UIPanelButtonTemplate") t:SetPoint("Bottomright", -40, 20)
         t:SetText("No")
         t:SetWidth(100)
         t:SetHeight(28)
@@ -3550,7 +3553,7 @@ function Bejeweled:UpdateSavedVariablesDatabase()
         end
         Bejeweled.featsOfSkillScreen.tab3Content.friends:Hide()
         Bejeweled.featsOfSkillScreen.tab3Content.guild:Hide()
-        t = CreateFrame("Button", "BejeweledUpdateScoresButton", Bejeweled.featsOfSkillScreen.tab3Content, "OptionsButtonTemplate") t:SetPoint("Top", 0, 2)
+        t = CreateFrame("Button", "BejeweledUpdateScoresButton", Bejeweled.featsOfSkillScreen.tab3Content, "UIPanelButtonTemplate") t:SetPoint("Top", 0, 2)
         t:SetText("Upgrade Score System")
         t:SetWidth(230)
         t:SetHeight(22)
@@ -3794,7 +3797,7 @@ function Bejeweled:CreateSlider(a, l, s, h, n, t, o, d, r, i, S)
 end
 
 function Bejeweled:CreateCheckbox(d, r, a, o, l, t, n, i)
-    local t = CreateFrame("CheckButton", "BejeweledCheckBox" .. o, t, "OptionsCheckButtonTemplate")
+    local t = CreateFrame("CheckButton", "BejeweledCheckBox" .. o, t, "UICheckButtonTemplate")
     t:SetWidth(21)
     t:SetHeight(21)
     getglobal(t:GetName() .. "Text"):SetFont(STANDARD_TEXT_FONT, 13)
@@ -5364,13 +5367,13 @@ local function g()
             end
         end);
     end
-    local o = CreateFrame("Button", "", t, "OptionsButtonTemplate")
-    o:SetToplevel(true)
-    o:SetPoint("Topright", -12, -30)
-    o:SetText("Menu")
-    o:SetWidth(50)
-    o:SetHeight(26)
-    o:SetScript("OnClick", function()
+    local MenuButton = CreateFrame("Button", "", t, "UIPanelButtonTemplate")
+    MenuButton:SetToplevel(true)
+    MenuButton:SetPoint("Topright", -12, -30)
+    MenuButton:SetText("Menu")
+    MenuButton:SetWidth(50)
+    MenuButton:SetHeight(26)
+    MenuButton:SetScript("OnClick", function()
         local t = Bejeweled.menuWindow
         if (Bejeweled.aboutScreen:IsVisible() or Bejeweled.featsOfSkillScreen:IsVisible() or Bejeweled.optionsScreen:IsVisible()) then
             Bejeweled.menuWindow.keepScreen = true;
@@ -5381,9 +5384,9 @@ local function g()
             t:Show();
         end
     end)
-    t.menuButton = o
-    local o = t:CreateTexture(nil, "Art")
-    o:SetTexture(l .. "windowIcon")
+    t.menuButton = MenuButton
+    local o = t:CreateTexture(nil, "ARTWORK")
+    o:SetTexture("Interface\\AddOns\\Bejeweled\\images\\windowIcon")
     o:SetPoint("Topleft", -12, 4)
     o:SetWidth(64)
     o:SetHeight(64)
@@ -5393,8 +5396,8 @@ local function g()
     i:SetPoint("Topleft", t)
     i:SetPoint("Topright", t, -8, 0)
     i:SetHeight(o[2])
-    local i = i:CreateTexture(nil, "Art")
-    i:SetTexture(l .. "artPieces")
+    local i = i:CreateTexture(nil, "ARTWORK")
+    i:SetTexture("Interface\\AddOns\\Bejeweled\\images\\artPieces")
     i:SetPoint("Bottom", 0, 0)
     i:SetWidth(o[1])
     i:SetHeight(o[2])
@@ -5422,9 +5425,10 @@ local function g()
         Bejeweled.window:StopMovingOrSizing()
         Bejeweled.window.resizing = nil
     end)
-    t:SetMaxResize(q * 1.5, me * 1.5)
-    t:SetMinResize(q / 2, me / 2)
-    t:SetResizable(true)
+	t:SetResizable(true)
+	-- TODO: Fix Resizable stuff
+    -- t:SetMaxResize(q * 1.5, me * 1.5)
+    -- t:SetMinResize(q / 2, me / 2)
     t:SetScript("OnSizeChanged", function(t)
         local o = t:GetWidth() / q
         local a = 1
@@ -5571,7 +5575,7 @@ local function P()
             Bejeweled.optionsScreen:Hide();
         end
     end)
-    local n = CreateFrame("Button", "BejeweledButtonResume", t, "OptionsButtonTemplate")
+    local n = CreateFrame("Button", "BejeweledButtonResume", t, "UIPanelButtonTemplate")
     n:SetPoint("Top", 2, -30)
     n:SetText("Resume")
     n:SetWidth(f - 20)
@@ -5582,7 +5586,7 @@ local function P()
         Bejeweled.levelBarButton:Hide()
     end)
     t.buttonResume = n
-    local n = CreateFrame("Button", "BejeweledButtonNewGame", n, "OptionsButtonTemplate")
+    local n = CreateFrame("Button", "BejeweledButtonNewGame", n, "UIPanelButtonTemplate")
     n:SetPoint("Bottom", 0, -32)
     n:SetParent(t)
     n:SetText("New Game")
@@ -5594,7 +5598,7 @@ local function P()
         Bejeweled.gameModeWindow:Show()
     end)
     t.buttonNewGame = n
-    local n = CreateFrame("Button", "BejeweledButtonSkills", n, "OptionsButtonTemplate")
+    local n = CreateFrame("Button", "BejeweledButtonSkills", n, "UIPanelButtonTemplate")
     n:SetPoint("Top", 0, -32)
     n:SetParent(t)
     n:SetText("Feats of Skill")
@@ -5611,7 +5615,7 @@ local function P()
         Bejeweled.levelBarButton:Show();
     end)
     t.buttonSkills = n
-    local n = CreateFrame("Button", "BejeweledButtonOptions", n, "OptionsButtonTemplate")
+    local n = CreateFrame("Button", "BejeweledButtonOptions", n, "UIPanelButtonTemplate")
     n:SetPoint("Top", 0, -32)
     n:SetParent(t)
     n:SetText("Options")
@@ -5628,7 +5632,7 @@ local function P()
         Bejeweled.levelBarButton:Show();
     end)
     t.buttonOptions = n
-    local n = CreateFrame("Button", "BejeweledButtonAbout", n, "OptionsButtonTemplate")
+    local n = CreateFrame("Button", "BejeweledButtonAbout", n, "UIPanelButtonTemplate")
     n:SetPoint("Top", 0, -32)
     n:SetParent(t)
     n:SetText("About")
@@ -5669,7 +5673,7 @@ local function N()
     t:SetBackdropColor(.6, .6, .6, 1)
     t:SetBackdropBorderColor(1, .8, .45)
     t:SetMovable(true)
-    local n = CreateFrame("Button", "", t, "UIPanelCloseButton" and "BackdropTemplate")
+    local n = CreateFrame("Button", "", t, "UIPanelButtonTemplate" and "BackdropTemplate")
     n:SetToplevel(true)
     n:SetPoint("Topright", t, "Topright", 0, 2)
     n:SetWidth(38)
@@ -5679,7 +5683,7 @@ local function N()
     n:SetTextColor(1, 1, 1)
     n:SetPoint("Top", 0, -28)
     n:SetWidth(f + 40)
-    n:SetText("")
+    n:SetText("X")
     n:Show()
     t.text = n
     t.text.tip1 = "Create a |cFF0070DD[Power Gem]|r by merging 4 gems of the same color. These new gems will explode when matched, scoring extra points!"
@@ -5720,7 +5724,7 @@ local function N()
     n:SetText("")
     n:Show()
     t.caption = n
-    local n = CreateFrame("Button", "", t, "OptionsButtonTemplate")
+    local n = CreateFrame("Button", "", t, "UIPanelButtonTemplate")
     n:SetPoint("Bottom", 0, 10)
     n:SetText(OKAY)
     n:SetWidth(f - 20)
@@ -5729,7 +5733,7 @@ local function N()
         Bejeweled.popup:Hide()
     end)
     t.button1 = n
-    local n = CreateFrame("Button", "", t, "OptionsButtonTemplate" )
+    local n = CreateFrame("Button", "", t, "UIPanelButtonTemplate" )
     n:SetPoint("Bottom", 0, 15)
     n:SetText("Feats of Skill")
     n:SetWidth(f - 20)
@@ -5739,7 +5743,7 @@ local function N()
         Bejeweled.menuWindow.buttonSkills:GetScript("OnClick")(t)
     end)
     t.button2 = n
-    local n = CreateFrame("Button", "", t.button2, "OptionsButtonTemplate")
+    local n = CreateFrame("Button", "", t.button2, "UIPanelButtonTemplate")
     n:SetPoint("Bottom", t.button2, "Top", 0, 5)
     n:SetText("Options")
     n:SetWidth(f - 20)
@@ -5791,7 +5795,7 @@ local function W()
             Bejeweled.menuWindow:Show();
         end
     end)
-    local n = CreateFrame("Button", "BejeweledGameModeNormal", t, "OptionsButtonTemplate")
+    local n = CreateFrame("Button", "BejeweledGameModeNormal", t, "UIPanelButtonTemplate")
     n:SetPoint("Top", 2, -30)
     n:SetText("Classic")
     n:SetWidth(f - 20)
@@ -5802,7 +5806,7 @@ local function W()
         Bejeweled.classicModeWindow:Show()
     end)
     t.buttonNormal = n
-    local n = CreateFrame("Button", "BejeweledGameModeTimed", n, "OptionsButtonTemplate")
+    local n = CreateFrame("Button", "BejeweledGameModeTimed", n, "UIPanelButtonTemplate")
     n:SetPoint("Bottom", 0, -36)
     n:SetParent(t)
     n:SetText("Timed")
@@ -5863,7 +5867,7 @@ local function F()
             Bejeweled.gameModeWindow:Show();
         end
     end)
-    local n = CreateFrame("Button", "BejeweledClassicNewGame", t, "OptionsButtonTemplate")
+    local n = CreateFrame("Button", "BejeweledClassicNewGame", t, "UIPanelButtonTemplate")
     n:SetPoint("Top", 2, -30)
     n:SetText("Continue")
     n:SetWidth(f - 20)
@@ -5874,7 +5878,7 @@ local function F()
         Bejeweled.classicModeWindow:Hide()
     end)
     t.buttonContinue = n
-    local n = CreateFrame("Button", "BejeweledClassicContinue", n, "OptionsButtonTemplate")
+    local n = CreateFrame("Button", "BejeweledClassicContinue", n, "UIPanelButtonTemplate")
     n:SetPoint("Bottom", 0, -36)
     n:SetParent(t)
     n:SetText("New Game")
@@ -5982,7 +5986,7 @@ local function D()
         end
         t.timer.windowElapsed = 0;
     end)
-    local t = CreateFrame("Button", "BejeweledFlightOptionGo", n, "OptionsButtonTemplate") t:SetPoint("Top", 2, -120)
+    local t = CreateFrame("Button", "BejeweledFlightOptionGo", n, "UIPanelButtonTemplate") t:SetPoint("Top", 2, -120)
     t:SetText("Start")
     t:SetWidth(f - 20)
     t:SetHeight(28)
@@ -6127,7 +6131,7 @@ local function R()
     t:SetText("0s")
     t:Show()
     o.timeRemainingValue = t
-    local t = CreateFrame("Button", "BejeweledTimedButtonGo", o, "OptionsButtonTemplate") t:SetPoint("Bottom", 1, 10)
+    local t = CreateFrame("Button", "BejeweledTimedButtonGo", o, "UIPanelButtonTemplate") t:SetPoint("Bottom", 1, 10)
     t:SetText("Go!")
     t:SetWidth(f - 20)
     t:SetHeight(28)
@@ -6328,7 +6332,7 @@ local function B()
     t:SetPoint("Top", 0, -20 - i)
     i = i + n
     o.comboValue = t
-    local n = CreateFrame("Button", "BejeweledSummaryButtonPublish", l, "OptionsButtonTemplate") n:SetPoint("Bottomleft", 8, 10)
+    local n = CreateFrame("Button", "BejeweledSummaryButtonPublish", l, "UIPanelButtonTemplate") n:SetPoint("Bottomleft", 8, 10)
     n:SetText("Publish Scores")
     n:SetWidth(120)
     n:SetHeight(28)
@@ -6349,7 +6353,7 @@ local function B()
         Bejeweled.popup:Hide();
     end)
     o.publishButton = n
-    n = CreateFrame("Button", "BejeweledSummaryButtonViewScores", l, "OptionsButtonTemplate") n:SetPoint("Bottom", 0, 10)
+    n = CreateFrame("Button", "BejeweledSummaryButtonViewScores", l, "UIPanelButtonTemplate") n:SetPoint("Bottom", 0, 10)
     n:SetText("See High Scores")
     n:SetWidth(128)
     n:SetHeight(28)
@@ -6359,7 +6363,7 @@ local function B()
         Bejeweled.popup:Hide()
     end)
     o.seeScoresButton = n
-    n = CreateFrame("Button", "BejeweledSummaryButtonBrag", l, "OptionsButtonTemplate") n:SetPoint("Bottomright", -8, 10)
+    n = CreateFrame("Button", "BejeweledSummaryButtonBrag", l, "UIPanelButtonTemplate") n:SetPoint("Bottomright", -8, 10)
     n:SetText("Brag!")
     n:SetWidth(120)
     n:SetHeight(28)
@@ -6481,7 +6485,7 @@ local function B()
     text:SetWidth(290)
     local o = i(40, 72, 240, "defaultPublish", "", nil, t, nil)
     o.publish = true
-    n = CreateFrame("Button", "BejeweledBragScreenBrag", t, "OptionsButtonTemplate") n:SetText("Brag!")
+    n = CreateFrame("Button", "BejeweledBragScreenBrag", t, "UIPanelButtonTemplate") n:SetText("Brag!")
     n:SetWidth(120)
     n:SetHeight(28)
     n:ClearAllPoints()
@@ -6501,7 +6505,7 @@ local function B()
         e.seeScoresButton:Enable()
         e.bragButton:Enable();
     end)
-    n = CreateFrame("Button", "BejeweledBragScreenBack", t, "OptionsButtonTemplate") n:SetText("Back")
+    n = CreateFrame("Button", "BejeweledBragScreenBack", t, "UIPanelButtonTemplate") n:SetText("Back")
     n:SetWidth(120)
     n:SetHeight(28)
     n:ClearAllPoints()
@@ -7613,7 +7617,6 @@ local function m()
     t:SetPoint("Topleft", 12, -42)
     t:SetWidth(336)
     t:Show()
-    t:SetFont(STANDARD_TEXT_FONT, 11, "Outline")
     t:SetText("Programmer: |cFFFFFFFFMichael Fromwiller|r\n" .. "Artist: |cFFFFFFFFTysen Henderson|r\n" .. "Producer: |cFFFFFFFFT. Carl Kwoh|r\n" .. "PopCap QA: |cFFFFFFFFShawn Conard, Ryan Newitt,\nJonathan Green|r\n\n" .. "Maintained by:\n|cFFFFFFFFKadecgos, Nighthawk42, and Contributors|r\n\n" .. "Original Bejeweled:\n|cFFFFFFFFJason Kapalka, Brian Fiete, John Vechey|r\n\n")
     t:SetJustifyH("CENTER")
     t = Bejeweled:CreateCaption(0, 0, "", n, 13, 1, .85, .1)
@@ -7621,6 +7624,7 @@ local function m()
     t:SetPoint("Topleft", 17, -215)
     t:SetWidth(326)
     t:Show()
+	t:SetFont(STANDARD_TEXT_FONT, 11, "Outline")
     t:SetText("Special Thanks:\n" .. '|cFFFFFFFFMorphieus "Lothaer" (Spinebreaker-A), Eleya (Eredar-A), Anthony Coleman, Ben Lyon, and Jeff Weinstein.|r\n\n' .. "Beta Testers:\n" .. "|cFFFFFFFFNaiad (Ysera-H), Nie (Ysera-H), BraveOne (Aerie Peak-A), Brutall (Ysera-H), AvaCam (Gurubashi-H), Kepec (Kael'thas-A), Eldurin (Dalaran-A), Fnear (Cenarius-A), Jonsnow (Kael'thas EU-A), Ed|r")
     t:SetJustifyH("LEFT")
 end
@@ -7674,7 +7678,7 @@ function Bejeweled:Initialize_OptionsScreen()
     n:ClearAllPoints() n:SetPoint("Topleft", 16, -a - 12)
     n:SetFont(STANDARD_TEXT_FONT, 13)
     n:SetShadowOffset(1, -1)
-    local l = CreateFrame("Button", "BejeweledKeybindButton", o, "OptionsButtonTemplate") l:SetPoint("Topleft", 190, -a - 8)
+    local l = CreateFrame("Button", "BejeweledKeybindButton", o, "UIPanelButtonTemplate") l:SetPoint("Topleft", 190, -a - 8)
     l:SetText(BejeweledProfile.settings.keybinding or ("None"))
     l:SetWidth(180)
     l:SetHeight(20)
