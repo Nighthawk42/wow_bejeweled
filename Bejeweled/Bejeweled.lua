@@ -1632,7 +1632,7 @@ function Bejeweled:VariablesLoaded()
         Bejeweled.minimap:Hide();
     end
     if (BejeweledProfile.settings.minimapDetached == nil) then
-        Bejeweled.minimap:SetPoint("Center", Minimap, "Center", -(76 * math.cos(math.rad(BejeweledProfile.settings.minimapAngle or (0)))), (76 * math.sin(math.rad(BejeweledProfile.settings.minimapAngle or (0))))) else
+        Bejeweled.minimap:SetPoint("Center", Minimap, "Center", -(110 * math.cos(math.rad(BejeweledProfile.settings.minimapAngle or (0)))), (110 * math.sin(math.rad(BejeweledProfile.settings.minimapAngle or (0))))) else
         Bejeweled.minimap:SetPoint("Center", UIParent, "bottomleft", BejeweledProfile.settings.minimapX, BejeweledProfile.settings.minimapY);
     end
     Bejeweled.VariablesLoaded = nil
@@ -5194,7 +5194,7 @@ local function E()
     local t = CreateFrame("Frame", "BejeweledMinimapIcon", Minimap)
     t:SetWidth(33)
     t:SetHeight(33)
-    t:SetFrameStrata("LOW")
+    t:SetFrameStrata("HIGH")
     t:EnableMouse(true)
     t:SetClampedToScreen(true)
     t.icon = t:CreateTexture(nil, "BACKGROUND")
@@ -5214,7 +5214,7 @@ local function E()
     t.highlight:SetTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
     t.highlight:SetBlendMode("ADD")
     t.highlight:Hide()
-    t:SetPoint("Center", -(76 * math.cos(math.rad(0))), (76 * math.sin(math.rad(0))))
+    t:SetPoint("Center", -(105 * math.cos(math.rad(0))), (105 * math.sin(math.rad(0))))
     t:Show()
     t:SetScript("OnMouseDown", function(e, t)
         e.icon:SetPoint("Center", 0, 0)
@@ -5279,7 +5279,7 @@ local function E()
                 local e = math.deg(math.atan2((n / UIParent:GetScale()) - l, a - (o / UIParent:GetScale())))
                 BejeweledProfile.settings.minimapAngle = e
                 BejeweledProfile.settings.minimapDetached = nil
-                i:SetPoint("Center", Minimap, "Center", -(76 * math.cos(math.rad(e))), (76 * math.sin(math.rad(e))))
+                i:SetPoint("Center", Minimap, "Center", -(105 * math.cos(math.rad(e))), (105 * math.sin(math.rad(e))))
             end
         end
     end)
