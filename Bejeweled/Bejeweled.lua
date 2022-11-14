@@ -5425,10 +5425,8 @@ local function g()
         Bejeweled.window:StopMovingOrSizing()
         Bejeweled.window.resizing = nil
     end)
-	t:SetResizable(true)
-	-- TODO: Fix Resizable stuff
-    -- t:SetMaxResize(q * 1.5, me * 1.5)
-    -- t:SetMinResize(q / 2, me / 2)
+    t:SetResizable(true)
+    t:SetResizeBounds(q / 2, me / 2, q * 1.5, me * 1.5)
     t:SetScript("OnSizeChanged", function(t)
         local o = t:GetWidth() / q
         local a = 1
