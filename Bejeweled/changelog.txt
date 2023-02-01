@@ -1,4 +1,14 @@
 ===============================================
+Changed in 10.0.5
+===============================================
+
+- Added/Updated Interface versions for Dragonflight (Mainline), Wrath of The Lich King Classic (Wrath), and Classic (Vanilla).
+
+KNOWN ISSUES:
+Due to the sheer amount of changes regarding the UI in Dragonflight, there is a good chance things will break and will need to be changed going foward.
+Regarding support for Wrath and Vanilla it may prove necessary to rollback Bejeweled_Wrath.lua and Bejeweled_Classic.lua to pre-Dragonflight commits.
+
+===============================================
 Changed in 10.0.2
 ===============================================
 
