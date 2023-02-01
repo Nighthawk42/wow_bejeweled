@@ -1,8 +1,7 @@
-Project Archived - As I have moved onto other things and don't find myself playing WoW (or doing Lua much these days either) I'm hanging up the spurs for now. 
+This project is being archived in the near future. As I have moved onto other things and don't really have the time or effort in maintaining it. 
 
 I highly recommend those looking for continued support (as of Dragonflight) to head over to Kautzman's fork. Located here. 
 https://github.com/Kautzman/wow_bejeweled/
-
 
 
 Bejeweled has returned to Azeroth! A game made by PopCap Games, Inc.
