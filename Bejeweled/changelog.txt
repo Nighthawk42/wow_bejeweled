@@ -1,4 +1,10 @@
 ===============================================
+Changed in 11.0.2
+===============================================
+
+- Initial support for The War Within (Mainline), update Interface versions for Cataclysm Classic (Cata), and Classic (Vanilla).
+
+===============================================
 Changed in 10.0.5
 ===============================================
 

@@ -1,6 +1,6 @@
-## Interface: 30401
+## Interface: 40400
 ## Title: Bejeweled
-## Version: 3.4.1
+## Version: 4.4.0
 ## Notes: The popular game Bejeweled, for World of Warcraft!
 ## Author: PopCap Games, Inc.
 ## X-ArcadePanel: getglobal("BejeweledWindow"):Show();
@@ -9,5 +9,4 @@
 ## SavedVariables: BejeweledData
 ## SavedVariablesPerCharacter: BejeweledProfile
 
-Bejeweled_Wrath.lua
-
+Bejeweled_Cata.lua

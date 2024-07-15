@@ -1,6 +1,6 @@
-## Interface: 11403
+## Interface: 11503
 ## Title: Bejeweled
-## Version: 1.14.3
+## Version: 1.15.3
 ## Notes: The popular game Bejeweled, for World of Warcraft!
 ## Author: PopCap Games, Inc.
 ## X-ArcadePanel: getglobal("BejeweledWindow"):Show();
@@ -10,4 +10,3 @@
 ## SavedVariablesPerCharacter: BejeweledProfile
 
 Bejeweled_Vanilla.lua
-
