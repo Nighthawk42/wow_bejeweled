@@ -1,9 +1,10 @@
-July 15th, 2024 -- Project resumed, mainly for maintaining client support. Do not expect new features or bug fixes. 
-If you have a feature or bug fix, please fork the project and submit a pull request.
+December 21st, 2024 -- Project paused. Please don't expect new features or bug fixes. TOC updates may or may not come, the addon should work simply by checking "Load Outdated Addons" within the game client. 
+If you have a feature or bug fix, please fork the project and submit a pull request and I'll review it.
+
 ----
 Bejeweled has returned to Azeroth! A game made by PopCap Games, Inc.
 
-Just download the zip and place the "Bejeweled" folder into the /Interface/AddOns/ folder.
+Download the zip and place the "Bejeweled" folder into the /Interface/AddOns/ folder.
 
 Please use a bug reporting addon before opening issues.
 
