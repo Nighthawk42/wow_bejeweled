@@ -1422,19 +1422,6 @@ function Bejeweled:LoadAchievementEvents()
             end
         end
     end)
-    -- COMBAT_LOG_EVENT_UNFILTERED is no longer accessible to addons in Midnight.
-    -- The achievements below depend on combat log sub-events (PARTY_KILL, ENVIRONMENTAL_DAMAGE, etc.)
-    -- and have no known replacement API as of 12.x. To restore them, remove this early return,
-    -- replace COMBAT_LOG_EVENT_UNFILTERED with a working event source, and remove the corresponding
-    -- entries from UNAVAILABLE_FUN_ACHIEVEMENTS below.
-    Bejeweled.UNAVAILABLE_FUN_ACHIEVEMENTS = {
-        [1] = true,  -- FUNRANK1A: Die from falling damage
-        [4] = true,  -- FUNRANK2B: Kill a critter
-        [8] = true,  -- FUNRANK3C: Die from combat damage
-        [9] = true,  -- FUNRANK4A: Kill an elite monster
-        [13] = true, -- FUNRANK5B: Kill a rare spawn monster
-    }
-    do return end
     t.AddEvent = function(t, e, n)
         t.eventList[e] = t.eventList[e] or {} u(t.eventList[e], n)
         t:RegisterEvent(e)
@@ -1597,8 +1584,21 @@ function Bejeweled:LoadAchievementEvents()
     if (not o.gainFun15) then
         t:AddEvent("UPDATE_BATTLEFIELD_SCORE", function(t, t, ...)
             local n = 0
-            local scoreInfo = C_PvP.GetScoreInfoByPlayerGuid(GetPlayerGuid())
-            if scoreInfo and scoreInfo.ratingChange and scoreInfo.ratingChange > 0 then
+            local t
+            teamName1, oldTeamRating1, newTeamRating1 = GetBattlefieldTeamInfo(0)
+            teamName2, oldTeamRating2, newTeamRating2 = GetBattlefieldTeamInfo(1)
+            if (oldTeamRating1 ~= 0) and (oldTeamRating2 ~= 0) then
+                if (teamName1 == GetArenaTeam(1)) or (teamName1 == GetArenaTeam(2)) or (teamName1 == GetArenaTeam(3)) then
+                    if (oldTeamRating1 < newTeamRating1) then
+                        t = true;
+                    end
+                elseif (teamName2 == GetArenaTeam(1)) or (teamName2 == GetArenaTeam(2)) or (teamName2 == GetArenaTeam(3)) then
+                    if (oldTeamRating2 < newTeamRating2) then
+                        t = true;
+                    end
+                end
+            end
+            if t then
                 n = Bejeweled.skillBar:CheckSkill(Bejeweled.const.SKILLTYPE_FUN, Bejeweled.const.SKILL_FUNRANK6B);
             end
             return (n ~= 0)
@@ -2607,21 +2607,16 @@ local function lt(a, r, o, i, n, d)
     if t then
         B(a.lightningQueue, 1)
     else
-        t = Bejeweled.foreground:CreateLine(nil, "ARTWORK")
+        t = Bejeweled.foreground:CreateTexture(nil, "ARTWORK")
         t:SetTexture(l .. "lightning")
-        t.highlight = Bejeweled.foreground:CreateLine(nil, "OVERLAY")
+        t.highlight = Bejeweled.foreground:CreateTexture(nil, "OVERLAY")
         t.highlight:SetTexture(l .. "lightning");
     end
     t:SetVertexColor(unpack(he[d]))
     t.fxType = We
     t.fxFrame = 1
-    t:SetStartPoint("TOPLEFT", Bejeweled.gameBoard, r, -o)
-    t:SetEndPoint("TOPLEFT", Bejeweled.gameBoard, i, -n)
-    t:SetThickness(128)
-    t.highlight:SetStartPoint("TOPLEFT", Bejeweled.gameBoard, r, -o)
-    t.highlight:SetEndPoint("TOPLEFT", Bejeweled.gameBoard, i, -n)
-    t.highlight:SetThickness(128)
-    t:Show()
+	-- FixMe:  DrawRouteLine no longer exists.  This is what generates the 'Lightning' effect when you use an 'Ultra' gem.  The gem still works, but the effect is now missing.
+    -- DrawRouteLine(t, Bejeweled.gameBoard, r, -o, i, -n, 128, "TOPLEFT") DrawRouteLine(t.highlight, Bejeweled.gameBoard, r, -o, i, -n, 128, "TOPLEFT") t:Show()
     t.highlight:Show()
     return t;
 end
@@ -3512,8 +3507,9 @@ function Bejeweled:UpdateSavedVariablesDatabase()
         t.insets.right = 3
         n:SetBackdrop(t)
         n:SetBackdropColor(.7, .7, .7, 1)
-        local t = CreateFrame("Button", "", n, "UIPanelCloseButton") t:SetToplevel(true)
-        t:SetPoint("Topright", n, "Topright", -2, -2)
+        local t = CreateFrame("Button", "", n, "UIPanelCloseButton" and "BackdropTemplate") t:SetToplevel(true)
+        t:SetPoint("Topright", n, "Topright", 2, 2) t:SetWidth(32)
+        t:SetHeight(32)
         t:SetScript("OnClick", function(e)
             e:GetParent():Hide()
         end)
@@ -4974,6 +4970,8 @@ local function A()
 end
 
 local function V()
+    C_ChatInfo.RegisterAddonMessagePrefix(xe)
+    C_ChatInfo.RegisterAddonMessagePrefix("BEJ2a")
     local o = CreateFrame("Frame", "BejeweledNetwork", UIParent)
     o:SetWidth(1)
     o:SetHeight(1)
@@ -5342,9 +5340,11 @@ local function g()
             T(false);
         end
     end)
-    local o = CreateFrame("Button", "", t, "UIPanelCloseButton")
+    local o = CreateFrame("Button", "", t, "UIPanelCloseButton" and "BackdropTemplate")
     o:SetToplevel(true)
-    o:SetPoint("Topright", t, "Topright", -2, -2)
+    o:SetPoint("Topright", t, "Topright", 2, 2)
+    o:SetWidth(32)
+    o:SetHeight(32)
     o:SetScript("OnClick", function(t)
         if not Bejeweled.popup:IsVisible() then
             Bejeweled.window:Hide();
@@ -5538,8 +5538,10 @@ local function P()
     t:SetBackdropColor(.6, .6, .6, 1)
     t:SetBackdropBorderColor(1, .8, .45)
     t:SetMovable(true)
-    local o = CreateFrame("Button", "", t, "UIPanelCloseButton")
-    o:SetPoint("Topright", t, "Topright", -2, -2)
+    local o = CreateFrame("Button", "", t, "UIPanelCloseButton" and "BackdropTemplate")
+    o:SetPoint("Topright", t, "Topright", 0, 2)
+    o:SetWidth(38)
+    o:SetHeight(38)
     local o = t:CreateFontString(nil, "Overlay")
     o:SetFont(STANDARD_TEXT_FONT, 16, "Outline")
     o:SetTextColor(1, 1, 1)
@@ -5674,6 +5676,8 @@ local function N()
     local n = CreateFrame("Button", "", t, "UIPanelButtonTemplate" and "BackdropTemplate")
     n:SetToplevel(true)
     n:SetPoint("Topright", t, "Topright", 0, 2)
+    n:SetWidth(38)
+    n:SetHeight(38)
     local n = t:CreateFontString(nil, "Overlay")
     n:SetFont(STANDARD_TEXT_FONT, 13, "Outline")
     n:SetTextColor(1, 1, 1)
@@ -5769,9 +5773,11 @@ local function W()
     t:SetBackdropColor(.6, .6, .6, 1)
     t:SetBackdropBorderColor(1, .8, .45)
     t:SetMovable(true)
-    local n = CreateFrame("Button", "", t, "UIPanelCloseButton")
+    local n = CreateFrame("Button", "", t, "UIPanelCloseButton" and "BackdropTemplate")
     n:SetToplevel(true)
-    n:SetPoint("Topright", t, "Topright", -2, -2)
+    n:SetPoint("Topright", t, "Topright", 0, 2)
+    n:SetWidth(38)
+    n:SetHeight(38)
     local n = t:CreateFontString(nil, "Overlay")
     n:SetFont(STANDARD_TEXT_FONT, 16, "Outline")
     n:SetTextColor(1, 1, 1)
@@ -5833,9 +5839,11 @@ local function F()
     t:SetBackdropColor(.6, .6, .6, 1)
     t:SetBackdropBorderColor(1, .8, .45)
     t:SetMovable(true)
-    local n = CreateFrame("Button", "", t, "UIPanelCloseButton")
+    local n = CreateFrame("Button", "", t, "UIPanelCloseButton" and "BackdropTemplate")
     n:SetToplevel(true)
-    n:SetPoint("Topright", t, "Topright", -2, -2)
+    n:SetPoint("Topright", t, "Topright", 0, 2)
+    n:SetWidth(38)
+    n:SetHeight(38)
     local n = t:CreateFontString(nil, "Overlay")
     n:SetFont(STANDARD_TEXT_FONT, 16, "Outline")
     n:SetTextColor(1, 1, 1)
@@ -5905,9 +5913,11 @@ local function D()
     n:SetBackdropColor(.6, .6, .6, 1)
     n:SetBackdropBorderColor(1, .8, .45)
     n:SetMovable(true)
-    local t = CreateFrame("Button", "", n, "UIPanelCloseButton")
+    local t = CreateFrame("Button", "", n, "UIPanelCloseButton" and "BackdropTemplate")
     t:SetToplevel(true)
-    t:SetPoint("Topright", n, "Topright", -2, -2)
+    t:SetPoint("Topright", n, "Topright", 0, 2)
+    t:SetWidth(38)
+    t:SetHeight(38)
     local t = n:CreateFontString(nil, "Overlay")
     t:SetFont(STANDARD_TEXT_FONT, 16, "Outline")
     t:SetTextColor(1, 1, 1)
@@ -6024,8 +6034,9 @@ local function R()
     o:SetBackdropColor(.6, .6, .6, 1)
     o:SetBackdropBorderColor(1, .8, .45)
     o:SetMovable(true)
-    local t = CreateFrame("Button", "", o, "UIPanelCloseButton") t:SetToplevel(true)
-    t:SetPoint("Topright", o, "Topright", -2, -2)
+    local t = CreateFrame("Button", "", o, "UIPanelCloseButton" and "BackdropTemplate") t:SetToplevel(true)
+    t:SetPoint("Topright", o, "Topright", 0, 2) t:SetWidth(38)
+    t:SetHeight(38)
     local t = o:CreateFontString(nil, "Overlay")
     t:SetFont(STANDARD_TEXT_FONT, 16, "Outline")
     t:SetTextColor(1, 1, 1)
@@ -7367,14 +7378,6 @@ local function u()
                             t.texture:SetTexCoord(0, 401 / 512, 60 / 128, 120 / 128)
                             t.icon:SetVertexColor(.5, .5, .5);
                         end
-                        -- START unavailable achievement display (see UNAVAILABLE_FUN_ACHIEVEMENTS in LoadAchievementEvents)
-                        if (e == 6) and Bejeweled.UNAVAILABLE_FUN_ACHIEVEMENTS and Bejeweled.UNAVAILABLE_FUN_ACHIEVEMENTS[o] then
-                            t.title:SetVertexColor(.4, .4, .4)
-                            t.text:SetText("|cFFFF3333No longer available due to Midnight API changes|r")
-                            t.text:SetVertexColor(1, 1, 1)
-                            t.icon:SetVertexColor(.3, .3, .3)
-                        end
-                        -- END unavailable achievement display
                         t.text:Show()
                         t.title:Show()
                         t.texture:Show()
@@ -7682,8 +7685,6 @@ function Bejeweled:Initialize_OptionsScreen()
     l:SetScript("OnClick", function(t)
         if (t.savedText) then
             Bejeweled.window:EnableKeyboard(false)
-            Bejeweled.window:SetScript("OnKeyDown", nil)
-            Bejeweled.window:SetScript("OnKeyUp", nil)
             Bejeweled.window.newKeybindButton = ""
             Bejeweled.window.keybindModifier = ""
             t:UnlockHighlight()
@@ -7695,83 +7696,7 @@ function Bejeweled:Initialize_OptionsScreen()
             Bejeweled.window.keybindModifier = ""
             t:LockHighlight()
             t.savedText = t:GetText()
-            t:SetText("Press key or ESC to clear")
-            Bejeweled.window:SetScript("OnKeyUp", function(e, t)
-                if (t == "LSHIFT" or t == "RSHIFT" or t == "LCTRL" or t == "RCTRL" or t == "LALT" or t == "RALT") then
-                    local t = ""
-                    e.keybindModifier = ""
-                    if (IsAltKeyDown()) then
-                        e.keybindModifier = "ALT"
-                        t = "-";
-                    end
-                    if (IsControlKeyDown()) then
-                        e.keybindModifier = e.keybindModifier .. t .. "CTRL"
-                        t = "-";
-                    end
-                    if (IsShiftKeyDown()) then
-                        e.keybindModifier = e.keybindModifier .. t .. "SHIFT";
-                    end
-                end
-            end)
-            Bejeweled.window:SetScript("OnKeyDown", function(frame, keyInput)
-                if (keyInput == "ESCAPE") then
-                    frame:EnableKeyboard(false)
-                    frame:SetScript("OnKeyDown", nil)
-                    frame:SetScript("OnKeyUp", nil)
-                    frame.keybindButton:SetText("None")
-                    frame.keybindButton:UnlockHighlight()
-                    frame.keybindButton.savedText = nil
-                    BejeweledProfile.settings.keybinding = nil
-                    ClearOverrideBindings(frame)
-                else
-                    if (GetBindingFromClick(keyInput) == "SCREENSHOT") then
-                        RunBinding("SCREENSHOT")
-                        return;
-                    end
-                    if (keyInput == "UNKNOWN") then
-                        return;
-                    end
-                    if (keyInput == "LSHIFT" or keyInput == "RSHIFT" or keyInput == "LCTRL" or keyInput == "RCTRL" or keyInput == "LALT" or keyInput == "RALT") then
-                        keyInput = G(keyInput, 2)
-                        if (frame.keybindModifier == "" or frame.keybindModifier == nil) then
-                            frame.keybindModifier = keyInput
-                        else
-                            if not string.find(frame.keybindModifier, keyInput) then
-                                frame.keybindModifier = frame.keybindModifier .. "-" .. keyInput;
-                            end
-                        end
-                        return
-                    elseif (frame.newKeybindButton ~= "") then
-                        return;
-                    end
-                    local n = ""
-                    frame.keybindModifier = ""
-                    if (IsAltKeyDown()) then
-                        frame.keybindModifier = "ALT"
-                        n = "-";
-                    end
-                    if (IsControlKeyDown()) then
-                        frame.keybindModifier = frame.keybindModifier .. n .. "CTRL"
-                        n = "-";
-                    end
-                    if (IsShiftKeyDown()) then
-                        frame.keybindModifier = frame.keybindModifier .. n .. "SHIFT";
-                    end
-                    if (frame.keybindModifier == "") then
-                        frame.newKeybindButton = keyInput
-                    else
-                        frame.newKeybindButton = frame.keybindModifier .. "-" .. keyInput;
-                    end
-                    frame:EnableKeyboard(false)
-                    frame:SetScript("OnKeyDown", nil)
-                    frame:SetScript("OnKeyUp", nil)
-                    frame.keybindButton:SetText(frame.newKeybindButton)
-                    frame.keybindButton:UnlockHighlight()
-                    frame.keybindButton.savedText = nil
-                    SetOverrideBindingClick(frame, true, frame.newKeybindButton, "BejeweledShowHideButton")
-                    BejeweledProfile.settings.keybinding = frame.newKeybindButton;
-                end
-            end)
+            t:SetText("Press key or ESC to clear");
         end
     end)
     i.keybindButton = l
@@ -7869,6 +7794,80 @@ function Bejeweled:Initialize_OptionsScreen()
     Bejeweled:CreateCheckbox(190, -t, "On Enter Combat", "closeCombat", 1, o)
     t = t + 16
 	
+    i:SetScript("OnKeyUp", function(e, t)
+        if (t == "LSHIFT" or t == "RSHIFT" or t == "LCTRL" or t == "RCTRL" or t == "LALT" or t == "RALT") then
+            local t = ""
+            e.keybindModifier = ""
+            if (IsAltKeyDown()) then
+                e.keybindModifier = "ALT"
+                t = "-";
+            end
+            if (IsControlKeyDown()) then
+                e.keybindModifier = e.keybindModifier .. t .. "CTRL"
+                t = "-";
+            end
+            if (IsShiftKeyDown()) then
+                e.keybindModifier = e.keybindModifier .. t .. "SHIFT";
+            end
+        end
+    end)
+	
+    i:SetScript("OnKeyDown", function(frame, keyInput)
+        if (keyInput == "ESCAPE") then
+            frame:EnableKeyboard(false)
+            frame.keybindButton:SetText("None")
+            frame.keybindButton:UnlockHighlight()
+            frame.keybindButton.savedText = nil
+            BejeweledProfile.settings.keybinding = nil
+            ClearOverrideBindings(frame)
+        else
+            if (GetBindingFromClick(keyInput) == "SCREENSHOT") then
+                RunBinding("SCREENSHOT")
+                return;
+            end
+            if (keyInput == "UNKNOWN") then
+                return;
+            end
+        
+            if (keyInput == "LSHIFT" or keyInput == "RSHIFT" or keyInput == "LCTRL" or keyInput == "RCTRL" or keyInput == "LALT" or keyInput == "RALT") then
+                keyInput = G(keyInput, 2)
+                if (frame.keybindModifier == "" or frame.keybindModifier == nil) then
+                    frame.keybindModifier = keyInput
+                else
+                    if not string.find(frame.keybindModifier, keyInput) then
+                        frame.keybindModifier = frame.keybindModifier .. "-" .. keyInput;
+                    end
+                end
+                return
+            elseif (frame.newKeybindButton ~= "") then
+                return;
+            end
+            local n = ""
+            frame.keybindModifier = ""
+            if (IsAltKeyDown()) then
+                frame.keybindModifier = "ALT"
+                n = "-";
+            end
+            if (IsControlKeyDown()) then
+                frame.keybindModifier = frame.keybindModifier .. n .. "CTRL"
+                n = "-";
+            end
+            if (IsShiftKeyDown()) then
+                frame.keybindModifier = frame.keybindModifier .. n .. "SHIFT";
+            end
+            if (frame.keybindModifier == "") then
+                frame.newKeybindButton = keyInput
+            else
+                frame.newKeybindButton = frame.keybindModifier .. "-" .. keyInput;
+            end
+            frame:EnableKeyboard(false)
+            frame.keybindButton:SetText(frame.newKeybindButton)
+            frame.keybindButton:UnlockHighlight()
+            frame.keybindButton.savedText = nil
+            SetOverrideBindingClick(frame, true, frame.newKeybindButton, "BejeweledShowHideButton")
+            BejeweledProfile.settings.keybinding = frame.newKeybindButton;
+        end
+    end);
 end
 
 local function S(i, t, l, o)

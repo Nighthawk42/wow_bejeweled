@@ -4970,6 +4970,8 @@ local function A()
 end
 
 local function V()
+    C_ChatInfo.RegisterAddonMessagePrefix(xe)
+    C_ChatInfo.RegisterAddonMessagePrefix("BEJ2a")
     local o = CreateFrame("Frame", "BejeweledNetwork", UIParent)
     o:SetWidth(1)
     o:SetHeight(1)
