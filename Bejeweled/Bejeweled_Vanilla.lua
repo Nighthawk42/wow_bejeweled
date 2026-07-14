@@ -795,7 +795,7 @@ local function j(S, ...)
             n = -1;
         end
         local s = true
-        if (n >= t[10][3]) then
+        if (t and (n >= t[10][3])) then
             if (BejeweledProfile.settings.hideDuplicates) then
                 for e = 1, 10 do
                     if (o == t[e][1]) then
@@ -926,7 +926,6 @@ local function _t(t)
                 Bejeweled.network:Send("HSPub", o, "WHISPER", n);
             end
         end
-        t.publishButton:Hide();
     end
     t.bragButton:Show()
     t.publishButton.dataDump = o
@@ -1764,7 +1763,7 @@ local function dt(l, a)
         local r = 0
         local d
         for a = 1, GetNumGuildMembers(true) do
-            i = GetGuildRosterInfo(a)
+            i = Ambiguate(GetGuildRosterInfo(a) or "", "short")
             d = nil
             for a = 1, 10 do
                 o = n.classic[a][1]
@@ -1875,7 +1874,7 @@ function Bejeweled:ScrubLists()
                         end
                     else
                         for e = 1, GetNumGuildMembers(true) do
-                            r = GetGuildRosterInfo(e)
+                            r = Ambiguate(GetGuildRosterInfo(e) or "", "short")
                             if (i == r) then
                                 a = true
                                 break;
@@ -3507,7 +3506,7 @@ function Bejeweled:UpdateSavedVariablesDatabase()
         t.insets.right = 3
         n:SetBackdrop(t)
         n:SetBackdropColor(.7, .7, .7, 1)
-        local t = CreateFrame("Button", "", n, "UIPanelCloseButton" and "BackdropTemplate") t:SetToplevel(true)
+        local t = CreateFrame("Button", "", n, "UIPanelCloseButton") t:SetToplevel(true)
         t:SetPoint("Topright", n, "Topright", 2, 2) t:SetWidth(32)
         t:SetHeight(32)
         t:SetScript("OnClick", function(e)
@@ -5340,7 +5339,7 @@ local function g()
             T(false);
         end
     end)
-    local o = CreateFrame("Button", "", t, "UIPanelCloseButton" and "BackdropTemplate")
+    local o = CreateFrame("Button", "", t, "UIPanelCloseButton")
     o:SetToplevel(true)
     o:SetPoint("Topright", t, "Topright", 2, 2)
     o:SetWidth(32)
@@ -5538,7 +5537,7 @@ local function P()
     t:SetBackdropColor(.6, .6, .6, 1)
     t:SetBackdropBorderColor(1, .8, .45)
     t:SetMovable(true)
-    local o = CreateFrame("Button", "", t, "UIPanelCloseButton" and "BackdropTemplate")
+    local o = CreateFrame("Button", "", t, "UIPanelCloseButton")
     o:SetPoint("Topright", t, "Topright", 0, 2)
     o:SetWidth(38)
     o:SetHeight(38)
@@ -5773,7 +5772,7 @@ local function W()
     t:SetBackdropColor(.6, .6, .6, 1)
     t:SetBackdropBorderColor(1, .8, .45)
     t:SetMovable(true)
-    local n = CreateFrame("Button", "", t, "UIPanelCloseButton" and "BackdropTemplate")
+    local n = CreateFrame("Button", "", t, "UIPanelCloseButton")
     n:SetToplevel(true)
     n:SetPoint("Topright", t, "Topright", 0, 2)
     n:SetWidth(38)
@@ -5839,7 +5838,7 @@ local function F()
     t:SetBackdropColor(.6, .6, .6, 1)
     t:SetBackdropBorderColor(1, .8, .45)
     t:SetMovable(true)
-    local n = CreateFrame("Button", "", t, "UIPanelCloseButton" and "BackdropTemplate")
+    local n = CreateFrame("Button", "", t, "UIPanelCloseButton")
     n:SetToplevel(true)
     n:SetPoint("Topright", t, "Topright", 0, 2)
     n:SetWidth(38)
@@ -5913,7 +5912,7 @@ local function D()
     n:SetBackdropColor(.6, .6, .6, 1)
     n:SetBackdropBorderColor(1, .8, .45)
     n:SetMovable(true)
-    local t = CreateFrame("Button", "", n, "UIPanelCloseButton" and "BackdropTemplate")
+    local t = CreateFrame("Button", "", n, "UIPanelCloseButton")
     t:SetToplevel(true)
     t:SetPoint("Topright", n, "Topright", 0, 2)
     t:SetWidth(38)
@@ -6034,7 +6033,7 @@ local function R()
     o:SetBackdropColor(.6, .6, .6, 1)
     o:SetBackdropBorderColor(1, .8, .45)
     o:SetMovable(true)
-    local t = CreateFrame("Button", "", o, "UIPanelCloseButton" and "BackdropTemplate") t:SetToplevel(true)
+    local t = CreateFrame("Button", "", o, "UIPanelCloseButton") t:SetToplevel(true)
     t:SetPoint("Topright", o, "Topright", 0, 2) t:SetWidth(38)
     t:SetHeight(38)
     local t = o:CreateFontString(nil, "Overlay")
@@ -6336,6 +6335,8 @@ local function B()
     n:SetText("Publish Scores")
     n:SetWidth(120)
     n:SetHeight(28)
+    n:SetScript("OnEnter", function(t) GameTooltip:SetOwner(t, "ANCHOR_TOP") GameTooltip:SetText("Manually (re-)send your score to guild chat and online friends.", 1, 1, 1, 1, true) GameTooltip:Show() end)
+    n:SetScript("OnLeave", function() GameTooltip:Hide() end)
     n:SetScript("OnClick", function(t)
         if (t.dataDump) then
             Bejeweled.network:Send("HSPub", t.dataDump, "GUILD", "")
@@ -6345,8 +6346,6 @@ local function B()
                     Bejeweled.network:Send("HSPub", t.dataDump, "WHISPER", n);
                 end
             end
-            t.dataDump = nil
-            t:Hide()
             Bejeweled.menuWindow.buttonSkills:GetScript("OnClick")(Bejeweled.menuWindow.buttonSkills)
             Bejeweled.featsOfSkillScreen.tab3:GetScript("OnMouseDown")(Bejeweled.featsOfSkillScreen.tab3);
         end
@@ -6376,7 +6375,7 @@ local function B()
     end)
     o.bragButton = n
     Bejeweled.Dropdown_Item_OnClick = function(t)
-        local e = UIDROPDOWNMENU_OPEN_MENU
+        local e = UIDROPDOWNMENU_OPEN_MENU or getglobal("BejeweledDropdown_defaultPublish")
         UIDropDownMenu_SetText(e, t:GetText(), e)
         UIDropDownMenu_SetSelectedValue(e, t.value)
         BejeweledProfile.settings.defaultPublish = t.value
@@ -7157,7 +7156,7 @@ local function u()
     i:SetPoint("Top", 0, -10) i:SetWidth(s + 6 - 24)
     i:SetHeight(w + 6 - 68)
     i:Hide()
-    i:SetID(3)
+    i:SetID(4)
     i:SetScript("OnShow", function(e)
         local t = e:GetID()
         if (t == 3) then
@@ -7183,7 +7182,6 @@ local function u()
     getglobal(t:GetName() .. "Text"):SetText("Show Friends Scores")
     t:SetHitRectInsets(0, -130, 0, 0)
     t:SetID(3)
-    t:SetChecked(true)
     i.friends = t
     t = Bejeweled:CreateCheckbox(200, 0, "Show Guild Scores", "viewGuild", 1, i, n, true)
     getglobal(t:GetName() .. "Text"):SetFont(l .. "Contb___.ttf", 12, "Outline")
@@ -7191,6 +7189,7 @@ local function u()
     getglobal(t:GetName() .. "Text"):SetText("Show Guild Scores")
     t:SetHitRectInsets(0, -130, 0, 0)
     t:SetID(4)
+    t:SetChecked(true)
     i.guild = t
     t = Bejeweled:CreateCaption(0, 0, "Best Classic Mode Score |cFFFF9922(Points)", i, 12, 1, .85, .1, true)
     t:ClearAllPoints()
@@ -7419,6 +7418,8 @@ local function m()
     i:SetPoint("Top", 0, -3 - 22) i:SetWidth(s + 6)
     i:SetHeight(w + 6 - 22)
     i:EnableMouse(true)
+    i:EnableKeyboard(true)
+    i:SetPropagateKeyboardInput(true)
     local r = C()
     r.bgFile = l .. "windowBackground"
     r.tileSize = 128
@@ -8005,6 +8006,7 @@ local function k()
     local r = g()
     Bejeweled.animator = x
     Bejeweled.window = r
+    r:SetPropagateKeyboardInput(true)
     P()
     R()
     W()
