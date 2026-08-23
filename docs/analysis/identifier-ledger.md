@@ -55,7 +55,7 @@ Each row identifies one declaration, not merely one spelling. `chunk` means the 
 | `Re` / chunk | 258 | Assigned `#FX_SHINE_ALPHA` (=6), duplicating `it`. | shine alpha count alias | working | High for value, low for distinct role (223, 258). | 01–01 | UI/Animations | Why two aliases? |
 | `g` / chunk | 259 | Constant `9`; identifies hyper-gem cleanup (1990–1995) and the hyper glow animator branch (4618–4647), then is shadowed by the main-window factory at 5290. | `hyperGemFxType` | resolved | High. | 01–11 | UI/Animator | Preserve numeric effect value. |
 | `mt` / chunk | 260 | Constant `40`; no batch-01 read. | unknown constant | unresolved | Low. | 01–01 | Unassigned | Locate consumers. |
-| `te` / chunk | 261 | Constant `10`; assigned to all multiplier floating-text objects (513, 518). | `multiplierTextFxType` | working | High for observed role; enum ownership pending. | 01–02 | UI/Animations | Find effect dispatcher branch. |
+| `te` / chunk | 261 | Effect enum `10`; assigned to multiplier and skill-gain floating text (513, 518, 6721), and animator branch moves/fades those objects before returning them to queue (4767–4786). | `FX_FLOATING_TEXT` | resolved | High. | 01–14 | UI/Animator, UI/Skills | Preserve numeric effect value. |
 | `be` / chunk | 262 | Constant `10`; no batch-01 read. | unknown constant | unresolved | Low. | 01–01 | Unassigned | Distinguish from `te`. |
 | `t` / chunk (line 263) | 263 | Constant `11`; shadowed at 273. | unknown enum eleven | shadowed | Low: declaration only. | 01–01 | Engine | Was any lexical read optimized away? |
 | `Ve` / chunk | 264 | Constant `12`; no batch-01 read. | unknown enum twelve | unresolved | Low. | 01–01 | Engine | Distinguish from `Xe`. |
@@ -101,7 +101,7 @@ Each row identifies one declaration, not merely one spelling. `chunk` means the 
 | `Ge` / chunk | 304 | Receives `string.sub`, copied to `G` (318), nilled (330). | temporary `string.sub` alias | dead | High. | 01–01 | Core | None after `G` capture. |
 | `Ae` / chunk | 305 | Receives `math.floor`, copied to `d` (314), nilled (331). | temporary `math.floor` alias | dead | High. | 01–01 | Core | None after `d` capture. |
 | `t` / chunk (line 306) | 306 | Receives `tostring`, copied to `Y` (317), nilled (332). | temporary `tostring` alias | dead | High. | 01–01 | Core | None after `Y` capture. |
-| `m` / chunk | 307 | Copies `math.random`; called for randomized gem X/Y velocities (1998). | `random` | resolved | High: alias and calls. | 01–04 | Engine/Grid, UI/Animations | None. |
+| `m` / chunk | 307 | Copies `math.random`; drives gem velocities/spawn gaps, special placement/shards, and skill-gain probability through line 6667. | `random` | resolved | High. | 01–14 | Engine/Grid, UI/Animator, Engine/Skills | None. |
 | `c` / chunk | 309 | Constant `1`; keys `Ce`; controls classic score/bar/results and pause alpha behavior (467, 500, 536, 611, 881, 1278–1352). | `GAME_MODE_CLASSIC` | resolved | High: repeated explicit classic behavior. | 01–03 | Core/Constants | None for identity. |
 | `ae` / chunk | 310 | Constant `2`; keys `Ce`; pause handling shows/hides `pausedText` specifically for this mode (1299–1304). | `GAME_MODE_TIMED` | resolved | High: paired PPS evidence plus explicit pause UI. | 01–03 | Core/Constants | None for identity. |
 | `k` / chunk | 311 | Constant `3`; keys `Ce`; controls flight-learning timer and pause/animator behavior (552, 639, 1278–1352). | `GAME_MODE_FLIGHT_LEARNING` | resolved | High: repeated explicit learning-mode branches. | 01–03 | Core/Constants | Broader flight-mode naming may refine. |
@@ -110,9 +110,9 @@ Each row identifies one declaration, not merely one spelling. `chunk` means the 
 | `j` / chunk (byte alias) | 312 | Copies `string.byte`; called by codec helpers (667, 720, 764), then shadowed by function at 769; earlier closures retain it. | `stringByte` | resolved | High: direct alias/calls and lexical capture. | 01–02 | Core/SavedVariables | None. |
 | `P` / chunk (char alias) | 313 | Copies `string.char`; called inside encoder `x` (692, 694, 708), then shadowed by function at 735; `x` retains it. | `stringChar` | resolved | High: direct alias/calls and lexical capture. | 01–02 | Core/SavedVariables | None. |
 | `d` / chunk | 314 | Copies `math.floor`; called for timer, codec, score popup, and flight-duration values (558, 564, 582, 677, 687, 698, 878–879, 900, 911, 933, 1023, 1366). | `floor` | resolved | High: direct alias and calls. | 01–03 | Core | None. |
-| `u` / chunk | 315 | Receives `table.insert`; queues animations and event callbacks (457, 1425). | `tableInsert` | resolved | High: direct alias and calls. | 01–03 | Core | None. |
+| `u` / chunk | 315 | Receives `table.insert`; queues animation/effect/network/channel records through line 6477, then is shadowed by Feats of Skill factory at 6521. Earlier closures retain it. | `tableInsert` | resolved | High. | 01–14 | Core | None. |
 | `B` / chunk | 316 | Receives `table.remove`; consumes flight-path triples, event callbacks, animation/effect queues, and network queue heads through line 6167, then is shadowed by summary factory at 6252. Earlier closures retain it. | `tableRemove` | resolved | High. | 01–13 | Core | None. |
-| `Y` / chunk | 317 | Copies `tostring`; converts decoded checksum/rank values (750, 890, 912). | `toString` | resolved | High: direct alias and calls. | 01–02 | Core | None. |
+| `Y` / chunk | 317 | Copies `tostring`; converts checksum/rank values and a next-section index used for header lookup (750, 890, 912, 6858). | `toString` | resolved | High. | 01–14 | Core, UI/Skills | None. |
 | `G` / chunk | 318 | Copies `string.sub`; slices checksum payloads, decimal digits, and rank prefixes (745–755, 777–778). | `stringSub` | resolved | High: direct alias and calls. | 01–02 | Core/SavedVariables | None. |
 | `D` / chunk | 319 | Copies `tonumber`; parses checksum digits, rank prefixes, and inbound score fields (751–755, 777, 1520, 3305, 3338), then is shadowed by the flight-option factory at 5895. Earlier closures retain it. | `toNumber` | resolved | High. | 01–12 | Core/SavedVariables | None. |
 | `R` / chunk | 320 | Copies `type`; rejects non-string scores and identifies numeric gem fields during reset (742, 1955). | `valueType` | resolved | High: direct alias and calls. | 01–04 | Core/SavedVariables, UI/GemPool | None. |
@@ -506,7 +506,7 @@ Completed factories are resolved by pool/field contracts. The open match scanner
 | `e`,`l` / `ee` locals | 3239 | Cursor coordinates from `GetCursorPosition`, later reused for target column/row. | `cursorXOrColumn`,`cursorYOrRow` | resolved | High. | 07–07 | Engine/Input | Verify Retail coordinate scaling. |
 | `r`,`i` / `ee` locals | 3240–3241 | Horizontal and vertical displacement from pressed gem, normalized on the selected axis. | `deltaX`,`deltaY` | resolved | High. | 07–07 | Engine/Input | None. |
 | `d` / `ee` local | 3242 | Neighbor chosen from dominant drag direction. | `targetGem` | resolved | High. | 07–07 | Engine/Input | None. |
-| `U` / shadow function; `n` param | 3270 | Selects one of four tabs and restyles all tab buttons; shadows color-name table for later code. | `selectTab`; `tabButton` | resolved | High. | 07–07 | UI/Tabs | None. |
+| `U` / shadow function; `n` param | 3270 | Selects/restyles one of four tabs and is attached to every Feats of Skill tab at 6568, 6585, 6602, and 6619; shadows color-name table for later code. | `selectTab`; `tabButton` | resolved | High. | 07–14 | UI/Tabs, UI/Skills | None. |
 | `e` / `U` first local | 3271 | Declared and immediately shadowed before any read. | — | dead | High. | 07–07 | UI/Tabs | None. |
 | `e` / `U` parent local | 3272 | Parent container whose contents/buttons are updated. | `container` | resolved | High. | 07–07 | UI/Tabs | None. |
 | `t` / `U` loop | 3273 | Tab index 1–4. | `index` | resolved | High. | 07–07 | UI/Tabs | None. |
@@ -789,14 +789,14 @@ Factories `g`, `P`, `N`, `W`, and `F` close in this batch, so their constructed-
 | `m` / taxi-node-type local | 6177 | Live `TaxiNodeGetType` result selects forced-disabled reachable or empty current branch. | `nodeType` | resolved | High. | 13–13 | UI/Flight | API requires verification. |
 | `l` / disabled route loop | 6185 | Route index 1 through global `NUM_TAXI_ROUTES`; loop is unreachable. | `routeIndex` | resolved | High. | 13–13 | UI/Flight | None. |
 | `e` / disabled fallback local | 6214 | Candidate saved flight-time table checked for source/destination keys. | `savedFlightTimes` | resolved | High. | 13–13 | UI/Flight | Branch is forced unreachable. |
-| `B` / shadow function | 6252 | Begins summary-screen and brag UI construction, shadowing `table.remove` captured by earlier closures; remains open after line 6500. | `createSummaryScreen` | working | High for ownership. | 13–13 | UI/Summary | Complete in batch 14. |
+| `B` / shadow function | 6252 | Constructs summary metrics, publishing/high-score/brag actions, dropdown/channel filtering, and nested brag screen; closes at 6519 after shadowing `table.remove` retained by earlier closures. | `createSummaryScreen` | resolved | High. | 13–14 | UI/Summary | None. |
 | `n` / summary-window local | 6253 | Main window used only to derive summary/inner-panel frame levels before line-6281 shadow. | `window` | resolved | High. | 13–13 | UI/Summary | None. |
-| `o` / summary-frame local | 6254 | Summary screen receives metrics/actions/brag child and is installed globally; shadowed by dropdown local at 6485 after earlier closures capture it. | `summaryScreen` | working | High. | 13–13 | UI/Summary | Complete factory in batch 14. |
+| `o` / summary-frame local | 6254 | Summary screen receives metrics/actions/brag child and is installed globally; shadowed by dropdown local at 6485 after all needed closures capture it. | `summaryScreen` | resolved | High. | 13–14 | UI/Summary | None. |
 | `a` / summary backdrop local | 6257 | Backdrop descriptor applied to summary, inner panel, and brag screen. | `backdropInfo` | resolved | High. | 13–13 | UI/Summary | None. |
-| `t` / summary content local | 6267 | Starts as title/metric captions and values, then is reassigned to brag screen at 6446; factory remains open. | `contentObject` | working | High. | 13–13 | UI/Summary | Split temporal roles in rewrite. |
+| `t` / summary content local | 6267 | Starts as title/metric captions and values, then is reassigned to nested brag screen used through Back-button creation. | `contentObject` | resolved | High. | 13–14 | UI/Summary | Split temporal roles in rewrite. |
 | `l` / summary inner-panel local | 6271 | Inset panel parents metric captions and action buttons. | `contentPanel` | resolved | High. | 13–13 | UI/Summary | None. |
 | `n`,`r` / summary spacing locals | 6281–6282 | Value-row increment 42 and caption-row increment 20 used by layout accumulator `i`. | `valueSpacing`,`captionSpacing` | resolved | High. | 13–13 | UI/Summary | None. |
-| `n` / summary-action local | 6334 | Publish button, then reassigned to See High Scores, Brag, and nested brag-submit buttons through line 6487. | `actionButton` | working | High. | 13–13 | UI/Summary | Callback remains open in batch 14. |
+| `n` / summary-action local | 6334 | Reassigned through Publish, See High Scores, Brag, brag-submit, and Back buttons; all callbacks close with factory. | `actionButton` | resolved | High. | 13–14 | UI/Summary | Split roles in rewrite. |
 | `t` / publish tooltip param | 6338 | Publish button becomes tooltip owner. | `publishButton` | resolved | High. | 13–13 | UI/Summary | None. |
 | `t` / publish-click param | 6340 | Publish button supplies `dataDump` for guild/friend network sends. | `publishButton` | resolved | High. | 13–13 | UI/Summary, Network/Publishing | None. |
 | `o` / publish friend pre-loop local | 6343 | Nil binding immediately hidden by numeric-for variable. | — | dead | High. | 13–13 | Network/Publishing | None. |
@@ -829,9 +829,79 @@ Factories `g`, `P`, `N`, `W`, and `F` close in this batch, so their constructed-
 | `text` / implicit chunk global | external; write/read 6482–6484 | Undeclared brag prompt caption assigned and immediately configured. | `bragPrompt` | working | High for role; accidental global. | 13–13 | UI/Summary | Must become local. |
 | `o` / brag-dropdown local | 6485 | Dropdown returned by local factory and marked `publish`; shadows summary-frame local after all required captures. | `publishDropdown` | resolved | High. | 13–13 | UI/Summary | None. |
 | `t` / brag-submit callback param | 6492 | Clicked-button parameter is unused before a local shadows its spelling at 6494. | — | dead | High. | 13–13 | UI/Summary | None. |
-| `e` / brag-submit local | 6493 | Summary alias supplying `bragString`; callback remains open after line 6500. | `summaryScreen` | working | High. | 13–13 | UI/Summary | Complete in batch 14. |
+| `e` / brag-submit local | 6493 | Summary alias supplies/clears `bragString`, hides nested screen/Brag action, and re-enables all actions before callback closes. | `summaryScreen` | resolved | High. | 13–14 | UI/Summary | Brag remains hidden after being enabled. |
 | `t` / brag-channel local | 6494 | Numeric result of `GetChannelName(defaultPublish)` selecting channel-ID versus distribution send. | `channelId` | resolved | High. | 13–13 | UI/Summary, Network/Publishing | API accepts configured string input in legacy flow. |
 
 ## Batch 13 resolution policy
 
 Factories `D` and `R`, helper `M`, and taxi handler `y` close in this batch, supporting resolved ownership even where taxi estimation is deliberately unreachable. Implicit globals, forced-false API code, chunk scratch/key reuse, and the `#(...)` vararg defect are preserved as evidence. Open summary factory `B`, its temporally reused locals, and the Brag callback remain working until batch 14.
+
+## Batch 14 declarations and scopes
+
+| Legacy identifier / scope | Decl. | Evidence | Proposed name | Status | Confidence | First–last | Target | Question |
+| --- | ---: | --- | --- | --- | --- | --- | --- | --- | --- |
+| `t` / brag-Back callback param | 6512 | Back button hides its parent brag screen. | `backButton` | resolved | High. | 14–14 | UI/Summary | None. |
+| `e` / brag-Back local | 6514 | Summary alias used to re-enable three action buttons. | `summaryScreen` | resolved | High. | 14–14 | UI/Summary | None. |
+| `u` / shadow function | 6521 | Begins Feats of Skill screen/tabs/skill engine/list construction and shadows `table.insert` retained by earlier closures; remains open after line 7000. | `createFeatsOfSkillScreen` | working | High for ownership. | 14–14 | UI/Skills | Complete in batch 15. |
+| `o` / `u` window local | 6522 | Main window used to derive Feats frame levels. | `window` | resolved | High. | 14–14 | UI/Skills | None. |
+| first `t` / `u` locals | 6523 | Nil declaration immediately shadowed by line-6524 `t`. | — | shadowed | High. | 14–14 | UI/Skills | Minifier artifact. |
+| second `t` / `u` local | 6524 | Game-board frame used as parent for Feats screen before line-6555 shadow. | `gameBoard` | resolved | High. | 14–14 | UI/Skills | None. |
+| `a` / `u` local | 6525 | Feats of Skill screen configured, installed, and receiving tabs/content; factory remains open. | `featsOfSkillScreen` | working | High. | 14–14 | UI/Skills | Complete in batch 15. |
+| `d` / `u` backdrop scratch | 6529 | Backdrop descriptor reassigned for Feats screen, skill bar, bar background, and list panel through line 6818. | `backdropInfo` | resolved | High. | 14–14 | UI/Skills | Split descriptors in rewrite. |
+| `t` / Feats `OnShow` param | 6538 | Screen frame used to show four tabs while gameplay visuals become transparent. | `featsOfSkillScreen` | resolved | High. | 14–14 | UI/Skills | Pause ownership continues beyond hide callback. |
+| `t` / Feats `OnHide` param | 6548 | Callback parameter is never read. | — | dead | High. | 14–14 | UI/Skills | None. |
+| `n` / tab-scale local | 6554 | Constant `1.2` applied to each of four tabs before line-6630 shadow. | `tabScale` | resolved | High. | 14–14 | UI/Skills | None. |
+| `t` / tab/row object local | 6555 | Reassigned across four tab frames, title caption, and section header/item rows through line 6918. | `uiObject` | resolved | High. | 14–14 | UI/Skills | Split temporal roles in rewrite. |
+| `i` / tab-1-content local | 6621 | Tab-1 content frame owns title, skill bar, list, and open refresh callback. | `skillContent` | working | High. | 14–14 | UI/Skills | Callback/factory complete in batch 15. |
+| `n` / skill-bar local | 6630 | Skill-bar frame receives `CheckSkill`, visuals, and global installation before line-6831 shadow. | `skillBar` | resolved | High. | 14–14 | UI/Skills | None. |
+| `o` / `CheckSkill` self param | 6643 | Method receiver is shadowed by local `o` without a read. | — | shadowed | High. | 14–14 | Engine/Skills | None. |
+| `t`,`n`,`S` / `CheckSkill` params | 6643 | Skill type, skill-data index, and force flag drive eligibility, flags, awards, and recursion. | `skillType`,`skillIndex`,`forceAward` | resolved | High. | 14–14 | Engine/Skills | None. |
+| `r` / `CheckSkill` local | 6644 | Snapshot of current skill points used for eligibility/cap comparisons. | `skillPoints` | resolved | High. | 14–14 | Engine/Skills | None. |
+| `o` / `CheckSkill` local | 6645 | Skill-data table indexed by type and entry; shadows unused method receiver. | `skillData` | resolved | High. | 14–14 | Engine/Skills | None. |
+| `l` / `CheckSkill` local | 6646 | Truthy gain flag/value set on awarded paths and returned as `l or 0`. | `gainAwarded` | resolved | High. | 14–14 | Engine/Skills | Numeric value is always 1 when truthy. |
+| `d` / `CheckSkill` local | 6647 | Floating-text object for +3/+5 one-time awards. | `gainText` | resolved | High. | 14–14 | Engine/Skills, UI/Animator | None. |
+| `h` / `CheckSkill` local | 6648 | Completion message for Fun/Achievement publication. | `completionMessage` | resolved | High. | 14–14 | Engine/Skills | None. |
+| `s` / `CheckSkill` local | 6649 | Numeric special award amount 3 or 5 used in chat output. | `specialGain` | resolved | High. | 14–14 | Engine/Skills | None. |
+| `a` / `CheckSkill` local | 6650 | Skill-point cap 450, reduced to 375 by `skillLimit`. | `skillCap` | resolved | High. | 14–14 | Engine/Skills | None. |
+| `c` / `CheckSkill` local | 6654 | Whether starting skill points exactly equal the selected cap. | `startedAtCap` | resolved | High. | 14–14 | Engine/Skills | None. |
+| `i` / `CheckSkill` local | 6656 | Difficulty tier 0–3 derived from threshold crossings and used in award probability. | `difficultyTier` | resolved | High. | 14–14 | Engine/Skills | None. |
+| first two `t` / meta-check locals | 6694 | Duplicate nil bindings are successively hidden by each other and line-6695 boolean. | — | shadowed | High. | 14–14 | Engine/Skills | Minifier artifact. |
+| `t` / meta-check local | 6695 | Boolean remains true only when all required Fun and Achievement flags are complete. | `allSkillsComplete` | resolved | High. | 14–14 | Engine/Skills | None. |
+| `e` / meta Fun loop | 6696 | Iterates every Fun entry and tests its completion flag. | `skillIndex` | resolved | High. | 14–14 | Engine/Skills | None. |
+| `n` / meta Achievement loop | 6703 | Iterates Achievement entries, excluding meta-achievement 6A; shadows `CheckSkill` parameter within loop. | `skillIndex` | resolved | High. | 14–14 | Engine/Skills | None. |
+| `t`,`n` / guild-rank locals | 6755–6756 | Announcement prefix and new rank used to choose `a` versus `an` and publish to guild. | `message`,`rank` | resolved | High. | 14–14 | Engine/Skills | None. |
+| `o` / skill-bar-background local | 6780 | Backdrop frame behind fill texture; shadowed by fill-texture declaration after setup. | `barBackground` | resolved | High. | 14–14 | UI/Skills | None. |
+| `o` / skill-bar-fill local | 6793 | Blue `barArt` texture stored as `n.bar`. | `barFill` | resolved | High. | 14–14 | UI/Skills | Width is assigned by skill updates. |
+| `o` / skill-rank-icon local | 6801 | Left icon texture, then reassigned to right icon before line-6815 shadow. | `rankIcon` | resolved | High. | 14–14 | UI/Skills | Split left/right roles. |
+| `o` / skill-list-panel local | 6815 | Bordered list parent, then reassigned to scroll-child `S` for row construction. | `listParent` | resolved | High. | 14–14 | UI/Skills | None. |
+| `f` / skill-list local | 6822 | ScrollFrame created with only `BackdropTemplate` by Lua `and`, then assigned scroll child `S`. | `skillScrollFrame` | resolved | High. | 14–14 | UI/Skills | Preserved template defect candidate. |
+| `S` / skill-list local | 6825 | Tall content frame stored as scroll child and later reused as row parent through `o`. | `skillList` | resolved | High. | 14–14 | UI/Skills | None. |
+| `n` / skill-list pre-loop local | 6831 | Nil binding hidden by later loop/callback scopes and never read. | — | dead | High. | 14–14 | UI/Skills | Minifier artifact. |
+| `c` / skill-list local | 6832 | Previous header/item row used to chain vertical anchors. | `previousRow` | resolved | High. | 14–14 | UI/Skills | None. |
+| `r`,`p` / row-hover functions; `e` params | 6833, 6836 | OnEnter/OnLeave callbacks color row text white or gold. | `highlightRow`,`unhighlightRow`; `row` | resolved | High. | 14–14 | UI/Skills | None. |
+| `m` / section-toggle function; `i` param | 6839 | Expands/collapses one section, reanchors next header, updates height, and shadows captured random alias only for later factory code. | `toggleSkillSection`; `header` | resolved | High. | 14–14 | UI/Skills | `CheckSkill` closure retains random alias. |
+| first `t` / section-toggle locals | 6840 | Nil declaration immediately shadowed by line-6841 `t`. | — | shadowed | High. | 14–14 | UI/Skills | None. |
+| second `t` / section-toggle local | 6841 | Tab-1 content owning section rows and scroll height. | `skillContent` | resolved | High. | 14–14 | UI/Skills | None. |
+| `n`,`o`,`a` / section-toggle locals | 6842–6844 | Section ID, current row, and complete skill-data table. | `sectionId`,`row`,`skillData` | resolved | High. | 14–14 | UI/Skills | None. |
+| first `l` / section-toggle locals | 6845 | Nil declaration immediately shadowed by line-6846 `l`. | — | shadowed | High. | 14–14 | UI/Skills | None. |
+| second `l` / section-toggle local | 6846 | Per-row text height used in scroll-height changes. | `rowHeight` | resolved | High. | 14–14 | UI/Skills | None. |
+| `e` / collapse loop and expand sentinel | 6849, 6864 | Collapse index in one scope; last visible expanded row in a separate scope. | `itemIndex`,`lastVisibleRow` | resolved | High. | 14–14 | UI/Skills | None. |
+| `i` / expand loop | 6865 | Item index within selected section; shadows header parameter only within loop. | `itemIndex` | resolved | High. | 14–14 | UI/Skills | None. |
+| `h` / skill-text-size local | 6884 | Constant 13 assigned to content and used for header/item geometry. | `skillTextSize` | resolved | High. | 14–14 | UI/Skills | None. |
+| `n`,`l` / skill-list construction loops | 6886, 6909 | Section index 1–5 and per-section item index. | `sectionIndex`,`itemIndex` | resolved | High. | 14–14 | UI/Skills | None. |
+| `n` / `UpdateSkillScreen` param | 6921 | Tab-1 content frame receiving title, rows, header state, and open tutorial logic. | `skillContent` | working | High. | 14–14 | UI/Skills | Complete callback in batch 15. |
+| first `t` / refresh local | 6922 | Current rank used for title/bar/icon updates before later shadowing. | `rank` | resolved | High. | 14–14 | UI/Skills | None. |
+| `S` / refresh local | 6923 | Current skill-point total used for eligibility/color-tier selection. | `skillPoints` | resolved | High. | 14–14 | UI/Skills | None. |
+| `t` / refresh pre-declaration local | 6929 | Nil binding shadowed at line 6931 without a read. | — | shadowed | High. | 14–14 | UI/Skills | Minifier artifact. |
+| first `t` / refresh declaration at 6931 | 6931 | Hidden by second same-statement `t`. | — | shadowed | High. | 14–14 | UI/Skills | None. |
+| second `t` / refresh declaration at 6931 | 6931 | Section index in later population loop; callback remains open. | `sectionIndex` | working | High. | 14–14 | UI/Skills | Complete in batch 15. |
+| `l`,`o`,`h`,`s` / refresh locals | 6930–6931 | Eligibility/color tier, row, section-open state, and last populated row. | `tier`,`row`,`sectionOpen`,`lastRow` | working | High. | 14–14 | UI/Skills | Callback remains open. |
+| `a`,`d`,`r` / refresh locals | 6932–6934 | Skill-data table, row text height, and computed scroll height. | `skillData`,`rowHeight`,`scrollHeight` | working | High. | 14–14 | UI/Skills | Callback remains open. |
+| `e`,`t` / refresh reset loops | 6935, 6939 | Section and item indices used to hide/clear all preallocated rows. | `sectionIndex`,`itemIndex` | resolved | High. | 14–14 | UI/Skills | None. |
+| `t`,`i` / refresh population loops | 6945, 6954 | Section index and reverse skill-data entry index. | `sectionIndex`,`skillDataIndex` | working | High. | 14–14 | UI/Skills | Callback remains open. |
+| `foundFeat` / implicit chunk global | external; write/read 6953–6986 | Undeclared per-section boolean tracks whether any eligible feat was assigned. | `foundFeat` | working | High for role; accidental global. | 14–14 | UI/Skills | Must become callback-local. |
+| `itemID` / implicit chunk global | external; write/read 6971–6973 | Undeclared row-slot index copied from header `.current`, incremented, and used for item lookup. | `itemId` | working | High for role; accidental global. | 14–14 | UI/Skills | Must become callback-local. |
+
+## Batch 14 resolution policy
+
+Summary factory `B` closes, so its open action/frame bindings are resolved. `CheckSkill` and section-toggle bodies also close and support resolved threshold, award, cap, rank, and layout roles. Feats factory `u`, `UpdateSkillScreen`, its cross-branch locals, and implicit refresh globals remain working until batch 15.
