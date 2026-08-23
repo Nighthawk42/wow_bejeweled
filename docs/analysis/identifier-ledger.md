@@ -120,7 +120,7 @@ Each row identifies one declaration, not merely one spelling. `chunk` means the 
 | `z` / chunk (numeric overwrite) | 322 | Overwrites earlier binding with `7`; no batch-01 read. | unknown enum seven | unresolved | Low. | 01–01 | Engine | Locate consumers. |
 | `o` / chunk | 323 | Eight row tables initialized, exported as `debugArray`, and traversed as `o[row][column]` gem frames (324–326, 442, 1275–1293). | `gemGrid` | resolved | High: explicit 8×8 traversal. | 01–03 | Engine/Grid, UI/GemPool | Debug export naming is incidental. |
 | `e` / debug-array loop | 324 | Loop 1–8; indexes `o` for writes (325). | `index` | resolved | High: direct loop role. | 01–01 | Core/Init | None. |
-| `v` / chunk | 327 | Forward declaration; used as key for authenticated personal-best payload in `n.statDB` (887, 900). | `statEncodedScoreKey` | working | Medium: value type is proven; concrete selected key is not. | 01–02 | Core/SavedVariables | Find assignments for mode-specific key. |
+| `v` / chunk | 327 | Forward declaration; used as key for authenticated personal-best payload in `n.statDB` (887, 900) and signed zero payloads in classic/timed profile stats (3490–3491). | `statEncodedScoreKey` | working | Medium: value type is proven; concrete selected key is not. | 01–07 | Core/SavedVariables | Find assignments for mode-specific key. |
 | `I` / chunk | 327 | Forward declaration; used as key for numeric personal-best metric in `n.statDB` (885–886, 898–899). | `statNumericScoreKey` | working | Medium: value type is proven; concrete selected key is not. | 01–02 | Core/SavedVariables | Find assignments for mode-specific key. |
 | `ge` / chunk | 327 | Forward declaration populated by `ze` with faction-selected four-region coordinate adjacency graphs (1040–1249). | `flightGraph` | resolved | High: complete assignment shape. | 01–03 | Core/SavedVariables | Region meanings/search consumers pending. |
 | `we` / chunk | 327 | Forward declaration; assigned `true` when max-score level-up begins (529). | `levelUpPendingFlag` | working | Low: writer observed, reader absent. | 01–02 | Engine/Scoring, UI/Animations | Find consumer/reset. |
@@ -474,11 +474,53 @@ Complete helpers are resolved from full bodies. Same-spelling functions are sepa
 | `Ue` / shadow function; `t` local | 2770–2771 | Advances current-game level/multiplier/threshold. | `advanceLevel`; `gameState` | resolved | High. | 06–06 | Engine/Scoring | None. |
 | `Ce` / shadow function; `t`,`n` bindings | 2800–2801 | Processes hyper chain using gem and animator. | `triggerHyperChain` | resolved | High. | 06–06 | Engine/Matches | None. |
 | `S`,`s`,`i`,`r`,`l`,`d`,`e` / `Ce` locals/loops | 2814–2821 | Source/target centers, coordinates, row/column, matching gem. | coordinate/search roles | resolved | High. | 06–06 | Engine/Matches | None. |
-| `he` / chunk function | 2842 | Match scanner/marker continues after 3000. | `findAndMarkMatches` | working | High for prefix. | 06–06 | Engine/Matches | Complete in batch 07. |
-| `x`,`e`,`S`,`c`,`T`,`r`,`s`,`w`,`g`,`C`,`u`,`l`,`d`,`p`,`f` / `he` locals | 2843–2844 | Match-found flag, run length/color/counts, gem, creation flags and cross-arm bounds. | working match-scan roles | working | Medium: function incomplete. | 06–06 | Engine/Matches | Resolve on completion. |
-| `i`,`t`,`n`,`e`,`d`,`l` / `he` loops | 2845–2999 | Grid and vertical/horizontal run/cross-arm indices. | row/column/run indices | working | High for observed scopes. | 06–06 | Engine/Matches | Continue in batch 07. |
-| `explodeCount` / implicit chunk global | external; writes 2887, 2975 | Accumulates `Le` explosion returns and is passed to `M`. | `explosionCount` | working | High; accidental global. | 06–06 | Engine/Matches | Must become local. |
+| `he` / chunk function | 2842 | Scans vertical/horizontal matches, marks clears, creates power/hyper gems, reports matches/statistics, returns match-found at 3039. Shadows the RGB table captured by earlier effect factories. | `findAndMarkMatches` | resolved | High. | 06–07 | Engine/Matches | None. |
+| `x`,`e`,`S`,`c`,`T`,`r`,`s`,`w`,`g`,`C`,`u`,`l`,`d`,`p`,`f` / `he` locals | 2843–2844 | Match-found flag, run length/color/counts, gem, creation flags and cross-arm bounds. | match-scan roles by use | resolved | High. | 06–07 | Engine/Matches | None. |
+| `i`,`t`,`n`,`e`,`d`,`l` / `he` loops | 2845–3033 | Grid, run, and cross-arm indices in declaration-specific loop scopes. | row/column/run indices | resolved | High. | 06–07 | Engine/Matches | None. |
+| `explodeCount` / implicit chunk global | external; writes 2887, 2975; read 3019 | Accumulates `Le` explosion returns and is passed to `M`. | `explosionCount` | working | High; accidental global. | 06–07 | Engine/Matches | Must become local without changing accumulation. |
 
 ## Batch 06 resolution policy
 
 Completed factories are resolved by pool/field contracts. The open match scanner and its reused locals remain working until batch 07; accidental `explodeCount` is recorded as global evidence.
+
+## Batch 07 declarations and scopes
+
+| Legacy identifier / scope | Decl. | Evidence | Proposed name | Status | Confidence | First–last | Target | Question |
+| --- | ---: | --- | --- | --- | --- | --- | --- | --- |
+| `ce` / shadow function; `e` param | 3041 | Mouse-leave handler clears deferred hover or ends eligible effects. Shadows earlier half-gem-width constant only for later declarations. | `handleGemMouseLeave`; `gem` | resolved | High. | 07–07 | UI/GemPool | None. |
+| `Z` / shadow function; `t` param | 3057 | Main click/swap controller. `he` retains the earlier `createHyperGem` binding. | `handleGemClick`; `gem` | resolved | High. | 07–07 | Engine/Input | None. |
+| `r` / `Z` adjacency scope | 3082 | False until clicked gem is one orthogonal neighbor of current selection. | `isAdjacent` | resolved | High. | 07–07 | Engine/Input | None. |
+| `a` / `Z` swap scope | 3083 | Holds hyper activation/target state used with match result. | `hyperTriggered` | resolved | Medium-high. | 07–07 | Engine/Input, Engine/Matches | Preserve exact truthy values. |
+| `l` / `Z` swap scope | 3084 | Animator used for hints and moving-gem scheduling. | `animator` | resolved | High. | 07–07 | UI/Animations | None. |
+| `o`,`i` / `Z` selected-coordinate scope | 3089 | Hold selected X/Y; nested `o` at 3102 separately binds selected gem. | `selectedX`,`selectedY` | resolved | High. | 07–07 | Engine/Input | Keep nested binding distinct. |
+| `o` / `Z` adjacent-swap scope | 3102 | Selected gem paired with clicked parameter `t`. | `selectedGem` | resolved | High. | 07–07 | Engine/Input | None. |
+| `e` / `Z` bCrowbar scope | 3148 | Serialized previous-board state for optional bCrowbar integration. | `previousState` | resolved | High. | 07–07 | Integration/bCrowbar | None. |
+| `t` / repeated `Z` locals and loop | 3150–3151 | Repeated same-scope nil declarations precede board serialization loop. | dead temporaries / row index | dead | High. | 07–07 | Integration/bCrowbar | Remove only after equivalence tests. |
+| `n` / `Z` serialization loop | 3155 | Inner board index for bCrowbar previous-state capture. | `column` | resolved | High. | 07–07 | Integration/bCrowbar | None. |
+| `o`,`i` / `Z` generic loop | 3161 | Iterator key/value over serialized board state. | `key`,`value` | resolved | High. | 07–07 | Integration/bCrowbar | None. |
+| `i` / `Z` swap local | 3167 | Temporary used while exchanging gem identity/state. | `swapTemporary` | resolved | High. | 07–07 | Engine/Input | None. |
+| `l` / `Z` result scope | 3174 | Boolean indicating both swapping gems are hyper gems. | `bothHyper` | resolved | High. | 07–07 | Engine/Matches | None. |
+| `a` / `Z` result scope | 3182 | Receives `he` return and participates in valid-move decision. | `matchFound` | resolved | High. | 07–07 | Engine/Matches | None. |
+| `t`,`e` / `Z` invalid-result scope | 3208 | Snapshot `o.fxType` and `o.fxFrame`, then are never read. | — | dead | High. | 07–07 | Engine/Input | Remove after behavioral capture. |
+| `ee` / shadow function; `t` param | 3234 | Drag-release handler maps cursor displacement to a neighboring gem and calls new `Z`. `he` retains earlier `createPowerGem`. | `handleGemDragRelease`; `gem` | resolved | High. | 07–07 | Engine/Input | None. |
+| `e`,`l` / `ee` locals | 3239 | Cursor coordinates from `GetCursorPosition`, later reused for target column/row. | `cursorXOrColumn`,`cursorYOrRow` | resolved | High. | 07–07 | Engine/Input | Verify Retail coordinate scaling. |
+| `r`,`i` / `ee` locals | 3240–3241 | Horizontal and vertical displacement from pressed gem, normalized on the selected axis. | `deltaX`,`deltaY` | resolved | High. | 07–07 | Engine/Input | None. |
+| `d` / `ee` local | 3242 | Neighbor chosen from dominant drag direction. | `targetGem` | resolved | High. | 07–07 | Engine/Input | None. |
+| `U` / shadow function; `n` param | 3270 | Selects one of four tabs and restyles all tab buttons; shadows color-name table for later code. | `selectTab`; `tabButton` | resolved | High. | 07–07 | UI/Tabs | None. |
+| `e` / `U` first local | 3271 | Declared and immediately shadowed before any read. | — | dead | High. | 07–07 | UI/Tabs | None. |
+| `e` / `U` parent local | 3272 | Parent container whose contents/buttons are updated. | `container` | resolved | High. | 07–07 | UI/Tabs | None. |
+| `t` / `U` loop | 3273 | Tab index 1–4. | `index` | resolved | High. | 07–07 | UI/Tabs | None. |
+| `nt` / shadow function; `o`,`r` params | 3288 | Populates leaderboard rows for owner and selected list; shadows direction constant for later code. | `populateLeaderboard`; `owner`,`listKey` | resolved | High. | 07–07 | UI/Leaderboard | None. |
+| `t` / duplicated `nt` locals | 3293 | Two nil declarations superseded by row-loop `t` without a read. | — | dead | High. | 07–07 | UI/Leaderboard | None. |
+| `n`,`i`,`l` / `nt` locals | 3293 | Record name/rank/score values reused for classic and timed rows. | `name`,`rank`,`score` | resolved | High. | 07–07 | UI/Leaderboard | None. |
+| `h`,`a`,`S`,`d`,`s` / `nt` locals | 3294–3298 | Score list, cyan color, green color, player name, friend count. | `scoreList`,`cyan`,`green`,`playerName`,`friendCount` | resolved | High. | 07–07 | UI/Leaderboard | None. |
+| `t` / `nt` row loop | 3299 | Display row index 1–10. | `rowIndex` | resolved | High. | 07–07 | UI/Leaderboard | None. |
+| `e` / `nt` friend loops | 3315, 3348 | Friend-list index in distinct nested loop scopes. | `friendIndex` | resolved | High. | 07–07 | UI/Leaderboard | None. |
+| `Ne` / shadow function; `t`,`n` params | 3369 | Throttled timer `OnUpdate`; delta parameter `n` is consumed before a later local shadows it. Shadows direction constant for later code. | `updateTimer`; `frame`,`delta` | resolved | High. | 07–07 | UI/Timer | None. |
+| `n` / `Ne` timed-window local | 3378 | Timed-window object used after delta accumulation. | `timedWindow` | resolved | High. | 07–07 | UI/Timer | None. |
+| `i`,`a`,`t`,`o` / `UpdateSavedVariablesDatabase` locals | 3463–3466 | Classic stats, timed stats, saved state, and player identity/checksum; `o` changes role after upgrade checks. | `classicStats`,`timedStats`,`savedState`,`playerNameOrChecksum` | working | Medium-high. | 07–07 | Persistence/Migration | Continue method in batch 08. |
+| `n` / score-migration popup scope | 3494 | Popup frame constructed for incomplete score migration; construction continues after 3500. | `migrationPopup` | working | High for object role. | 07–07 | UI/Migration | Complete in batch 08. |
+
+## Batch 07 resolution policy
+
+Bindings are resolved only where complete control/data flow closes within this batch or the completed cross-batch `he` body. Locals in the open saved-variable method and ambiguous animator/row temporaries remain working; unused declarations are marked dead without yet authorizing removal.
