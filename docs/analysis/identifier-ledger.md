@@ -11,8 +11,8 @@ Each row identifies one declaration, not merely one spelling. `chunk` means the 
 | `ft` / chunk | 8 | Seven-entry colored/name table; no batch-01 read. | `gemDisplayNames` | working | Medium: ordered color names (8). | 01–01 | UI/HUD | Confirm indices and markup purpose. |
 | `he` / chunk | 169 | Nine RGB triples; initialized only in batch 01. | `gemColors` | working | Medium: values mirror seven gem colors plus two white entries (169–179). | 01–01 | Core/Constants | Determine meanings of indices 8–9. |
 | `U` / chunk | 180 | Numeric keys 1–7 map to lowercase color names. | `gemColorNames` | working | High: complete table at 180. | 01–01 | Core/Constants | Confirm use in asset filenames. |
-| `F` / chunk | 181 | Generated as 25 atlas rectangles, copied into `J`, and `F[1]` resets gem texture coordinates (199–208, 1969). | `gemAtlasRects` | working | High for gem consumer; atlas asset/other frames pending. | 01–04 | UI/GemPool, UI/Animations | Identify texture and off-by-one rationale. |
-| `N` / chunk | 182 | Written as nine UV rectangles in a 3×3 loop (218–222). | `atlas3x3Rects` | working | High for shape: indices and 42.66/128 math. | 01–01 | UI/Animations | Identify texture/effect frames. |
+| `F` / chunk | 181 | Generated as 25 gem-atlas rectangles, copied into `J`, and used for normal/reset/spawn-crop texture coordinates (199–208, 1969, 4340, 4555–4575), then shadowed by the classic-menu factory at 5823. | `gemAtlasRects` | resolved | High. | 01–12 | UI/GemPool, UI/Animator | Preserve legacy 255-based edge arithmetic. |
+| `N` / chunk | 182 | Nine 3×3 atlas rectangles drive lightwave, hint-highlight, and shine keyframes (218–222, 2597, 2765, 4313, 4367–4382), then are shadowed by the popup factory at 5656. | `shineAtlasRects` | resolved | High. | 01–12 | UI/Animator | Texture is shared by lightwave/highlight effects. |
 | `J` / chunk | 183 | Receives copies of all `F` rectangles via `unpack` (204–208). | `mutableAtlas50Rects` | working | Medium: copy semantics are explicit. | 01–01 | UI/Animations | Why is a second copy required? |
 | `O` / chunk | 184 | Written at 50 numeric indices using 10×5 normalized UV cells (188–198), consumed as the hyper-effect atlas (4618–4624), then shadowed by the sound factory at 5049. | `hyperFxAtlasRects` | resolved | High. | 01–11 | UI/Animator | None. |
 | `ie` / chunk | 185 | Written at 16 indices using a 4×4 UV grid (211–217). | `atlas4x4Rects` | working | High for shape, medium for texture. | 01–01 | UI/Animations | Identify owning texture. |
@@ -70,7 +70,7 @@ Each row identifies one declaration, not merely one spelling. `chunk` means the 
 | `t` / chunk (line 273) | 273 | Constant `51`; shadowed at 274. | unknown enum 51 | shadowed | High that it is unreachable after next declaration. | 01–01 | Unassigned | Minifier artifact? |
 | `t` / chunk (line 274) | 274 | Copies `p`; shadowed at 278. | unknown height alias | shadowed | High that it is unreachable after 278. | 01–01 | Unassigned | Minifier artifact? |
 | `le` / chunk | 275 | Constant `51`; no batch-01 read. | unknown enum 51 | unresolved | Low. | 01–01 | Engine | Locate consumers. |
-| `W` / chunk | 276 | Constant `52`; no batch-01 read. | unknown enum 52 | unresolved | Low. | 01–01 | Engine | Locate consumers. |
+| `W` / chunk | 276 | Effect enum `52`; assigned to spawned/off-board gems (3922) and dispatched by the animator's clipped entry branch (4523–4586), then shadowed by the game-mode-menu factory at 5757. | `FX_SPAWN` | resolved | High. | 01–12 | UI/Animator, Engine/BoardSpawn | Preserve numeric effect value. |
 | `at` / chunk | 277 | Constant `53`; assigned to every gem's `moving` field before random-velocity animation (1997–1999). | `gameOverMovementState` | working | Medium: `Ke` incomplete. | 01–04 | UI/Animations | Identify movement-state dispatcher. |
 | `t` / chunk (line 278) | 278 | Constant `16`; shadowed at 287. | unknown enum sixteen | shadowed | Low. | 01–01 | Engine | Locate any pre-287 read. |
 | `Te` / chunk | 279 | Constant `20`; halved into `oe` (289). | unknown dimension | unresolved | Low. | 01–01 | UI | Locate consumers. |
@@ -114,7 +114,7 @@ Each row identifies one declaration, not merely one spelling. `chunk` means the 
 | `B` / chunk | 316 | Receives `table.remove`; consumes three front entries from flight path and removes completed event callbacks (1367–1369, 1413). | `tableRemove` | resolved | High: direct alias and calls. | 01–03 | Core | None. |
 | `Y` / chunk | 317 | Copies `tostring`; converts decoded checksum/rank values (750, 890, 912). | `toString` | resolved | High: direct alias and calls. | 01–02 | Core | None. |
 | `G` / chunk | 318 | Copies `string.sub`; slices checksum payloads, decimal digits, and rank prefixes (745–755, 777–778). | `stringSub` | resolved | High: direct alias and calls. | 01–02 | Core/SavedVariables | None. |
-| `D` / chunk | 319 | Copies `tonumber`; parses checksum digits and rank prefixes (751–755, 777). | `toNumber` | resolved | High: direct alias and calls. | 01–02 | Core/SavedVariables | None. |
+| `D` / chunk | 319 | Copies `tonumber`; parses checksum digits, rank prefixes, and inbound score fields (751–755, 777, 1520, 3305, 3338), then is shadowed by the flight-option factory at 5895. Earlier closures retain it. | `toNumber` | resolved | High. | 01–12 | Core/SavedVariables | None. |
 | `R` / chunk | 320 | Copies `type`; rejects non-string scores and identifies numeric gem fields during reset (742, 1955). | `valueType` | resolved | High: direct alias and calls. | 01–04 | Core/SavedVariables, UI/GemPool | None. |
 | `re` / chunk (numeric overwrite) | 321 | Overwrites earlier binding with `40`; no batch-01 read. | unknown constant 40 | unresolved | Low. | 01–01 | Unassigned | Locate consumers. |
 | `z` / chunk (numeric overwrite) | 322 | Overwrites earlier binding with `7`; no batch-01 read. | unknown enum seven | unresolved | Low. | 01–01 | Engine | Locate consumers. |
@@ -185,7 +185,7 @@ Only direct standard-library aliases, loop counters with complete local bodies, 
 | `t` / first `H` second binding | 716 | Even-position byte-sum accumulator initialized from seed (722, 727–728). | `evenSum` | resolved | High. | 02–02 | Core/SavedVariables | None. |
 | `n`,`a`,`e`,`l`,`r` / first `H` outputs | 717 | Even ones/tens, odd ones/tens, and combined check digit (727–732). | `evenOnes`, `evenTens`, `oddOnes`, `oddTens`, `checkDigit` | resolved | High. | 02–02 | Core/SavedVariables | None. |
 | `e` / first `H` loop | 719 | Character index; parity chooses accumulator (720–725). | `index` | resolved | High. | 02–02 | Core/SavedVariables | None. |
-| `P` / chunk function | 735 | Prefixes packed checksum to payload; used by leaderboards, personal bests, and saved game state (736–739, 818–853, 887–911, 1933). | `authenticateScore` | resolved | High: complete body and consumers. | 02–04 | Core/SavedVariables | None. |
+| `P` / chunk function | 735 | Prefixes packed checksum to payload; used by leaderboards, personal bests, saved game state, and migration repair (736–739, 818–853, 887–911, 1933, 3475–3613), then is shadowed by the menu factory at 5519. Earlier closures retain it. | `authenticateScore` | resolved | High. | 02–12 | Core/SavedVariables | None. |
 | `e`,`t` / `P` parameters | 735 | Payload and optional checksum seed; parameter `t` is shadowed at 736 after initializer access. | `payload`, `seed` | resolved | High. | 02–02 | Core/SavedVariables | None. |
 | `t` / `P` defaulted seed | 736 | Defaults parameter seed, then is consumed by `H` initializer at 737 and shadowed by returned digit. | `seed` | shadowed | High. | 02–02 | Core/SavedVariables | None. |
 | `l`,`o`,`t`,`i`,`n` / `P` checksum outputs | 737 | Five checksum digits returned by first `H`, packed in reverse variable order into decimal positions at 738. | `d1`, `d2`, `d3`, `d4`, `d5` | resolved | High for positional role; descriptive checksum names intentionally neutral. | 02–02 | Core/SavedVariables | Semantic digit ordering is legacy-specific. |
@@ -672,8 +672,8 @@ Complete spawn, gravity, countdown, and state-transition bodies support resolved
 | `a`,`l` / minimap-drag locals | 5268–5269 | Minimap center X/Y derived from its left/bottom and half dimensions. | `minimapCenterX`,`minimapCenterY` | resolved | High. | 11–11 | UI/Minimap | None. |
 | `e`,`t` / minimap offset locals | 5270–5271 | UI-scaled cursor offsets from minimap center, then absolute cursor coordinates in the detached branch. | `x`,`y` | resolved | High. | 11–11 | UI/Minimap | Split offset/absolute roles in rewrite. |
 | `e` / attached-angle local | 5280 | Shadows X offset inside the attached branch and stores degrees derived by `atan2`. | `angleDegrees` | resolved | High. | 11–11 | UI/Minimap | Preserve argument order/sign convention. |
-| `g` / shadow function | 5290 | Begins the main-window constructor and shadows hyper-gem effect enum captured by earlier animator code; remains open after line 5500. | `createMainWindow` | working | High for ownership. | 11–11 | UI/MainWindow | Complete in batch 12. |
-| `t` / `g` local | 5291 | Main window receiving backdrop, drag/show/hide/resize controls and child frames; factory remains open. | `window` | working | High. | 11–11 | UI/MainWindow | Complete constructor in batch 12. |
+| `g` / shadow function | 5290 | Constructs and returns the main window, backdrop, drag/show/hide/resize controls, and mouse-over overlay; closes at 5517 after shadowing the hyper-gem enum captured by animator code. | `createMainWindow` | resolved | High. | 11–12 | UI/MainWindow | None. |
+| `t` / `g` local | 5291 | Main window receiving all controls/children, stored overlay, and final return at 5516. | `window` | resolved | High. | 11–12 | UI/MainWindow | None. |
 | `a` / main-window local | 5302 | Captured frame level used to place the resize handle three levels above it. | `frameLevel` | resolved | High. | 11–11 | UI/MainWindow | None. |
 | `o` / backdrop local | 5303 | Descriptor from `C()` populated with window textures/dimensions and passed to `SetBackdrop`. | `backdropInfo` | resolved | High. | 11–11 | UI/MainWindow | None. |
 | `e` / drag callbacks | 5313, 5318 | Distinct window-frame parameters used to start and stop moving/sizing. | `window` | resolved | High. | 11–11 | UI/MainWindow | None. |
@@ -688,14 +688,71 @@ Complete spawn, gravity, countdown, and state-transition bodies support resolved
 | `i` / logo-container local | 5396 | Frame anchored across the window header; used as texture parent in line-5400 initializer, then shadowed. | `logoContainer` | resolved | High. | 11–11 | UI/MainWindow | Lua 5.1 initializer scope is required. |
 | `i` / logo-texture local | 5400 | Texture created from prior `i`, configured from `o`, and stored as `t.logo`. | `logoTexture` | resolved | High. | 11–11 | UI/MainWindow | None. |
 | `o` / resize-handle local | 5407 | Mouse-enabled bottom-right frame that resets or begins sizing. | `resizeHandle` | resolved | High. | 11–11 | UI/MainWindow | None. |
-| `n`,`t` / resize `OnMouseDown` params | 5414 | Handle parameter is unused; button name selects reset versus sizing. | —; `mouseButton` | dead; resolved | High. | 11–11 | UI/MainWindow | None. |
+| `n` / resize `OnMouseDown` param | 5414 | Handle parameter is never read. | — | dead | High. | 11–11 | UI/MainWindow | None. |
+| `t` / resize `OnMouseDown` param | 5414 | Mouse-button name selects canonical-size reset versus right-edge sizing. | `mouseButton` | resolved | High. | 11–11 | UI/MainWindow | None. |
 | `t` / resize `OnMouseUp` param | 5425 | Callback handle parameter is never read. | — | dead | High. | 11–11 | UI/MainWindow | None. |
 | `t` / size-change param | 5431 | Main window supplies width, menu state, and logo/icon children and receives derived height. | `window` | resolved | High. | 11–11 | UI/MainWindow | None. |
 | `o`,`a`,`i`,`l`,`r` / size-change locals | 5432–5456 | Width/board scale, logo scale, icon scale, logo atlas metadata, and remaining logo width. | `scale`,`logoScale`,`iconScale`,`logoAtlas`,`availableLogoWidth` | resolved | High. | 11–11 | UI/MainWindow | Preserve quadratic threshold formulas. |
 | `n` / main-window auxiliary local | 5473 | Initially the global show/hide button, then reassigned to the full-window mouse-over screen at 5485. | `auxiliaryFrame` | resolved | High. | 11–11 | UI/MainWindow | Split temporal roles in rewrite. |
 | `t` / overlay `OnMouseDown` param | 5489 | Mouse-over screen hidden after canceling game-over fade. | `mouseOverScreen` | resolved | High. | 11–11 | UI/MainWindow | None. |
-| `t` / overlay `OnEnter` param | 5498 | Mouse-over screen callback remains open after its hiding guard at line 5500. | `mouseOverScreen` | working | High for frame role. | 11–11 | UI/MainWindow | Complete in batch 12. |
+| `t` / overlay `OnEnter` param | 5498 | Mouse-over screen hidden on reentry before window fade/sound restoration and conditional mouse-owned unpause. | `mouseOverScreen` | resolved | High. | 11–12 | UI/MainWindow | None. |
 
 ## Batch 11 resolution policy
 
 Factories `V`, `O`, and `E` close and install their frames in this batch, so their bindings and callback roles are resolved. Network delimiter and throttle behavior, sound flag coalescing, minimap coordinate derivations, and completed resize arithmetic are behavior-critical evidence. Open factory `g` and its open overlay callback remain working until batch 12.
+
+## Batch 12 declarations and scopes
+
+| Legacy identifier / scope | Decl. | Evidence | Proposed name | Status | Confidence | First–last | Target | Question |
+| --- | ---: | --- | --- | --- | --- | --- | --- | --- |
+| `P` / shadow function | 5519 | Constructs and installs the pause/menu frame and its Resume, New Game, Feats, Options, and About controls; shadows authenticated-score encoder retained by earlier closures. | `createMenuWindow` | resolved | High. | 12–12 | UI/Menu | Factory installs globally rather than returning. |
+| `t` / `P` local | 5520 | Menu frame configured through show/hide behavior and installed as `Bejeweled.menuWindow`. | `menuWindow` | resolved | High. | 12–12 | UI/Menu | None. |
+| `o` / menu backdrop local | 5530 | Backdrop descriptor populated and passed to the menu frame. | `backdropInfo` | resolved | High. | 12–12 | UI/Menu | None. |
+| `o` / menu close-button local | 5540 | Inherited close button configured before the spelling is shadowed. | `closeButton` | resolved | High. | 12–12 | UI/Menu | Template owns click behavior. |
+| `o` / menu-title local | 5544 | Font string displaying the `Menu` heading. | `titleText` | resolved | High. | 12–12 | UI/Menu | None. |
+| `t` / menu `OnShow` local | 5552 | Alias of `Bejeweled.menuWindow` used for button layout and height changes. | `menuWindow` | resolved | High. | 12–12 | UI/Menu | None. |
+| `t` / menu `OnHide` param | 5567 | Menu frame whose `keepScreen` handoff flag controls unpause/sub-screen cleanup. | `menuWindow` | resolved | High. | 12–12 | UI/Menu | None. |
+| `n` / menu button locals | 5577, 5588, 5600, 5617, 5634 | Successive Resume, New Game, Feats, Options, and About buttons. Each initializer uses the prior `n` as temporary parent before reparenting to the menu, then shadows it. | role-specific button names | resolved | High. | 12–12 | UI/Menu | Preserve Lua 5.1 initializer scope. |
+| `t` / Resume/New/Feats/Options callback params | 5582, 5594, 5606, 5623 | Four declaration-specific clicked-button parameters are never read. | — | dead | High. | 12–12 | UI/Menu | None. |
+| `t` / About callback param | 5640 | Clicked About button supplies its attached `tabClick` method before the About screen is shown. | `aboutButton` | resolved | High. | 12–12 | UI/Menu | None. |
+| `N` / shadow function | 5656 | Constructs and installs the tutorial/action popup; shadows shine-atlas binding captured by earlier effect closures. | `createPopup` | resolved | High. | 12–12 | UI/Popup | Factory installs globally rather than returning. |
+| `t` / `N` local | 5657 | Popup frame configured with message/caption/buttons/scripts and installed as `Bejeweled.popup`. | `popup` | resolved | High. | 12–12 | UI/Popup | None. |
+| `n` / popup backdrop local | 5665 | Backdrop descriptor populated and applied to the popup. | `backdropInfo` | resolved | High. | 12–12 | UI/Popup | None. |
+| `n` / popup top-right-button local | 5675 | Button created with only `BackdropTemplate` because Lua `and` returns its second string; configured but never retained or scripted before shadow. | `unwiredTopRightButton` | resolved | High. | 12–12 | UI/Popup | Preserved defect candidate. |
+| `n` / popup-message local | 5680 | Main message font string stored as `t.text` and augmented with four tutorial strings. | `messageText` | resolved | High. | 12–12 | UI/Popup | None. |
+| `n` / popup `OnShow` param | 5692 | Popup frame reanchored, resized, and used to toggle its three buttons. | `popup` | resolved | High. | 12–12 | UI/Popup | None. |
+| `obj` / implicit chunk global | external; read 5701 | Undeclared value assigned to `Bejeweled.popup.parent`; no declaration has appeared through line 6000. | unknown popup parent | unresolved | High that dependency is implicit; value unknown. | 12–12 | UI/Popup | External injection or accidental global? |
+| `t` / popup `OnHide` param | 5715 | Callback popup parameter is never read. | — | dead | High. | 12–12 | UI/Popup | None. |
+| `n` / popup-caption local | 5718 | Empty caption font string stored as `t.caption`. | `captionText` | resolved | High. | 12–12 | UI/Popup | None. |
+| `n` / popup-button locals | 5726, 5735, 5745 | Successive OK, Feats of Skill, and Options buttons stored as `button1`–`button3`; third is parented to the second. | `okButton`,`skillsButton`,`optionsButton` | resolved | High. | 12–12 | UI/Popup | None. |
+| `t` / popup OK callback param | 5731 | Clicked-button parameter is never read. | — | dead | High. | 12–12 | UI/Popup | None. |
+| `t` / popup navigation callbacks | 5740, 5750 | Clicked buttons are forwarded to the corresponding menu button's `OnClick`; those target callbacks do not consume them. | `button` | resolved | High. | 12–12 | UI/Popup, UI/Menu | Preserve direct script invocation. |
+| `W` / shadow function | 5757 | Constructs and installs the Classic/Timed game-type selector; shadows spawn-effect enum captured by earlier animator closures. | `createGameModeWindow` | resolved | High. | 12–12 | UI/Menu | Factory installs globally rather than returning. |
+| `t` / `W` local | 5758 | Game-type frame configured and installed as `Bejeweled.gameModeWindow`. | `gameModeWindow` | resolved | High. | 12–12 | UI/Menu | None. |
+| `n` / game-mode backdrop local | 5765 | Backdrop descriptor applied to game-type frame. | `backdropInfo` | resolved | High. | 12–12 | UI/Menu | None. |
+| `n` / game-mode close-button local | 5775 | Inherited close button configured before shadow. | `closeButton` | resolved | High. | 12–12 | UI/Menu | None. |
+| `n` / game-mode-title local | 5780 | Font string displaying `Game Type`. | `titleText` | resolved | High. | 12–12 | UI/Menu | None. |
+| `t` / game-mode `OnHide` param | 5789 | Selector frame whose transient `gameMode` flag distinguishes forward transition from back navigation. | `gameModeWindow` | resolved | High. | 12–12 | UI/Menu | Field name is not gameplay-mode identity. |
+| `n` / game-mode button locals | 5797, 5808 | Classic and Timed buttons; second initializer temporarily parents to the first before reparenting. | `classicButton`,`timedButton` | resolved | High. | 12–12 | UI/Menu | Preserve Lua 5.1 initializer scope. |
+| `t` / game-mode button callbacks | 5802, 5814 | Distinct clicked-button parameters are never read. | — | dead | High. | 12–12 | UI/Menu | None. |
+| `F` / shadow function | 5823 | Constructs and installs classic Continue/New Game selector; shadows gem atlas captured by earlier rendering/animator closures. | `createClassicModeWindow` | resolved | High. | 12–12 | UI/Menu | Factory installs globally rather than returning. |
+| `t` / `F` local | 5824 | Classic selector configured and installed as `Bejeweled.classicModeWindow`. | `classicModeWindow` | resolved | High. | 12–12 | UI/Menu | None. |
+| `n` / classic backdrop local | 5831 | Backdrop descriptor applied to classic selector. | `backdropInfo` | resolved | High. | 12–12 | UI/Menu | None. |
+| `n` / classic close-button local | 5841 | Inherited close button configured before shadow. | `closeButton` | resolved | High. | 12–12 | UI/Menu | None. |
+| `n` / classic-title local | 5846 | Font string displaying `Classic Mode`. | `titleText` | resolved | High. | 12–12 | UI/Menu | None. |
+| `e` / classic `OnShow` param | 5852 | Classic selector frame marks an automatic new-game transition when no saved state is available. | `classicModeWindow` | resolved | High. | 12–12 | UI/Menu | None. |
+| `t` / classic `OnHide` param | 5861 | Selector frame whose transient `gameMode` flag distinguishes game start from back navigation. | `classicModeWindow` | resolved | High. | 12–12 | UI/Menu | None. |
+| `n` / classic button locals | 5869, 5880 | Continue-action and new-game-action buttons; global frame names are opposite their text/actions. | `continueButton`,`newGameButton` | resolved | High. | 12–12 | UI/Menu | Preserve frame-name compatibility. |
+| `t` / classic button callbacks | 5874, 5886 | Distinct clicked-button parameters are never read. | — | dead | High. | 12–12 | UI/Menu | None. |
+| `D` / shadow function | 5895 | Begins the Flight Path option factory and shadows `tonumber` retained by earlier closures; remains open after line 6000. | `createFlightOptionWindow` | working | High for ownership. | 12–12 | UI/Flight | Complete in batch 13. |
+| `n` / `D` local | 5896 | Top-level flight-option frame with timer/path state, captions, and open Start control; factory remains open. | `flightOptionWindow` | working | High. | 12–12 | UI/Flight | Complete in batch 13. |
+| `t` / flight backdrop local | 5905 | Backdrop descriptor populated and applied to flight-option frame. | `backdropInfo` | resolved | High. | 12–12 | UI/Flight | None. |
+| `t` / flight close-button local | 5915 | Inherited close button configured before shadow. | `closeButton` | resolved | High. | 12–12 | UI/Flight | None. |
+| `t` / flight informational local | 5920 | Starts as title font string, then is reassigned to remaining-caption, remaining-value, and warning font strings stored where needed. | `infoText` | resolved | High. | 12–12 | UI/Flight | Split temporal roles in rewrite. |
+| `t` / flight `OnShow` param | 5950 | Flight-option window initializes nested timer state, timed-window flight controls, auto-start policy, and events. | `flightOptionWindow` | resolved | High. | 12–12 | UI/Flight | Fixed 120-second display differs from timer state. |
+| `t` / flight Start-button local | 5988 | Start button with custom `OnClickScript`; callback and factory continue after line 6000. | `startButton` | working | High. | 12–12 | UI/Flight | Complete in batch 13. |
+| `t` / flight Start callback param | 5992 | Callback parameter has no read through line 6000, but its callback remains open. | unknown/likely button | working | Medium. | 12–12 | UI/Flight | Determine whether later lines consume it. |
+
+## Batch 12 resolution policy
+
+Factories `g`, `P`, `N`, `W`, and `F` close in this batch, so their constructed-frame ownership and completed callback roles are resolved. The implicit `obj` read, template-expression result, classic frame-name/label inversion, transition-flag semantics, and fixed flight-duration display are preserved as behavior or defect evidence. Open flight factory `D`, its Start button, and its callback parameter remain working until batch 13.
