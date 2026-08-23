@@ -14,7 +14,7 @@ Each row identifies one declaration, not merely one spelling. `chunk` means the 
 | `F` / chunk | 181 | Generated as 25 atlas rectangles, copied into `J`, and `F[1]` resets gem texture coordinates (199–208, 1969). | `gemAtlasRects` | working | High for gem consumer; atlas asset/other frames pending. | 01–04 | UI/GemPool, UI/Animations | Identify texture and off-by-one rationale. |
 | `N` / chunk | 182 | Written as nine UV rectangles in a 3×3 loop (218–222). | `atlas3x3Rects` | working | High for shape: indices and 42.66/128 math. | 01–01 | UI/Animations | Identify texture/effect frames. |
 | `J` / chunk | 183 | Receives copies of all `F` rectangles via `unpack` (204–208). | `mutableAtlas50Rects` | working | Medium: copy semantics are explicit. | 01–01 | UI/Animations | Why is a second copy required? |
-| `O` / chunk | 184 | Written at 50 numeric indices using 10×5 normalized UV cells (188–198). | `atlas10x5Rects` | working | High for shape, medium for texture. | 01–01 | UI/Animations | Identify owning texture. |
+| `O` / chunk | 184 | Written at 50 numeric indices using 10×5 normalized UV cells (188–198), consumed as the hyper-effect atlas (4618–4624), then shadowed by the sound factory at 5049. | `hyperFxAtlasRects` | resolved | High. | 01–11 | UI/Animator | None. |
 | `ie` / chunk | 185 | Written at 16 indices using a 4×4 UV grid (211–217). | `atlas4x4Rects` | working | High for shape, medium for texture. | 01–01 | UI/Animations | Identify owning texture. |
 | `t` / chunk (second binding) | 186 | Declared nil, then shadowed again at 263; no read. | — | dead | High: no assignment/read before shadow. | 01–01 | Unassigned | Minifier artifact? |
 | `i` / chunk | 186 | Atlas scratch indexes `F`,`J`,`ie` (187–216); animator factory later reuses the captured binding for rotation angle radians (4939–4941). | `atlasOrAngleScratch` | resolved | High: both temporal roles explicit. | 01–10 | UI/Animations | Split roles in rewrite. |
@@ -37,7 +37,7 @@ Each row identifies one declaration, not merely one spelling. `chunk` means the 
 | `f` / chunk | 240 | Constant `160`; legal popup width is `f×2` and text width `f×1.8` (1658, 1676). | `legalPopupHalfWidth` | resolved | High: direct geometry use. | 01–04 | UI/HUD | Name reflects legacy arithmetic. |
 | `L` / chunk | 241 | Constant `216`; legal popup height is `L+32` (1659). | `legalPopupContentHeight` | resolved | High: direct geometry use. | 01–04 | UI/HUD | None. |
 | `Je` / chunk | 242 | Constant `10`; halved into `gt` (290). | unknown dimension | unresolved | Low. | 01–01 | UI | Locate consumers. |
-| `E` / chunk | 243 | Receives `math.random`, copied to `m`, then nilled; later read as the nil reset value for `gem.fxType` (307–308, 1972). | `nilFxType` after temporary alias | resolved | High: temporal value flow is explicit. | 01–04 | UI/Animations | Preserve nil reset without retaining alias indirection. |
+| `E` / chunk | 243 | Receives `math.random`, copied to `m`, then nilled; later resets `gem.fxType` (307–308, 1972) before being shadowed by the minimap factory at 5194. | `nilFxType` after temporary alias | resolved | High: temporal value flow is explicit. | 01–11 | UI/Animations | Preserve nil reset without retaining alias indirection. |
 | `S` / chunk | 244 | Constant `-1`; assigned to hidden hint object's `fxType` during level-up reset (527). | `inactiveHintFxType` | working | Medium: reset/hide sequence (526–527). | 01–02 | UI/Animations | Confirm animator interpretation. |
 | `y` / chunk | 245 | Constant `1`; assigned to non-hyper gems' effect type during board transition (1990–1992). | `gameOverGemFxType` | working | Medium: function incomplete. | 01–04 | UI/Animations | Complete `Ke` dispatcher evidence. |
 | `Lt` / chunk | 246 | Constant `20`; no batch-01 read. | unknown constant | unresolved | Low. | 01–01 | Unassigned | Locate consumers. |
@@ -53,7 +53,7 @@ Each row identifies one declaration, not merely one spelling. `chunk` means the 
 | `it` / chunk | 256 | Assigned `#FX_SHINE_ALPHA` (=6). | shine alpha count | working | High: direct length operation (223, 256). | 01–01 | UI/Animations | Confirm later iteration contract. |
 | `ke` / chunk | 257 | Constant `8`; no batch-01 read. | unknown enum eight | unresolved | Low. | 01–01 | Engine | Locate consumers. |
 | `Re` / chunk | 258 | Assigned `#FX_SHINE_ALPHA` (=6), duplicating `it`. | shine alpha count alias | working | High for value, low for distinct role (223, 258). | 01–01 | UI/Animations | Why two aliases? |
-| `g` / chunk | 259 | Constant `9`; compared with gem effect type to identify hyper-specific cleanup (1990–1995). | `hyperGemFxType` | working | Medium: transition evidence. | 01–04 | UI/Animations | Confirm general dispatcher meaning. |
+| `g` / chunk | 259 | Constant `9`; identifies hyper-gem cleanup (1990–1995) and the hyper glow animator branch (4618–4647), then is shadowed by the main-window factory at 5290. | `hyperGemFxType` | resolved | High. | 01–11 | UI/Animator | Preserve numeric effect value. |
 | `mt` / chunk | 260 | Constant `40`; no batch-01 read. | unknown constant | unresolved | Low. | 01–01 | Unassigned | Locate consumers. |
 | `te` / chunk | 261 | Constant `10`; assigned to all multiplier floating-text objects (513, 518). | `multiplierTextFxType` | working | High for observed role; enum ownership pending. | 01–02 | UI/Animations | Find effect dispatcher branch. |
 | `be` / chunk | 262 | Constant `10`; no batch-01 read. | unknown constant | unresolved | Low. | 01–01 | Unassigned | Distinguish from `te`. |
@@ -628,11 +628,74 @@ Complete spawn, gravity, countdown, and state-transition bodies support resolved
 | `A` / shadow function | 4922 | Constructs/wires invisible animator frame and all effect queues/helpers; shadows clear-work effect enum. | `createAnimator` | resolved | High. | 10–10 | UI/Animator | None. |
 | `e` / `A` local | 4923 | Animator frame configured and returned. | `animator` | resolved | High. | 10–10 | UI/Animator | `movingGems`/`movingJewels` mismatch. |
 | `t` / `A` rotation loop | 4938 | Degree 0–360 used to precompute sine/cosine tables. | `degrees` | resolved | High. | 10–10 | UI/Animator | None. |
-| `V` / shadow function | 4971 | Network-frame factory remains open after 5000; shadows idle animator state captured by earlier closures/factory. | `createNetwork` | working | High for prefix. | 10–10 | Network/Transport | Complete in batch 11. |
-| `o` / `V` local | 4974 | Network frame with queue, send method, throttling, and callbacks. | `network` | working | High for prefix. | 10–10 | Network/Transport | Complete in batch 11. |
+| `V` / shadow function | 4971 | Constructs and installs the network frame, send queue, one-second throttle, and receive dispatcher; closes at 5047 after shadowing idle animator state captured by earlier closures. | `createNetwork` | resolved | High. | 10–11 | Network/Transport | Factory installs globally rather than returning. |
+| `o` / `V` local | 4974 | Network frame with queue, send method, throttling, receive callback, and final `Bejeweled.network` installation. | `network` | resolved | High. | 10–11 | Network/Transport | None. |
 | `l`,`i`,`o`,`n`,`t` / network `Send` params | 4981 | Unused self, message type, two required payload fields, optional final field. | `self`,`messageType`,`field1`,`field2`,`field3` | resolved | High. | 10–10 | Network/Transport | Determine semantic fields from callers. |
-| `t`,`o` / network `OnUpdate` params | 4988 | Network frame and elapsed delta; callback continues after 5000. | `network`,`delta` | working | High for prefix. | 10–10 | Network/Transport | Complete in batch 11. |
+| `t`,`o` / network `OnUpdate` params | 4988 | Network frame and elapsed delta; after a one-second accumulation the callback drains eligible queue entries until 20 sends succeed. | `network`,`delta` | resolved | High. | 10–11 | Network/Transport | Preserve successful-send rather than dequeue throttling. |
 
 ## Batch 10 resolution policy
 
 `Se` and `A` close in this batch, so their data-flow roles and explicit method attachments are resolved. Implicit `frame2` is recorded as accidental global evidence. Network factory `V` and its open update callback remain working until batch 11.
+
+## Batch 11 declarations and scopes
+
+| Legacy identifier / scope | Decl. | Evidence | Proposed name | Status | Confidence | First–last | Target | Question |
+| --- | ---: | --- | --- | --- | --- | --- | --- | --- |
+| `e` / four network-throttle locals | 5005 | The first three duplicate declarations are hidden in the same statement; the surviving fourth is immediately hidden by line 5006 without a read. | — | shadowed | High. | 11–11 | Network/Transport | Minifier artifact. |
+| `i` / network-throttle local | 5006 | Declared with parsed message fields but never assigned or read. | — | dead | High. | 11–11 | Network/Transport | None. |
+| `o`,`e`,`n` / network-throttle locals | 5006 | Receive queue-head fields split on `~`: addon payload, distribution channel, and whisper target. | `payload`,`channel`,`target` | resolved | High. | 11–11 | Network/Transport | Preserve empty-target handling. |
+| first `i` / network `OnEvent` params | 5023 | Hidden by the second same-spelling parameter. | — | shadowed | High. | 11–11 | Network/Transport | None. |
+| second `i` / network `OnEvent` params | 5023 | Receives the event name in the callback position but is never read. | — | dead | High. | 11–11 | Network/Transport | None. |
+| `o`,`n`,`t`,`e` / network `OnEvent` params | 5023 | Addon prefix, payload, distribution channel, and sender used for validation and dispatch. | `prefix`,`payload`,`channel`,`sender` | resolved | High. | 11–11 | Network/Transport | Sender comparison is not normalized. |
+| `o` / network-command local | 5025 | Receives the first `+`-separated field and selects `HSPub`, `HSSync`, or `LogSync`. | `command` | resolved | High. | 11–11 | Network/Transport | None. |
+| `i` / network-command local | 5025 | Declared but never assigned/read before callback close. | — | dead | High. | 11–11 | Network/Transport | None. |
+| `i` / friend pre-loop local | 5029 | Hidden by the numeric-for variable at 5030 without a read. | — | dead | High. | 11–11 | Network/Transport | None. |
+| `o` / friend-check local | 5029 | Holds each `C_FriendList.GetFriendInfo` result for exact comparison with sender. | `friendName` | resolved | High. | 11–11 | Network/Transport | Verify modern return contract before runtime. |
+| `i` / friend loop | 5030 | Iterates friend indices from 1 through `GetNumFriends()`. | `friendIndex` | resolved | High. | 11–11 | Network/Transport | None. |
+| `O` / shadow function | 5049 | Constructs and installs the sound frame, deferred flag player, click limiter, and mouse-away updater; shadows the hyper atlas captured by earlier closures. | `createSoundManager` | resolved | High. | 11–11 | UI/Sound | Factory installs globally rather than returning. |
+| `n` / `O` local | 5050 | Sound frame configured with flags/timers/scripts and installed as `Bejeweled.sound`. | `soundManager` | resolved | High. | 11–11 | UI/Sound | None. |
+| `t`,`n`,`o` / sound `Play` params | 5060 | Sound manager, named sound flag, and combo index capped at six. | `soundManager`,`soundName`,`comboIndex` | resolved | High. | 11–11 | UI/Sound | Non-combo callers may omit index. |
+| `t`,`n` / sound `OnUpdate` params | 5079 | Sound manager and delta used for hover/click timing and flag playback. | `soundManager`,`delta` | resolved | High. | 11–11 | UI/Sound | Disabled sounds freeze both timers. |
+| `e` / sound-root local | 5112 | Starts at `ut`, optionally appends `q_`, and prefixes every bundled sound filename in the pass. | `soundPath` | resolved | High. | 11–11 | UI/Sound | None. |
+| `n` / combo pre-loop local | 5173 | Immediately hidden by the numeric-for variable at 5174. | — | dead | High. | 11–11 | UI/Sound | None. |
+| `n` / combo loop | 5174 | Scans combo flags 1–6 and derives the selected filename. | `comboIndex` | resolved | High. | 11–11 | UI/Sound | None. |
+| `E` / shadow function | 5194 | Constructs and installs minimap icon visuals, toggle/tooltip callbacks, and attached/detached drag persistence; shadows the earlier nil/reset binding. | `createMinimapButton` | resolved | High. | 11–11 | UI/Minimap | Factory installs globally rather than returning. |
+| `t` / `E` local | 5195 | Minimap frame configured through all callbacks and installed as `Bejeweled.minimap`. | `minimapButton` | resolved | High. | 11–11 | UI/Minimap | None. |
+| `e`,`t` / minimap `OnMouseDown` params | 5220 | Minimap frame and mouse-button name; right press starts moving. | `minimapButton`,`mouseButton` | resolved | High. | 11–11 | UI/Minimap | None. |
+| `t`,`n` / minimap `OnMouseUp` params | 5226 | Minimap frame and mouse-button name; left release toggles the main window. | `minimapButton`,`mouseButton` | resolved | High. | 11–11 | UI/Minimap | None. |
+| `t` / minimap-toggle local | 5230 | Main window whose visibility, alpha, overlay, sound, and pause state are changed. | `window` | resolved | High. | 11–11 | UI/Minimap, UI/MainWindow | None. |
+| `e` / minimap `OnEnter` param | 5250 | Minimap frame used to show its highlight before the spelling is shadowed at 5253. | `minimapButton` | resolved | High. | 11–11 | UI/Minimap | None. |
+| `e` / minimap-tooltip local | 5253 | Optional keybinding text wrapped in parentheses and appended to tooltip title. | `keybindingText` | resolved | High. | 11–11 | UI/Minimap | None. |
+| `e` / minimap `OnLeave` param | 5261 | Minimap frame used to hide its highlight. | `minimapButton` | resolved | High. | 11–11 | UI/Minimap | None. |
+| `i` / minimap `OnUpdate` param | 5265 | Minimap frame tested for moving and repositioned in attached/detached modes. | `minimapButton` | resolved | High. | 11–11 | UI/Minimap | None. |
+| `o`,`n` / minimap-drag locals | 5267 | Cursor X/Y coordinates before UI-scale normalization. | `cursorX`,`cursorY` | resolved | High. | 11–11 | UI/Minimap | None. |
+| `a`,`l` / minimap-drag locals | 5268–5269 | Minimap center X/Y derived from its left/bottom and half dimensions. | `minimapCenterX`,`minimapCenterY` | resolved | High. | 11–11 | UI/Minimap | None. |
+| `e`,`t` / minimap offset locals | 5270–5271 | UI-scaled cursor offsets from minimap center, then absolute cursor coordinates in the detached branch. | `x`,`y` | resolved | High. | 11–11 | UI/Minimap | Split offset/absolute roles in rewrite. |
+| `e` / attached-angle local | 5280 | Shadows X offset inside the attached branch and stores degrees derived by `atan2`. | `angleDegrees` | resolved | High. | 11–11 | UI/Minimap | Preserve argument order/sign convention. |
+| `g` / shadow function | 5290 | Begins the main-window constructor and shadows hyper-gem effect enum captured by earlier animator code; remains open after line 5500. | `createMainWindow` | working | High for ownership. | 11–11 | UI/MainWindow | Complete in batch 12. |
+| `t` / `g` local | 5291 | Main window receiving backdrop, drag/show/hide/resize controls and child frames; factory remains open. | `window` | working | High. | 11–11 | UI/MainWindow | Complete constructor in batch 12. |
+| `a` / main-window local | 5302 | Captured frame level used to place the resize handle three levels above it. | `frameLevel` | resolved | High. | 11–11 | UI/MainWindow | None. |
+| `o` / backdrop local | 5303 | Descriptor from `C()` populated with window textures/dimensions and passed to `SetBackdrop`. | `backdropInfo` | resolved | High. | 11–11 | UI/MainWindow | None. |
+| `e` / drag callbacks | 5313, 5318 | Distinct window-frame parameters used to start and stop moving/sizing. | `window` | resolved | High. | 11–11 | UI/MainWindow | None. |
+| `t` / hide/show callback params | 5321, 5326 | Distinct window callback parameters that are never read. | — | dead | High. | 11–11 | UI/MainWindow | None. |
+| `o` / close-button local | 5342 | Close button configured to hide the main window only when no popup is visible. | `closeButton` | resolved | High. | 11–11 | UI/MainWindow | None. |
+| `t` / close callback param | 5347 | Callback button parameter is never read. | — | dead | High. | 11–11 | UI/MainWindow | None. |
+| `e` / `bCrowbar` control local | 5353 | Optional textured frame toggling `bCrowbar.window`. | `crowbarButton` | resolved | High. | 11–11 | UI/MainWindow | Optional integration remains global. |
+| `e` / `bCrowbar` callback param | 5363 | Callback frame parameter is never read. | — | dead | High. | 11–11 | UI/MainWindow | None. |
+| `t` / menu callback local | 5378 | Alias of `Bejeweled.menuWindow` tested and toggled. | `menuWindow` | resolved | High. | 11–11 | UI/MainWindow | None. |
+| `o` / window-icon local | 5389 | Texture configured as the 64-pixel top-left icon and stored in `t.icon`. | `windowIcon` | resolved | High. | 11–11 | UI/MainWindow | None. |
+| `o` / logo-metadata local | 5395 | `largeText["Bejeweled"]` dimensions and UV coordinates used to build the logo. | `logoAtlas` | resolved | High. | 11–11 | UI/MainWindow | None. |
+| `i` / logo-container local | 5396 | Frame anchored across the window header; used as texture parent in line-5400 initializer, then shadowed. | `logoContainer` | resolved | High. | 11–11 | UI/MainWindow | Lua 5.1 initializer scope is required. |
+| `i` / logo-texture local | 5400 | Texture created from prior `i`, configured from `o`, and stored as `t.logo`. | `logoTexture` | resolved | High. | 11–11 | UI/MainWindow | None. |
+| `o` / resize-handle local | 5407 | Mouse-enabled bottom-right frame that resets or begins sizing. | `resizeHandle` | resolved | High. | 11–11 | UI/MainWindow | None. |
+| `n`,`t` / resize `OnMouseDown` params | 5414 | Handle parameter is unused; button name selects reset versus sizing. | —; `mouseButton` | dead; resolved | High. | 11–11 | UI/MainWindow | None. |
+| `t` / resize `OnMouseUp` param | 5425 | Callback handle parameter is never read. | — | dead | High. | 11–11 | UI/MainWindow | None. |
+| `t` / size-change param | 5431 | Main window supplies width, menu state, and logo/icon children and receives derived height. | `window` | resolved | High. | 11–11 | UI/MainWindow | None. |
+| `o`,`a`,`i`,`l`,`r` / size-change locals | 5432–5456 | Width/board scale, logo scale, icon scale, logo atlas metadata, and remaining logo width. | `scale`,`logoScale`,`iconScale`,`logoAtlas`,`availableLogoWidth` | resolved | High. | 11–11 | UI/MainWindow | Preserve quadratic threshold formulas. |
+| `n` / main-window auxiliary local | 5473 | Initially the global show/hide button, then reassigned to the full-window mouse-over screen at 5485. | `auxiliaryFrame` | resolved | High. | 11–11 | UI/MainWindow | Split temporal roles in rewrite. |
+| `t` / overlay `OnMouseDown` param | 5489 | Mouse-over screen hidden after canceling game-over fade. | `mouseOverScreen` | resolved | High. | 11–11 | UI/MainWindow | None. |
+| `t` / overlay `OnEnter` param | 5498 | Mouse-over screen callback remains open after its hiding guard at line 5500. | `mouseOverScreen` | working | High for frame role. | 11–11 | UI/MainWindow | Complete in batch 12. |
+
+## Batch 11 resolution policy
+
+Factories `V`, `O`, and `E` close and install their frames in this batch, so their bindings and callback roles are resolved. Network delimiter and throttle behavior, sound flag coalescing, minimap coordinate derivations, and completed resize arithmetic are behavior-critical evidence. Open factory `g` and its open overlay callback remain working until batch 12.
