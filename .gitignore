@@ -1,0 +1,30 @@
+# World of Warcraft local state
+WTF/
+**/WTF/
+SavedVariables/
+**/SavedVariables/
+*.lua.bak
+
+# Packaging and build output
+dist/
+build/
+release/
+packages/
+*.zip
+
+# Generated Lua artifacts and logs
+*.luac
+*.log
+logs/
+
+# OS metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDE metadata
+.idea/
+.vscode/
+*.code-workspace
+*.swp
+*.swo
