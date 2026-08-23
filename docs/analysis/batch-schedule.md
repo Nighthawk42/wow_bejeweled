@@ -7,7 +7,7 @@ The immutable analysis source is `Legacy/Bejeweled_Mainline.lua` from commit `6f
 | 01 | 0001–0500 | 500 | `lines-0001-0500.md` | complete |
 | 02 | 0501–1000 | 500 | `lines-0501-1000.md` | complete |
 | 03 | 1001–1500 | 500 | `lines-1001-1500.md` | complete |
-| 04 | 1501–2000 | 500 | `lines-1501-2000.md` | pending |
+| 04 | 1501–2000 | 500 | `lines-1501-2000.md` | complete |
 | 05 | 2001–2500 | 500 | `lines-2001-2500.md` | pending |
 | 06 | 2501–3000 | 500 | `lines-2501-3000.md` | pending |
 | 07 | 3001–3500 | 500 | `lines-3001-3500.md` | pending |

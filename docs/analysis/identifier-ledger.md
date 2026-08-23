@@ -5,13 +5,13 @@ Each row identifies one declaration, not merely one spelling. `chunk` means the 
 | Legacy identifier / lexical scope | Decl. | Observed reads, writes, calls, keys, arithmetic | Working or proposed name | Status | Confidence / evidence | First–last batch | Target subsystem | Open question |
 | --- | ---: | --- | --- | --- | --- | --- | --- | --- |
 | `t` / chunk (first binding) | 4 | String initializer only before shadow at 186. | `addonRootPath` | dead | High: path literal at 4; no read before 186. | 01–01 | Core/Constants | Was elimination intentional? |
-| `l` / chunk | 5 | Path initializer; concatenated with bundled font at 618 and 633. | `imageRootPath` | resolved | High: literal and direct font-path consumers (5, 618, 633). | 01–02 | Core/Constants | Other consumers remain to inventory. |
+| `l` / chunk | 5 | Image/font root used for bundled fonts and attempted legal-popup background path (5, 618, 633, 1664). | `imageRootPath` | resolved | High: literal and direct asset-path consumers. | 01–04 | Core/Constants | Other consumers remain to inventory. |
 | `ut` / chunk | 6 | Path initializer; no batch-01 read. | `soundRootPath` | working | High: literal ends in `sounds\` (6). | 01–01 | Core/Audio | Confirm path casing/contracts. |
 | `xe` / chunk | 7 | String initializer; no batch-01 read. | `addonMessagePrefix` | working | Medium: `BEJEWELED2` literal (7). | 01–01 | Core/Init | Confirm registration/send sites. |
 | `ft` / chunk | 8 | Seven-entry colored/name table; no batch-01 read. | `gemDisplayNames` | working | Medium: ordered color names (8). | 01–01 | UI/HUD | Confirm indices and markup purpose. |
 | `he` / chunk | 169 | Nine RGB triples; initialized only in batch 01. | `gemColors` | working | Medium: values mirror seven gem colors plus two white entries (169–179). | 01–01 | Core/Constants | Determine meanings of indices 8–9. |
 | `U` / chunk | 180 | Numeric keys 1–7 map to lowercase color names. | `gemColorNames` | working | High: complete table at 180. | 01–01 | Core/Constants | Confirm use in asset filenames. |
-| `F` / chunk | 181 | Written at indices `i..i+4` from atlas math (199–203); read by `unpack` into `J` (204–208). | `atlas50Rects` | working | High for shape, medium for asset: 5×5, 50/255 derivation. | 01–01 | UI/Animations | Identify texture and off-by-one rationale. |
+| `F` / chunk | 181 | Generated as 25 atlas rectangles, copied into `J`, and `F[1]` resets gem texture coordinates (199–208, 1969). | `gemAtlasRects` | working | High for gem consumer; atlas asset/other frames pending. | 01–04 | UI/GemPool, UI/Animations | Identify texture and off-by-one rationale. |
 | `N` / chunk | 182 | Written as nine UV rectangles in a 3×3 loop (218–222). | `atlas3x3Rects` | working | High for shape: indices and 42.66/128 math. | 01–01 | UI/Animations | Identify texture/effect frames. |
 | `J` / chunk | 183 | Receives copies of all `F` rectangles via `unpack` (204–208). | `mutableAtlas50Rects` | working | Medium: copy semantics are explicit. | 01–01 | UI/Animations | Why is a second copy required? |
 | `O` / chunk | 184 | Written at 50 numeric indices using 10×5 normalized UV cells (188–198). | `atlas10x5Rects` | working | High for shape, medium for texture. | 01–01 | UI/Animations | Identify owning texture. |
@@ -32,14 +32,14 @@ Each row identifies one declaration, not merely one spelling. `chunk` means the 
 | `qe` / chunk | 235 | Constant expression `100 + 50`; halved by dead `t` at 288. | unknown 150-pixel dimension | unresolved | Low: declaration and dead derivation. | 01–01 | UI | Locate live consumer. |
 | `s` / chunk | 236 | Constant `400`; used in `q = s + 32 + 16` (238). | board width | working | Medium: 8 × likely 50-pixel cells. | 01–01 | Engine/Grid, UI/GemPool | Confirm coordinate ownership. |
 | `w` / chunk | 237 | Constant `400`; used in `me = w + 110` (239). | board height | working | Medium: paired with `s`. | 01–01 | Engine/Grid, UI/GemPool | Confirm coordinate ownership. |
-| `q` / chunk | 238 | Derived `448` from `s`; no batch-01 read. | board-area width | working | Low: geometry derivation only. | 01–01 | UI/HUD | Meaning of 32+16 padding. |
-| `me` / chunk | 239 | Derived `510` from `w`; no batch-01 read. | window/game-area height | working | Low: geometry derivation only. | 01–01 | UI/HUD | Meaning of 110 padding. |
-| `f` / chunk | 240 | Constant `160`; no batch-01 read. | unknown UI dimension | unresolved | Low. | 01–01 | UI | Locate consumers. |
-| `L` / chunk | 241 | Constant `216`; no batch-01 read. | unknown UI dimension | unresolved | Low. | 01–01 | UI | Locate consumers. |
+| `q` / chunk | 238 | Derived `448`; assigned main-window width by legal display (1651). | `mainWindowWidth` | resolved | High: direct frame geometry. | 01–04 | UI/HUD | Padding derivation rationale remains. |
+| `me` / chunk | 239 | Derived `510`; assigned main-window height by legal display (1652). | `mainWindowHeight` | resolved | High: direct frame geometry. | 01–04 | UI/HUD | Padding derivation rationale remains. |
+| `f` / chunk | 240 | Constant `160`; legal popup width is `f×2` and text width `f×1.8` (1658, 1676). | `legalPopupHalfWidth` | resolved | High: direct geometry use. | 01–04 | UI/HUD | Name reflects legacy arithmetic. |
+| `L` / chunk | 241 | Constant `216`; legal popup height is `L+32` (1659). | `legalPopupContentHeight` | resolved | High: direct geometry use. | 01–04 | UI/HUD | None. |
 | `Je` / chunk | 242 | Constant `10`; halved into `gt` (290). | unknown dimension | unresolved | Low. | 01–01 | UI | Locate consumers. |
-| `E` / chunk | 243 | Receives `math.random`, copied to `m` (307), then nilled (308). | temporary random alias | dead | High: direct alias chain. | 01–01 | Engine/Grid | None after `m` capture. |
+| `E` / chunk | 243 | Receives `math.random`, copied to `m`, then nilled; later read as the nil reset value for `gem.fxType` (307–308, 1972). | `nilFxType` after temporary alias | resolved | High: temporal value flow is explicit. | 01–04 | UI/Animations | Preserve nil reset without retaining alias indirection. |
 | `S` / chunk | 244 | Constant `-1`; assigned to hidden hint object's `fxType` during level-up reset (527). | `inactiveHintFxType` | working | Medium: reset/hide sequence (526–527). | 01–02 | UI/Animations | Confirm animator interpretation. |
-| `y` / chunk | 245 | Constant `1`; no batch-01 read. | unknown enum one | unresolved | Low. | 01–01 | Engine | Locate consumers. |
+| `y` / chunk | 245 | Constant `1`; assigned to non-hyper gems' effect type during board transition (1990–1992). | `gameOverGemFxType` | working | Medium: function incomplete. | 01–04 | UI/Animations | Complete `Ke` dispatcher evidence. |
 | `Lt` / chunk | 246 | Constant `20`; no batch-01 read. | unknown constant | unresolved | Low. | 01–01 | Unassigned | Locate consumers. |
 | `ye` / chunk | 247 | Constant `3`; no batch-01 read. | unknown enum three | unresolved | Low. | 01–01 | Engine | Locate consumers. |
 | `ve` / chunk | 248 | Constant `360`; no batch-01 read. | likely angle/full rotation | working | Low: value only. | 01–01 | UI/Animations | Confirm angular use. |
@@ -53,7 +53,7 @@ Each row identifies one declaration, not merely one spelling. `chunk` means the 
 | `it` / chunk | 256 | Assigned `#FX_SHINE_ALPHA` (=6). | shine alpha count | working | High: direct length operation (223, 256). | 01–01 | UI/Animations | Confirm later iteration contract. |
 | `ke` / chunk | 257 | Constant `8`; no batch-01 read. | unknown enum eight | unresolved | Low. | 01–01 | Engine | Locate consumers. |
 | `Re` / chunk | 258 | Assigned `#FX_SHINE_ALPHA` (=6), duplicating `it`. | shine alpha count alias | working | High for value, low for distinct role (223, 258). | 01–01 | UI/Animations | Why two aliases? |
-| `g` / chunk | 259 | Constant `9`; no batch-01 read. | unknown enum nine | unresolved | Low. | 01–01 | Engine | Locate consumers. |
+| `g` / chunk | 259 | Constant `9`; compared with gem effect type to identify hyper-specific cleanup (1990–1995). | `hyperGemFxType` | working | Medium: transition evidence. | 01–04 | UI/Animations | Confirm general dispatcher meaning. |
 | `mt` / chunk | 260 | Constant `40`; no batch-01 read. | unknown constant | unresolved | Low. | 01–01 | Unassigned | Locate consumers. |
 | `te` / chunk | 261 | Constant `10`; assigned to all multiplier floating-text objects (513, 518). | `multiplierTextFxType` | working | High for observed role; enum ownership pending. | 01–02 | UI/Animations | Find effect dispatcher branch. |
 | `be` / chunk | 262 | Constant `10`; no batch-01 read. | unknown constant | unresolved | Low. | 01–01 | Unassigned | Distinguish from `te`. |
@@ -71,7 +71,7 @@ Each row identifies one declaration, not merely one spelling. `chunk` means the 
 | `t` / chunk (line 274) | 274 | Copies `p`; shadowed at 278. | unknown height alias | shadowed | High that it is unreachable after 278. | 01–01 | Unassigned | Minifier artifact? |
 | `le` / chunk | 275 | Constant `51`; no batch-01 read. | unknown enum 51 | unresolved | Low. | 01–01 | Engine | Locate consumers. |
 | `W` / chunk | 276 | Constant `52`; no batch-01 read. | unknown enum 52 | unresolved | Low. | 01–01 | Engine | Locate consumers. |
-| `at` / chunk | 277 | Constant `53`; no batch-01 read. | unknown enum 53 | unresolved | Low. | 01–01 | Engine | Locate consumers. |
+| `at` / chunk | 277 | Constant `53`; assigned to every gem's `moving` field before random-velocity animation (1997–1999). | `gameOverMovementState` | working | Medium: `Ke` incomplete. | 01–04 | UI/Animations | Identify movement-state dispatcher. |
 | `t` / chunk (line 278) | 278 | Constant `16`; shadowed at 287. | unknown enum sixteen | shadowed | Low. | 01–01 | Engine | Locate any pre-287 read. |
 | `Te` / chunk | 279 | Constant `20`; halved into `oe` (289). | unknown dimension | unresolved | Low. | 01–01 | UI | Locate consumers. |
 | `et` / chunk | 280 | Constant `150`; no batch-01 read. | unknown constant | unresolved | Low. | 01–01 | Unassigned | Locate consumers. |
@@ -101,7 +101,7 @@ Each row identifies one declaration, not merely one spelling. `chunk` means the 
 | `Ge` / chunk | 304 | Receives `string.sub`, copied to `G` (318), nilled (330). | temporary `string.sub` alias | dead | High. | 01–01 | Core | None after `G` capture. |
 | `Ae` / chunk | 305 | Receives `math.floor`, copied to `d` (314), nilled (331). | temporary `math.floor` alias | dead | High. | 01–01 | Core | None after `d` capture. |
 | `t` / chunk (line 306) | 306 | Receives `tostring`, copied to `Y` (317), nilled (332). | temporary `tostring` alias | dead | High. | 01–01 | Core | None after `Y` capture. |
-| `m` / chunk | 307 | Copies `math.random` alias `E`; no batch-01 call. | `random` | resolved | High: alias chain 243, 307–308. | 01–01 | Engine/Grid | Later argument patterns still pending. |
+| `m` / chunk | 307 | Copies `math.random`; called for randomized gem X/Y velocities (1998). | `random` | resolved | High: alias and calls. | 01–04 | Engine/Grid, UI/Animations | None. |
 | `c` / chunk | 309 | Constant `1`; keys `Ce`; controls classic score/bar/results and pause alpha behavior (467, 500, 536, 611, 881, 1278–1352). | `GAME_MODE_CLASSIC` | resolved | High: repeated explicit classic behavior. | 01–03 | Core/Constants | None for identity. |
 | `ae` / chunk | 310 | Constant `2`; keys `Ce`; pause handling shows/hides `pausedText` specifically for this mode (1299–1304). | `GAME_MODE_TIMED` | resolved | High: paired PPS evidence plus explicit pause UI. | 01–03 | Core/Constants | None for identity. |
 | `k` / chunk | 311 | Constant `3`; keys `Ce`; controls flight-learning timer and pause/animator behavior (552, 639, 1278–1352). | `GAME_MODE_FLIGHT_LEARNING` | resolved | High: repeated explicit learning-mode branches. | 01–03 | Core/Constants | Broader flight-mode naming may refine. |
@@ -115,7 +115,7 @@ Each row identifies one declaration, not merely one spelling. `chunk` means the 
 | `Y` / chunk | 317 | Copies `tostring`; converts decoded checksum/rank values (750, 890, 912). | `toString` | resolved | High: direct alias and calls. | 01–02 | Core | None. |
 | `G` / chunk | 318 | Copies `string.sub`; slices checksum payloads, decimal digits, and rank prefixes (745–755, 777–778). | `stringSub` | resolved | High: direct alias and calls. | 01–02 | Core/SavedVariables | None. |
 | `D` / chunk | 319 | Copies `tonumber`; parses checksum digits and rank prefixes (751–755, 777). | `toNumber` | resolved | High: direct alias and calls. | 01–02 | Core/SavedVariables | None. |
-| `R` / chunk | 320 | Copies `type`; rejects non-string authenticated scores (742). | `valueType` | resolved | High: direct alias and call. | 01–02 | Core/SavedVariables | None. |
+| `R` / chunk | 320 | Copies `type`; rejects non-string scores and identifies numeric gem fields during reset (742, 1955). | `valueType` | resolved | High: direct alias and calls. | 01–04 | Core/SavedVariables, UI/GemPool | None. |
 | `re` / chunk (numeric overwrite) | 321 | Overwrites earlier binding with `40`; no batch-01 read. | unknown constant 40 | unresolved | Low. | 01–01 | Unassigned | Locate consumers. |
 | `z` / chunk (numeric overwrite) | 322 | Overwrites earlier binding with `7`; no batch-01 read. | unknown enum seven | unresolved | Low. | 01–01 | Engine | Locate consumers. |
 | `o` / chunk | 323 | Eight row tables initialized, exported as `debugArray`, and traversed as `o[row][column]` gem frames (324–326, 442, 1275–1293). | `gemGrid` | resolved | High: explicit 8×8 traversal. | 01–03 | Engine/Grid, UI/GemPool | Debug export naming is incidental. |
@@ -125,8 +125,8 @@ Each row identifies one declaration, not merely one spelling. `chunk` means the 
 | `ge` / chunk | 327 | Forward declaration populated by `ze` with faction-selected four-region coordinate adjacency graphs (1040–1249). | `flightGraph` | resolved | High: complete assignment shape. | 01–03 | Core/SavedVariables | Region meanings/search consumers pending. |
 | `we` / chunk | 327 | Forward declaration; assigned `true` when max-score level-up begins (529). | `levelUpPendingFlag` | working | Low: writer observed, reader absent. | 01–02 | Engine/Scoring, UI/Animations | Find consumer/reset. |
 | `r` / chunk | 333 | Six-entry array of four-number direction/offset tuples. | neighbor/offset patterns | working | Medium: signed coordinate-like tuples. | 01–01 | Engine/Matches | Establish tuple field semantics. |
-| `n` / chunk | 334 | Exported current-game state; score/level/mode/stats/combo/game-over/statDB fields drive scoring, pause/timer, and event gating (443, 464–529, 874–1008, 1274–1407). | `currentGame` | resolved | High: explicit debug export and repeated state transitions. | 01–03 | Engine/Grid, Engine/Scoring | Full dynamic table shape still grows later. |
-| `C` / chunk function | 444 | Called nowhere in batch; returns a backdrop descriptor table (445–452). | `createTooltipBackdropInfo` | working | High for return contract; action/name uncertain. | 01–01 | UI/Backdrops | Is each call a fresh mutable table by design? |
+| `n` / chunk | 334 | Exported current-game state; drives scoring/pause/events/save metadata and receives erroneous `bgFile` write (443, 464–529, 874–1008, 1274–1407, 1664, 1924–1933). | `currentGame` | resolved | High: explicit debug export and repeated state transitions. | 01–04 | Engine/Grid, Engine/Scoring | Full dynamic table shape still grows later. |
+| `C` / chunk function | 444 | Returns a fresh backdrop descriptor; called by legal popup before mutation/application (445–452, 1663–1668). | `createBackdropInfo` | resolved | High: factory and consumer observed. | 01–04 | UI/Backdrops | Additional style consumers may refine name. |
 | `st` / chunk function | 455 | Reads `e.animated`; appends `e` to `t.animationStack`; writes flag true (456–459). | `queueAnimationOnce` | working | High: full function body. | 01–01 | UI/Animations | Identify owner and element types at call sites. |
 | `t` / `st` parameter | 455 | Table-key read `t.animationStack` passed to `table.insert` (457). | `animationOwner` | working | Medium: body only. | 01–01 | UI/Animations | Concrete frame/controller type. |
 | `e` / `st` parameter | 455 | Reads/writes key `animated`; inserted into stack (456–458). | `animation` | working | Medium: body only. | 01–01 | UI/Animations | Concrete table/frame type. |
@@ -174,7 +174,7 @@ Only direct standard-library aliases, loop counters with complete local bodies, 
 | `e` / `X` local | 664 | Receives each byte/digit and is normalized before arithmetic (667–673). | `digit` | resolved | High. | 02–02 | Core/SavedVariables | None. |
 | `o` / `X` second declaration | 665 | Starts at `#encoded-1`, supplies exponent, decrements each loop (673–674). | `exponent` | resolved | High. | 02–02 | Core/SavedVariables | None. |
 | `i` / `X` loop | 666 | Iterates encoded character positions 1..length (667). | `index` | resolved | High. | 02–02 | Core/SavedVariables | None. |
-| `x` / chunk function | 682 | Converts a number to fixed-width legacy base-70 text with optional centered signed offset (683–711). | `encodeBase70` | resolved | High: complete body. | 02–02 | Core/SavedVariables | Preserve overflow recursion behavior. |
+| `x` / chunk function | 682 | Converts numbers to fixed-width base-70 text; used by score/network/save authentication (683–711, 818–853, 887–911, 1933). | `encodeBase70` | resolved | High: complete body and consumers. | 02–04 | Core/SavedVariables | Preserve overflow recursion behavior. |
 | `t`,`n`,`l` / `x` parameters | 682 | Numeric value is transformed/divided; width limits/pads; boolean enables centered signed offset. | `value`, `width`, `signed` | resolved | High. | 02–02 | Core/SavedVariables | None. |
 | `o`,`e`,`i` / `x` locals | 683, 684, 685 | Base-70 digit, accumulated encoded string, and division counter (689–710). | `digit`, `encoded`, `digitIndex` | resolved | High: complete body. | 02–02 | Core/SavedVariables | Counter permits `i < n`, an apparent width+1 edge to preserve. |
 | `H` / first chunk function | 713 | Produces five decimal checksum digits from alternating byte sums (714–733); shadowed at 761 but captured by `P`/`fe`. | `checksumDigits` | resolved | High: complete body and consumers. | 02–02 | Core/SavedVariables | None. |
@@ -185,7 +185,7 @@ Only direct standard-library aliases, loop counters with complete local bodies, 
 | `t` / first `H` second binding | 716 | Even-position byte-sum accumulator initialized from seed (722, 727–728). | `evenSum` | resolved | High. | 02–02 | Core/SavedVariables | None. |
 | `n`,`a`,`e`,`l`,`r` / first `H` outputs | 717 | Even ones/tens, odd ones/tens, and combined check digit (727–732). | `evenOnes`, `evenTens`, `oddOnes`, `oddTens`, `checkDigit` | resolved | High. | 02–02 | Core/SavedVariables | None. |
 | `e` / first `H` loop | 719 | Character index; parity chooses accumulator (720–725). | `index` | resolved | High. | 02–02 | Core/SavedVariables | None. |
-| `P` / chunk function | 735 | Shadows char alias; prefixes packed checksum to payload (736–739). | `authenticateScore` | resolved | High: complete body and later uses. | 02–02 | Core/SavedVariables | None. |
+| `P` / chunk function | 735 | Prefixes packed checksum to payload; used by leaderboards, personal bests, and saved game state (736–739, 818–853, 887–911, 1933). | `authenticateScore` | resolved | High: complete body and consumers. | 02–04 | Core/SavedVariables | None. |
 | `e`,`t` / `P` parameters | 735 | Payload and optional checksum seed; parameter `t` is shadowed at 736 after initializer access. | `payload`, `seed` | resolved | High. | 02–02 | Core/SavedVariables | None. |
 | `t` / `P` defaulted seed | 736 | Defaults parameter seed, then is consumed by `H` initializer at 737 and shadowed by returned digit. | `seed` | shadowed | High. | 02–02 | Core/SavedVariables | None. |
 | `l`,`o`,`t`,`i`,`n` / `P` checksum outputs | 737 | Five checksum digits returned by first `H`, packed in reverse variable order into decimal positions at 738. | `d1`, `d2`, `d3`, `d4`, `d5` | resolved | High for positional role; descriptive checksum names intentionally neutral. | 02–02 | Core/SavedVariables | Semantic digit ordering is legacy-specific. |
@@ -195,12 +195,12 @@ Only direct standard-library aliases, loop counters with complete local bodies, 
 | `d`,`h`,`c`,`S`,`s` / `fe` expected digits | 748 | Five checksum digits returned from first `H` and compared positionally (751–756). | `expected1`…`expected5` | resolved | High for positional role. | 02–02 | Core/SavedVariables | Neutral names preserve unusual order. |
 | `l`,`i`,`t`,`o`,`a` / `fe` actual digits | 749 | Decimal digits parsed from decoded prefix positions 6..2 and compared to expected digits (751–756). | `actual1`…`actual5` | resolved | High for positional role. | 02–02 | Core/SavedVariables | None. |
 | `e` / `fe` nested local | 750 | Shadows encoded-score parameter with decimal string of decoded checksum prefix. | `decodedChecksum` | resolved | High. | 02–02 | Core/SavedVariables | None. |
-| `H` / second chunk function | 761 | Shadows first `H`; returns sum of all input bytes (762–767). | `byteSum` | resolved | High: complete body and consumers. | 02–02 | Core/SavedVariables | None. |
+| `H` / second chunk function | 761 | Returns sum of all input bytes for name-bound leaderboard/personal/save checksums (762–767, 774–911, 1933). | `byteSum` | resolved | High: complete body and consumers. | 02–04 | Core/SavedVariables | None. |
 | `t` / second `H` parameter | 761 | Input string iterated byte-by-byte. | `text` | resolved | High. | 02–02 | Core/SavedVariables | None. |
 | `n` / second `H` local | 762 | Initialized zero but immediately shadowed by loop variable at 763. | — | dead | High. | 02–02 | Unassigned | Minifier artifact. |
 | `e` / second `H` local | 762 | Accumulates byte values and is returned (764–766). | `sum` | resolved | High. | 02–02 | Core/SavedVariables | None. |
 | `n` / second `H` loop | 763 | Character index 1..length. | `index` | resolved | High. | 02–02 | Core/SavedVariables | None. |
-| `j` / chunk function | 769 | Shadows byte alias; validates and merges variadic leaderboard entries (770–870). | `mergeLeaderboardScores` | resolved | High: complete body. | 02–02 | Core/SavedVariables, Engine/Scoring | Network parser/callers remain to inventory. |
+| `j` / chunk function | 769 | Validates/merges leaderboard entries; receives decoded inbound sync entries from `Ee` (770–870, 1699). | `mergeLeaderboardScores` | resolved | High: complete body and network consumer. | 02–04 | Core/SavedVariables, Engine/Scoring | Sender trust still pending. |
 | `S` / `j` parameter | 769 | Score-list receiver; selects `.classic` or `.timed` tables (786, 791). | `scoreList` | resolved | High. | 02–02 | Core/SavedVariables | None. |
 | `a` / `j` declaration positions 1–2 | 770 | Duplicate same-statement bindings hidden by the third `a`, then line 771. | — | dead | High: Lua duplicate-name lexical resolution. | 02–02 | Unassigned | Minifier artifact. |
 | `a` / `j` declaration position 3 | 770 | Hidden by new local `a` at 771 before read. | — | dead | High. | 02–02 | Unassigned | Minifier artifact. |
@@ -280,10 +280,10 @@ Complete helper bodies are resolved when their transformation and side effects a
 | `o` / `UpdateFlightTimes` local | 1366 | Rounded observed leg duration, optionally adjusted by 1.35, persisted/averaged (1370–1380). | `observedDuration` | resolved | High. | 03–03 | Core/SavedVariables | Rationale for constants pending. |
 | `n`,`i`,`l` / `UpdateFlightTimes` locals | 1367, 1368, 1369 | FIFO-removed from-node, to-node, and prior estimated duration (1375–1380). | `fromNode`, `toNode`, `estimatedDuration` | resolved | High: direct nested keys/comparison. | 03–03 | Core/SavedVariables | None. |
 | `e` / `UpdateFlightTimes` local | 1374 | Receives legacy current-continent index and keys `flightTimes` (1375–1380). | `continent` | resolved | High for legacy contract. | 03–03 | Core/SavedVariables | Current Retail replacement required. |
-| `o` / `LoadAchievementEvents` local | 1387 | Aliases profile skill table; reads/writes completion flags and games (1388–1492). | `skillData` | resolved | High. | 03–03 | Core/SavedVariables, Engine/Scoring | Method continues in batch 04. |
+| `o` / `LoadAchievementEvents` local | 1387 | Aliases profile skill table; gates/synchronizes all fun-achievement registrations through method close (1388–1606). | `skillData` | resolved | High: complete method. | 03–04 | Core/SavedVariables, Engine/Scoring | None. |
 | `t` / `LoadAchievementEvents` duplicate locals 1–2 | 1396 | Both are shadowed by generic-for key at 1397; second is later shadowed again by frame at 1400. | — | dead | High. | 03–03 | Unassigned | Minifier artifact. |
 | `t`,`e` / `LoadAchievementEvents` played loop | 1397 | Character key and games value from `pairs`; only value `e` is added to `K` (1398). | `characterName`, `gamesPlayed` | resolved | High. | 03–03 | Core/SavedVariables | Key is intentionally unused. |
-| `t` / `LoadAchievementEvents` watcher local | 1400 | Named event frame; owns event lists, dispatcher, registration method, and callbacks (1401–1500). | `eventWatcher` | resolved | High. | 03–03 | Core/Init | Function continues in batch 04. |
+| `t` / `LoadAchievementEvents` watcher local | 1400 | Named event frame; owns dispatcher and all conditional callbacks through method close (1401–1606). | `eventWatcher` | resolved | High: complete method. | 03–04 | Core/Init | None. |
 | `i`,`o` / watcher `OnEvent` parameters | 1406 | Event frame and event name; frame passed to callbacks/removal, event keys list (1407–1420). | `frame`, `event` | resolved | High. | 03–03 | Core/Init | None. |
 | `l` / watcher `OnEvent` pre-loop local | 1408 | Nil binding shadowed by numeric-for variable at 1410 before read. | — | dead | High. | 03–03 | Unassigned | Minifier artifact. |
 | `e`,`n` / watcher `OnEvent` locals | 1408 | Mutable callback index and callback completion result (1409–1416). | `callbackIndex`, `completed` | resolved | High. | 03–03 | Core/Init | None. |
@@ -312,11 +312,96 @@ Complete helper bodies are resolved when their transformation and side effects a
 | `t` / resurrection callback duplicate parameters 1–2 | 1485 | Neither parameter is read. | — | dead | High: complete callback. | 03–03 | Unassigned | Legacy callback signature artifact. |
 | `e` / resurrection callback local | 1486 | Receives skill result and returns nonzero completion (1487). | `skillGain` | resolved | High. | 03–03 | Engine/Scoring | None. |
 | `t` / epic-loot callback duplicate parameters 1–2 | 1492 | Hidden by message local at 1494 before read and inaccessible thereafter. | — | dead | High: lexical shadow is complete despite open callback. | 03–03 | Unassigned | Minifier artifact. |
-| `n` / epic-loot callback local | 1493 | Starts zero and receives skill result at 1499; return lies in batch 04. | `skillGain` | working | High for prefix. | 03–03 | Engine/Scoring | Confirm completion return. |
+| `n` / epic-loot callback local | 1493 | Starts zero, receives skill result for quality 4, and returns nonzero completion (1499–1502). | `skillGain` | resolved | High: callback complete. | 03–04 | Engine/Scoring | None. |
 | `t` / epic-loot message local | 1494 | Receives/parses message, then is shadowed by quality local at 1497. | `message` | resolved | High: its lexical lifetime is complete. | 03–03 | Core/Init | None. |
-| `o` / epic-loot message local | 1494 | Receives possible second event argument; not read through line 1500. | unknown | unresolved | Low: callback incomplete. | 03–03 | Core/Init | Confirm dead or find use in batch 04. |
-| `t` / epic-loot quality local | 1497 | Shadows message after initializer; third item-info return compared with quality 4 (1498). | `itemQuality` | working | High for prefix; callback incomplete. | 03–03 | Core/Init | Confirm closure in batch 04. |
+| `o` / epic-loot message local | 1494 | Receives possible second event argument and is never read before callback closes. | — | dead | High: complete callback. | 03–04 | Unassigned | Minifier artifact. |
+| `t` / epic-loot quality local | 1497 | Third item-info return compared with quality 4 before callback completion (1498–1503). | `itemQuality` | resolved | High: complete callback. | 03–04 | Core/Init | Verify current item API/cache behavior. |
 
 ## Batch 03 resolution policy
 
 The completed `M`, flight loader, rotation helper, and pause helper are resolved by their full bodies. Massive coordinate tables are named only by proven graph shape; region semantics are deferred. Event locals are resolved only where the callback closes in this batch, while the epic-loot callback ending after line 1500 remains working/shadowed. Accidental globals are recorded without legitimizing them as future API.
+
+## Batch 04 declarations and scopes
+
+| Legacy identifier / lexical scope | Decl. | Observed reads, writes, calls, keys, arithmetic | Working or proposed name | Status | Confidence / evidence | First–last batch | Target subsystem | Open question |
+| --- | ---: | --- | --- | --- | --- | --- | --- | --- |
+| `t` / ready-check hook parameter | 1506 | Truthiness gates ready-check achievement (1508–1509). | `accepted` | working | High for truth contract; exact hook signature pending. | 04–04 | Core/Init | Verify current function arguments. |
+| `skillTrigger` / implicit chunk global | external; write 1509 | Receives `CheckSkill` result and is not read in this batch. | ready-check skill result | unresolved | High for accidental write. | 04–04 | Core/Init | Must become local or discard result. |
+| `t` / combat-death callback duplicate parameters 1–2 | 1515 | Hidden by field local at 1517 before read. | — | dead | High. | 04–04 | Unassigned | Legacy callback artifact. |
+| `o` / combat-death callback local | 1516 | Skill-gain accumulator returned as completion (1523–1527). | `skillGain` | resolved | High. | 04–04 | Engine/Scoring | None. |
+| `t`,`i`,`n` / combat-death fields | 1517 | Damage subevent/type, damaged unit name, and damage amount drive filters/lethal estimate (1518–1523). | `damageType`, `unitName`, `damageAmount` | working | Medium: legacy positional contract unresolved. | 04–04 | Core/Init | Verify modern combat-log positions. |
+| `l` / combat-death duplicate fields 1–6 | 1517 | Earlier duplicates hide each other; final binding is unread. | — | dead | High. | 04–04 | Unassigned | Minifier/positional discard artifact. |
+| `t` / combat-death health local | 1521 | Shadows damage type; computed remaining health feeds lethal check (1522). | `healthAfterDamage` | resolved | High. | 04–04 | Engine/Scoring | None. |
+| `t` / elite-kill callback duplicate parameters 1–2 | 1531 | Hidden by result local at 1532. | — | dead | High. | 04–04 | Unassigned | Callback artifact. |
+| `t` / elite-kill result local | 1532 | Skill gain returned as completion (1536–1539). | `skillGain` | resolved | High. | 04–04 | Engine/Scoring | None. |
+| `i`,`n`,`o` / elite-kill fields | 1533 | Subevent, source GUID, destination GUID tested at 1534. | `subevent`, `sourceGUID`, `destinationGUID` | working | Medium: positional API pending. | 04–04 | Core/Init | Verify current combat-log fields. |
+| `l` / elite-kill duplicate fields 1–2 | 1533 | Both unread; first hidden by second. | — | dead | High. | 04–04 | Unassigned | Positional discard artifact. |
+| `t` / raid callback duplicate parameters 1–2 | 1543 | Never read. | — | dead | High. | 04–04 | Unassigned | Callback artifact. |
+| `e` / raid callback local | 1544 | Skill gain returned as completion (1545). | `skillGain` | resolved | High. | 04–04 | Engine/Scoring | None. |
+| `t` / reputation callback duplicate parameters 1–2 | 1549 | Hidden by result local at 1550. | — | dead | High. | 04–04 | Unassigned | Callback artifact. |
+| `t`,`n` / reputation callback locals | 1550, 1551 | Skill gain and system message; message pattern-gates skill check (1552–1555). | `skillGain`, `message` | resolved | High. | 04–04 | Engine/Scoring, Core/Init | None. |
+| `t` / honor callback duplicate parameters 1–2 | 1559 | Never read. | — | dead | High. | 04–04 | Unassigned | Callback artifact. |
+| `e` / honor callback local | 1560 | Skill gain returned as completion (1561). | `skillGain` | resolved | High. | 04–04 | Engine/Scoring | None. |
+| `t` / rare-kill callback duplicate parameters 1–2 | 1565 | Hidden by combat field at 1567. | — | dead | High. | 04–04 | Unassigned | Callback artifact. |
+| `n` / rare-kill callback local | 1566 | Skill gain returned as completion (1571–1574). | `skillGain` | resolved | High. | 04–04 | Engine/Scoring | None. |
+| `t`,`o`,`i` / rare-kill fields | 1567 | Subevent, source GUID, destination GUID tested at 1568. | `subevent`, `sourceGUID`, `destinationGUID` | working | Medium: positional API pending. | 04–04 | Core/Init | Verify current combat-log fields. |
+| `l` / rare-kill duplicate fields 1–2 | 1567 | Both unread; first hidden by second. | — | dead | High. | 04–04 | Unassigned | Positional discard artifact. |
+| `t` / rare-kill classification local | 1569 | Shadows subevent; accepts rare/rareelite (1570). | `classification` | resolved | High. | 04–04 | Engine/Scoring | None. |
+| `t` / level-up callback duplicate parameters 1–2 | 1578 | Never read. | — | dead | High. | 04–04 | Unassigned | Callback artifact. |
+| `e` / level-up callback local | 1579 | Skill gain returned as completion (1580). | `skillGain` | resolved | High. | 04–04 | Engine/Scoring | None. |
+| `t` / arena callback duplicate parameters 1–2 | 1584 | Hidden by local win flag at 1586. | — | dead | High. | 04–04 | Unassigned | Callback artifact. |
+| `n`,`t` / arena callback locals | 1585, 1586 | Skill gain and boolean rating-increase flag (1589–1603). | `skillGain`, `wonArenaMatch` | resolved | High for legacy body. | 04–04 | Engine/Scoring | APIs obsolete candidates. |
+| `teamName1`,`oldTeamRating1`,`newTeamRating1` / implicit globals | external; write 1587 | First team name and rating transition used at 1589–1593. | team-1 result fields | working | High for legacy role. | 04–04 | Core/Init | Must use locals/current arena API. |
+| `teamName2`,`oldTeamRating2`,`newTeamRating2` / implicit globals | external; write 1588 | Second team name and rating transition used at 1589–1597. | team-2 result fields | working | High for legacy role. | 04–04 | Core/Init | Must use locals/current arena API. |
+| `t` / legal Okay callback parameter | 1681 | Never read. | — | dead | High. | 04–04 | Unassigned | Callback self unused. |
+| `Ee` / chunk function | 1689 | Selects score list by channel, splits payload, merges authenticated entries (1690–1700). | `receiveHighScoreSync` | resolved | High: complete body. | 04–04 | Core/SavedVariables | Network binding/message type pending. |
+| `e` / `Ee` duplicate parameters 1 and 4 | 1689 | First hidden by fourth; fourth shadowed by local at 1693 before read. | — | dead | High. | 04–04 | Unassigned | Minifier/callback artifact. |
+| `t`,`n` / `Ee` parameters | 1689 | Payload and channel; channel selects friends for whisper, guild otherwise (1690–1699). | `payload`, `channel` | resolved | High. | 04–04 | Core/SavedVariables | Sender identity ignored here. |
+| `e` / `Ee` local | 1693 | Selected destination score list passed to `j` (1694–1699). | `scoreList` | resolved | High. | 04–04 | Core/SavedVariables | None. |
+| `o`,`n` / `CheckName` parameters | 1702 | Skill-map key and competitor name control uniqueness/count branches (1703–1721). | `listKey`, `name` | resolved | High. | 04–04 | Engine/Scoring | None. |
+| `t` / `CheckName` local | 1704 | Aliases selected skill competitor map and is mutated (1706–1718). | `competitorList` | resolved | High. | 04–04 | Core/SavedVariables | None. |
+| `dt` / chunk function | 1725 | Serializes current-player friend/guild leaderboard rows into chunked `HSSync` messages (1726–1805). | `sendHighScoreSync` | resolved | High: complete body. | 04–04 | Core/SavedVariables | Network ownership pending. |
+| `l`,`a` / `dt` parameters | 1725 | Target and channel select branch/transport (1728–1802); loop `a` bindings shadow channel locally. | `target`, `channel` | resolved | High. | 04–04 | Core/Init | Guild target semantics pending. |
+| `i` / `dt` preliminary duplicate bindings 1–3 | 1726 | Hidden by player-name local at 1727. | — | dead | High. | 04–04 | Unassigned | Minifier artifact. |
+| `n`,`o`,`t` / `dt` locals | 1726 | Selected score list, row name, and serialized payload (1729–1803). | `scoreList`, `rowName`, `payload` | resolved | High. | 04–04 | Core/SavedVariables | None. |
+| `i` / `dt` player local | 1727 | Current player name used to select owned rows; later overwritten with guild member names (1734–1795). | `memberName` | resolved | High. | 04–04 | Core/SavedVariables | Realm qualification unresolved. |
+| `a` / `dt` friend-row loop | 1731 | Iterates leaderboard rows 1–10 (1732–1756). | `row` | resolved | High. | 04–04 | Core/SavedVariables | None. |
+| `r`,`d` / `dt` guild locals | 1763, 1764 | Serialized-entry count and whether member has a score row (1765–1799). | `entryCount`, `hasScore` | resolved | High. | 04–04 | Core/SavedVariables | None. |
+| `a` / `dt` guild-member loop | 1765 | Iterates guild roster; inner row loop shadows it (1766–1800). | `memberIndex` | resolved | High. | 04–04 | Core/Init | None. |
+| `a` / `dt` guild-row loop | 1768 | Iterates ten rows for one guild member (1769–1793). | `row` | resolved | High. | 04–04 | Core/SavedVariables | None. |
+| `l`,`i`,`o`,`n`,`t`,`a`,`r` / `ScrubLists` locals | 1808 | Mutable row, name, fallback score, selected list/board key, presence flag, and roster name drive scrub (1810–1901). | `row`, `name`, `fallbackScore`, `scoreLists`, `modeKey`, `isPresent`, `rosterName` | working | Medium: complete body but heavily reused. | 04–04 | Core/SavedVariables | Mechanical rewrite should split scopes. |
+| `d` / `ScrubLists` duplicate declarations 1–4 | 1808 | Duplicate bindings are hidden by later duplicates and outer loop at 1810. | — | dead | High. | 04–04 | Unassigned | Minifier artifact. |
+| `S` / `ScrubLists` local | 1809 | Current player name exempted from membership removal (1865). | `playerName` | resolved | High. | 04–04 | Core/SavedVariables | None. |
+| `d`,`s` / `ScrubLists` outer loops | 1810, 1816 | Select friend/guild list and classic/timed board (1811–1825). | `listKind`, `modeKind` | resolved | High. | 04–04 | Core/SavedVariables | None. |
+| `scoreOffset` / implicit chunk global | external; writes 1819, 1823, 1858, 1861 | Fallback decrement used when regenerating PopCap rows (1843, 1890, 1896). | `fallbackScoreStep` | working | High for role; accidental global. | 04–04 | Core/SavedVariables | Must become lexical local. |
+| `t` / `ScrubLists` name-list loop | 1827 | Temporary map key used to delete every entry (1828). | `name` | resolved | High. | 04–04 | Core/SavedVariables | None. |
+| `n` / `ScrubLists` name-list loop | 1827 | Iteration value is never read. | — | dead | High. | 04–04 | Unassigned | Generic-for discard artifact. |
+| `a` / `ScrubLists` duplicate scan | 1831 | Ten iterations while mutable `l` selects current row (1832–1854). | `iteration` | resolved | High. | 04–04 | Core/SavedVariables | None. |
+| `e` / `ScrubLists` duplicate-shift loop | 1838 | Shifts fields 1–3 for rows `l..9` (1839–1845). | `row` | resolved | High. | 04–04 | Core/SavedVariables | Field 4 omission is defect evidence. |
+| `e` / `ScrubLists` membership scan | 1863 | Iterates leaderboard rows; also seeds removal shift at 1885 (1864–1899). | `row` | resolved | High. | 04–04 | Core/SavedVariables | None. |
+| `e` / `ScrubLists` friend/guild loops | 1868, 1876 | Iterates current friend or guild roster while searching name (1869–1882). | `rosterIndex` | resolved | High for legacy APIs. | 04–04 | Core/Init | Verify current API. |
+| `e` / `ScrubLists` removal-shift loop | 1885 | Starts from outer row value and shifts fields 1–3 through row 9 (1886–1892). | `shiftRow` | resolved | High. | 04–04 | Core/SavedVariables | Field 4 omission is defect evidence. |
+| `St` / chunk function | 1904 | Serializes grid and game metadata into `settings.savedState` (1905–1934). | `saveGameState` | resolved | High: complete body. | 04–04 | Core/SavedVariables | Load/validation counterpart pending. |
+| `t` / `St` duplicate preliminary bindings 1–2 | 1905 | Hidden by saved-state local at 1906. | — | dead | High. | 04–04 | Unassigned | Minifier artifact. |
+| `i` / `St` local | 1905 | Gem encoded contents, optionally +10 for big star (1916–1920). | `encodedGem` | resolved | High. | 04–04 | Core/SavedVariables | None. |
+| `t` / `St` saved-state local | 1906 | Owns grid rows then metadata row (1907–1933). | `savedState` | resolved | High. | 04–04 | Core/SavedVariables | None. |
+| `e`,`n` / `St` allocation/grid loops | 1910, 1914 | Allocate rows 1..9; then row loop 1..8 with column `e` at 1915. | `row`, `row` | resolved | High. | 04–04 | Core/SavedVariables | None. |
+| `e` / `St` column loop | 1915 | Iterates grid columns and writes encoded gem (1916–1920). | `column` | resolved | High. | 04–04 | Core/SavedVariables | None. |
+| `n` / `St` metadata local | 1924 | Aliases current game for metadata fields (1925–1932). | `gameState` | resolved | High. | 04–04 | Core/SavedVariables | None. |
+| `e` / `NumberWithCommas` parameter | 1936 | Used by the local initializer at 1937, then shadowed. | `value` | shadowed | High. | 04–04 | UI/HUD | Input coercion relies on string library. |
+| `e` / `NumberWithCommas` local | 1937 | First `gsub` result; repeatedly transformed and returned (1938–1943). | `formattedNumber` | resolved | High. | 04–04 | UI/HUD | None. |
+| `t` / `NumberWithCommas` local | 1937 | Receives `gsub` replacement count; zero terminates loop (1939–1941). | `replacementCount` | resolved | High. | 04–04 | UI/HUD | None. |
+| `e`,`t` / `SecondsConvert` bindings | 1946–1947 | Seconds parameter becomes remainder; local `t` is floored minutes (1947–1949). | `seconds`, `minutes` | resolved | High. | 04–04 | UI/HUD | None. |
+| `Q` / chunk function | 1952 | Clears dynamic numeric/transient gem fields and restores geometry/visual defaults (1953–1982). | `resetGem` | resolved | High: complete body. | 04–04 | UI/GemPool | Call sites pending. |
+| `e`,`n`,`o` / `Q` parameters | 1952 | Gem, column, row; coordinates/keys assigned after cleanup (1965–1979). | `gem`, `column`, `row` | resolved | High. | 04–04 | UI/GemPool | None. |
+| `t` / `Q` local | 1953 | Receives each value's type and gates removal of numeric-valued keys (1954–1958). | `valueType` | resolved | High. | 04–04 | UI/GemPool | None. |
+| `n`,`o` / `Q` generic loop | 1954 | Shadow parameters inside loop as key/value; removes numeric values (1955–1958). | `key`, `value` | resolved | High. | 04–04 | UI/GemPool | None. |
+| `Ke` / chunk function | 1984 | Begins board-wide gem transition; continues after 2000. | `startGameOverGemAnimation` | working | Medium: prefix only. | 04–04 | UI/Animations | Complete in batch 05. |
+| `n` / `Ke` duplicate preliminary bindings 1–2 | 1985 | Hidden by animator local at 1986. | — | dead | High. | 04–04 | Unassigned | Minifier artifact. |
+| `t` / `Ke` local | 1985 | Receives each gem and mutates animation fields (1989–1999). | `gem` | working | High for prefix. | 04–04 | UI/Animations | Continuation pending. |
+| `n` / `Ke` animator local | 1986 | Aliases animator and receives every gem via `Add` (1999). | `animator` | working | High for prefix. | 04–04 | UI/Animations | Continuation pending. |
+| `i`,`e` / `Ke` grid loops | 1987, 1988 | Iterate grid rows/columns and index gem grid (1989). | `row`, `column` | resolved | High. | 04–04 | Engine/Grid | None. |
+
+## Batch 04 resolution policy
+
+Completed event callbacks and helpers are resolved by full local data flow. Legacy positional API fields remain `working` where modern contracts are unverified. Duplicate declarations and proven-unused callback parameters are `dead`; accidental global writes remain explicit `working`/`unresolved` evidence. `Ke` and its transition-state constants stay working across the batch boundary.
