@@ -882,7 +882,7 @@ local function _t(t)
         local i = l.score
         t.scoreCaption:SetText("Final Score")
         t.scoreValue:SetText(Bejeweled:NumberWithCommas(i))
-        t.bragString = "[Bejeweled Addon]: " .. a .. " just scored " .. t.scoreValue:GetText() .. " points in Classic mode! Download the Bejeweled Addon for Wow to defeat their score!" if (i > n.statDB[I]) then
+        t.bragString = "[Bejeweled Addon]: " .. a .. " just scored " .. t.scoreValue:GetText() .. " points in Classic mode! Ask Alms or Redeem for the link, or visit https://github.com/scbasss/wow_bejeweled/releases/tag/11.0.2-tbc.1 to defeat their score!" if (i > n.statDB[I]) then
             n.statDB[I] = i
             n.statDB[v] = P(x(i, 4), s);
         end
@@ -895,7 +895,7 @@ local function _t(t)
         local i = (l.score / r)
         t.scoreCaption:SetText("Points per Second")
         t.scoreValue:SetFormattedText("%.2f", i)
-        t.bragString = "[Bejeweled Addon]: " .. a .. " just scored " .. t.scoreValue:GetText() .. " points per second in a Timed mode! Download the Bejeweled Addon for Wow to defeat their score!" if (i > n.statDB[I]) then
+        t.bragString = "[Bejeweled Addon]: " .. a .. " just scored " .. t.scoreValue:GetText() .. " points per second in a Timed mode! Ask Alms or Redeem for the link, or visit https://github.com/scbasss/wow_bejeweled/releases/tag/11.0.2-tbc.1 to defeat their score!" if (i > n.statDB[I]) then
             n.statDB[I] = i
             n.statDB[v] = P(x(d(i * 100), 3), s);
         end
@@ -922,7 +922,10 @@ local function _t(t)
         Bejeweled.network:Send("HSPub", o, "GUILD", "")
         local i, n
         for i = 1, C_FriendList.GetNumFriends() do
-            n, _, _, _, online = C_FriendList.GetFriendInfo(i) if (online) then
+            local info = C_FriendList.GetFriendInfo(i)
+            local online = info and info.connected
+            n = info and info.name
+            if (online) then
                 Bejeweled.network:Send("HSPub", o, "WHISPER", n);
             end
         end
@@ -1679,7 +1682,6 @@ function Bejeweled:ShowLegal()
     local Frame_LegalPopup_OkayButton = CreateFrame("Button", "", Frame_LegalPopup, "UIPanelButtonTemplate") Frame_LegalPopup_OkayButton:SetPoint("Bottom", 0, 16)
     Frame_LegalPopup_OkayButton:SetText(OKAY)
     Frame_LegalPopup_OkayButton:SetScript("OnClick", function(t)
-		print("test-d")
         Frame_LegalPopup_OkayButton:GetParent():Hide()
         BejeweledData.legalDisplayed = true
         Bejeweled.window.splash.elapsed = 0
@@ -6064,9 +6066,7 @@ local function R()
         if (t.newGame) then
             t.newGame = nil
             T(false)
-            if (n.gameMode == ae) then
-                Bejeweled.levelBar:StopTimer()
-            elseif (n.gameMode == k) then
+            if (n.gameMode == k) then
                 Bejeweled.animator.countdownState = 0
                 n.moveAllowed = nil;
             end
@@ -6099,9 +6099,12 @@ local function R()
     n:Show()
     n:SetMinMaxValues(2, 10)
     n:SetValueStep(1)
+    if (n.SetObeyStepOnDrag) then
+        n:SetObeyStepOnDrag(true)
+    end
     n:SetPoint("Top", 0, -50)
     n:SetScript("OnValueChanged", function(e)
-        getglobal(e:GetName() .. "Value"):SetText(e:GetValue() .. " Minute(s)")
+        getglobal(e:GetName() .. "Value"):SetText(math.floor(e:GetValue() + .5) .. " Minute(s)")
     end)
     n:SetValue(5)
     local n = Bejeweled:CreateCheckbox(14, -88, "Use flightpath time", "useFlightpathTime", 1, o, function()
@@ -6136,12 +6139,14 @@ local function R()
     t:SetHeight(28)
     t:SetScript("OnClick", function(t)
         if (Bejeweled.timedWindow.flightCheckbox:IsVisible() and Bejeweled.timedWindow.flightCheckbox:GetChecked()) then
+            Bejeweled.timedWindow.newGame = true
             Bejeweled.flightOptionWindow.buttonGo:OnClickScript()
         else
-            j(ae, getglobal("BejeweledTimeSlider"):GetValue() * 60);
-        end
-        Bejeweled.timedWindow.newGame = true
-        Bejeweled.timedWindow:Hide();
+            local minutes = math.floor(getglobal("BejeweledTimeSlider"):GetValue() + .5)
+            Bejeweled.timedWindow.newGame = true
+            Bejeweled.timedWindow:Hide()
+            j(ae, minutes * 60);
+        end;
     end)
     Bejeweled.timedWindow = o;
 end
@@ -7938,28 +7943,6 @@ local function S(i, t, l, o)
         i.switchingZones = true
     elseif (t == "PLAYER_ENTERING_WORLD") and not Bejeweled.loggedIn then
         Bejeweled.loggedIn = true
-        local a = BejeweledProfile.stats.classic
-        local l = BejeweledProfile.stats.timed
-        local i = a.score
-        local o = d(l.score * 100)
-        local t = UnitName("player")
-        local n = Y(BejeweledProfile.skill.rank) .. t .. "*"
-        local t = H(t)
-        i = a[v] or ""
-        o = l[v] or ""
-        local n = n .. i .. "*" .. n .. o
-        if IsInGuild() then
-            C_GuildInfo.GuildRoster();
-        end
-        Bejeweled.network:Send("LogSync", "", "GUILD", "")
-        Bejeweled.network:Send("HSPub", n, "GUILD", "")
-        local o, t
-        for o = 1, C_FriendList.GetNumFriends() do
-            t, _, _, _, online = C_FriendList.GetFriendInfo(o) if (online) then
-                Bejeweled.network:Send("LogSync", "", "WHISPER", t)
-                Bejeweled.network:Send("HSPub", n, "WHISPER", t);
-            end
-        end
         if not (BejeweledData.legalDisplayed) then
             Bejeweled.window:Show()
             Bejeweled:ShowLegal()
@@ -7970,6 +7953,33 @@ local function S(i, t, l, o)
         if (BejeweledProfile.settings.openLogin) then
             Bejeweled.window:Show();
         end
+        pcall(function()
+            local a = BejeweledProfile.stats.classic
+            local l = BejeweledProfile.stats.timed
+            local i = a.score
+            local o = d(l.score * 100)
+            local t = UnitName("player")
+            local n = Y(BejeweledProfile.skill.rank) .. t .. "*"
+            local t = H(t)
+            i = a[v] or ""
+            o = l[v] or ""
+            local n = n .. i .. "*" .. n .. o
+            if IsInGuild() then
+                C_GuildInfo.GuildRoster();
+            end
+            Bejeweled.network:Send("LogSync", "", "GUILD", "")
+            Bejeweled.network:Send("HSPub", n, "GUILD", "")
+            local o, t
+            for o = 1, C_FriendList.GetNumFriends() do
+                local info = C_FriendList.GetFriendInfo(o)
+                local online = info and info.connected
+                t = info and info.name
+                if (online) then
+                    Bejeweled.network:Send("LogSync", "", "WHISPER", t)
+                    Bejeweled.network:Send("HSPub", n, "WHISPER", t);
+                end
+            end
+        end)
     elseif (t == "PLAYER_DEAD") then
         if (BejeweledProfile.settings.openOnDeath) then
             Bejeweled.window:Show();
