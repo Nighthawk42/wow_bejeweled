@@ -7,7 +7,7 @@ Each row identifies one declaration, not merely one spelling. `chunk` means the 
 | `t` / chunk (first binding) | 4 | String initializer only before shadow at 186. | `addonRootPath` | dead | High: path literal at 4; no read before 186. | 01–01 | Core/Constants | Was elimination intentional? |
 | `l` / chunk | 5 | Image/font root used for bundled fonts and attempted legal-popup background path (5, 618, 633, 1664). | `imageRootPath` | resolved | High: literal and direct asset-path consumers. | 01–04 | Core/Constants | Other consumers remain to inventory. |
 | `ut` / chunk | 6 | Path initializer; no batch-01 read. | `soundRootPath` | working | High: literal ends in `sounds\` (6). | 01–01 | Core/Audio | Confirm path casing/contracts. |
-| `xe` / chunk | 7 | String initializer; no batch-01 read. | `addonMessagePrefix` | working | Medium: `BEJEWELED2` literal (7). | 01–01 | Core/Init | Confirm registration/send sites. |
+| `xe` / chunk | 7 | Starts as `BEJEWELED2`; migration completion changes it to `BEJ2a` at 3563. | `addonMessagePrefix` | working | High for role. | 01–08 | Core/Init, Persistence/Migration | Confirm registration/send sites and version routing. |
 | `ft` / chunk | 8 | Seven-entry colored/name table; no batch-01 read. | `gemDisplayNames` | working | Medium: ordered color names (8). | 01–01 | UI/HUD | Confirm indices and markup purpose. |
 | `he` / chunk | 169 | Nine RGB triples; initialized only in batch 01. | `gemColors` | working | Medium: values mirror seven gem colors plus two white entries (169–179). | 01–01 | Core/Constants | Determine meanings of indices 8–9. |
 | `U` / chunk | 180 | Numeric keys 1–7 map to lowercase color names. | `gemColorNames` | working | High: complete table at 180. | 01–01 | Core/Constants | Confirm use in asset filenames. |
@@ -23,7 +23,7 @@ Each row identifies one declaration, not merely one spelling. `chunk` means the 
 | `e` / third atlas loop | 218 | Loop values 0–2; computes 3×3 indices/UVs (219–221). | `row` | resolved | High: loop and `*3`/`.33` math (218–221). | 01–01 | UI/Animations | Exact `.33` edge behavior later. |
 | `K` / chunk | 227 | Starts at zero; accumulates every value in `BejeweledData.played` during achievement setup (1397–1399). | `totalGamesAcrossCharacters` | resolved | High: direct account-data sum. | 01–03 | Core/SavedVariables | Not reset before summing; assess repeat calls. |
 | `Ye` / chunk | 228 | Constant `24`; halved into `pt` (285). | unknown dimension | unresolved | Low: declaration/arithmetic only. | 01–01 | UI/GemPool | Which axis/object? |
-| `Ze` / chunk | 229 | Constant `24`; halved into `ct` (286). | unknown dimension | unresolved | Low: declaration/arithmetic only. | 01–01 | UI/GemPool | Which axis/object? |
+| `Ze` / chunk | 229 | Constant `24`; halved into `ct` (286), then shadowed by command function at 3619. | unknown dimension | unresolved | Low: declaration/arithmetic only. | 01–08 | UI/GemPool | Which axis/object? |
 | `b` / chunk | 230 | Constant `50`; halved into `ce`; multiplies horizontal match-length offset (283, 1013). | `gemWidth` | resolved | High: direct X-coordinate geometry. | 01–03 | UI/GemPool | None. |
 | `p` / chunk | 231 | Constant `50`; copied/halved; multiplies vertical match-length offset (272, 274, 284, 1014). | `gemHeight` | resolved | High: direct Y-coordinate geometry. | 01–03 | UI/GemPool | None. |
 | `lt` / chunk | 232 | Constant expression `70 + 20`; no batch-01 read. | unknown 90-pixel dimension | unresolved | Low: declaration only. | 01–01 | UI | Locate consumers. |
@@ -120,13 +120,13 @@ Each row identifies one declaration, not merely one spelling. `chunk` means the 
 | `z` / chunk (numeric overwrite) | 322 | Overwrites earlier binding with `7`; no batch-01 read. | unknown enum seven | unresolved | Low. | 01–01 | Engine | Locate consumers. |
 | `o` / chunk | 323 | Eight row tables initialized, exported as `debugArray`, and traversed as `o[row][column]` gem frames (324–326, 442, 1275–1293). | `gemGrid` | resolved | High: explicit 8×8 traversal. | 01–03 | Engine/Grid, UI/GemPool | Debug export naming is incidental. |
 | `e` / debug-array loop | 324 | Loop 1–8; indexes `o` for writes (325). | `index` | resolved | High: direct loop role. | 01–01 | Core/Init | None. |
-| `v` / chunk | 327 | Forward declaration; used as key for authenticated personal-best payload in `n.statDB` (887, 900) and signed zero payloads in classic/timed profile stats (3490–3491). | `statEncodedScoreKey` | working | Medium: value type is proven; concrete selected key is not. | 01–07 | Core/SavedVariables | Find assignments for mode-specific key. |
-| `I` / chunk | 327 | Forward declaration; used as key for numeric personal-best metric in `n.statDB` (885–886, 898–899). | `statNumericScoreKey` | working | Medium: value type is proven; concrete selected key is not. | 01–02 | Core/SavedVariables | Find assignments for mode-specific key. |
+| `v` / chunk | 327 | Key for authenticated personal-best payloads in current-game/profile classic/timed stats (887, 900, 3490–3491, 3601–3613). | `statEncodedScoreKey` | working | High for role; concrete selected key pending. | 01–08 | Core/SavedVariables | Find mode-specific assignments. |
+| `I` / chunk | 327 | Key for decoded numeric personal-best metrics in current-game/profile classic/timed stats (885–886, 898–899, 3603–3612). | `statNumericScoreKey` | working | High for role; concrete selected key pending. | 01–08 | Core/SavedVariables | Find mode-specific assignments. |
 | `ge` / chunk | 327 | Forward declaration populated by `ze` with faction-selected four-region coordinate adjacency graphs (1040–1249). | `flightGraph` | resolved | High: complete assignment shape. | 01–03 | Core/SavedVariables | Region meanings/search consumers pending. |
-| `we` / chunk | 327 | Forward declaration; assigned `true` when max-score level-up begins (529). | `levelUpPendingFlag` | working | Low: writer observed, reader absent. | 01–02 | Engine/Scoring, UI/Animations | Find consumer/reset. |
+| `we` / chunk | 327 | Set when max-score level-up begins (529); during level spawning it counts/removes carried hyper and big-star state for later restoration (3890–3906). | `levelSpawnSpecialRecovery` | working | Medium-high. | 01–08 | Engine/Scoring, Engine/BoardSpawn | Find reset and full restoration completion. |
 | `r` / chunk | 333 | Six-entry array of four-number direction/offset tuples. | neighbor/offset patterns | working | Medium: signed coordinate-like tuples. | 01–01 | Engine/Matches | Establish tuple field semantics. |
 | `n` / chunk | 334 | Exported current-game state; drives scoring/pause/events/save metadata and receives erroneous `bgFile` write (443, 464–529, 874–1008, 1274–1407, 1664, 1924–1933). | `currentGame` | resolved | High: explicit debug export and repeated state transitions. | 01–04 | Engine/Grid, Engine/Scoring | Full dynamic table shape still grows later. |
-| `C` / chunk function | 444 | Returns a fresh backdrop descriptor; called by legal popup before mutation/application (445–452, 1663–1668). | `createBackdropInfo` | resolved | High: factory and consumer observed. | 01–04 | UI/Backdrops | Additional style consumers may refine name. |
+| `C` / chunk function | 444 | Returns a fresh backdrop descriptor; consumers mutate/apply it to legal and score-migration popups (445–452, 1663–1668, 3501–3508). | `createBackdropInfo` | resolved | High. | 01–08 | UI/Backdrops | None. |
 | `st` / chunk function | 455 | Reads `e.animated`; appends `e` to `t.animationStack`; writes flag true (456–459). | `queueAnimationOnce` | working | High: full function body. | 01–01 | UI/Animations | Identify owner and element types at call sites. |
 | `t` / `st` parameter | 455 | Table-key read `t.animationStack` passed to `table.insert` (457). | `animationOwner` | working | Medium: body only. | 01–01 | UI/Animations | Concrete frame/controller type. |
 | `e` / `st` parameter | 455 | Reads/writes key `animated`; inserted into stack (456–458). | `animation` | working | Medium: body only. | 01–01 | UI/Animations | Concrete table/frame type. |
@@ -189,7 +189,7 @@ Only direct standard-library aliases, loop counters with complete local bodies, 
 | `e`,`t` / `P` parameters | 735 | Payload and optional checksum seed; parameter `t` is shadowed at 736 after initializer access. | `payload`, `seed` | resolved | High. | 02–02 | Core/SavedVariables | None. |
 | `t` / `P` defaulted seed | 736 | Defaults parameter seed, then is consumed by `H` initializer at 737 and shadowed by returned digit. | `seed` | shadowed | High. | 02–02 | Core/SavedVariables | None. |
 | `l`,`o`,`t`,`i`,`n` / `P` checksum outputs | 737 | Five checksum digits returned by first `H`, packed in reverse variable order into decimal positions at 738. | `d1`, `d2`, `d3`, `d4`, `d5` | resolved | High for positional role; descriptive checksum names intentionally neutral. | 02–02 | Core/SavedVariables | Semantic digit ordering is legacy-specific. |
-| `fe` / chunk function | 741 | Validates checksum prefix and returns authenticated payload or nil (742–759). | `verifyScore` | resolved | High: complete body. | 02–02 | Core/SavedVariables | None. |
+| `fe` / chunk function | 741 | Validates checksum prefix and returns authenticated payload or nil; migration uses it for leaderboard/personal-best repair before it is shadowed at 3829 (742–759, 3569–3613). | `verifyScore` | resolved | High. | 02–08 | Core/SavedVariables | None. |
 | `e`,`t` / `fe` parameters | 741 | Authenticated string and optional checksum seed; `e` later shadowed after prefix/payload extraction. | `encodedScore`, `seed` | resolved | High. | 02–02 | Core/SavedVariables | None. |
 | `r`,`n` / `fe` locals | 745, 746 | Three-character checksum prefix and remaining payload. | `checksumPrefix`, `payload` | resolved | High. | 02–02 | Core/SavedVariables | None. |
 | `d`,`h`,`c`,`S`,`s` / `fe` expected digits | 748 | Five checksum digits returned from first `H` and compared positionally (751–756). | `expected1`…`expected5` | resolved | High for positional role. | 02–02 | Core/SavedVariables | Neutral names preserve unusual order. |
@@ -426,7 +426,7 @@ Completed event callbacks and helpers are resolved by full local data flow. Lega
 | `ee` / chunk function | 2247 | Creates power gem/big star and achievement (2248–2264). | `createPowerGem` | resolved | High. | 05–05 | Engine/Matches | None. |
 | `Z` / chunk function | 2266 | Creates hyper gem and achievement (2267–2283). | `createHyperGem` | resolved | High. | 05–05 | Engine/Matches | None. |
 | `t`,`i`,`o` / `ee` and `Z` bindings | 2247–2267 | Gem, forced flag, created result in each helper. | `gem`,`forced`,`created` | resolved | High. | 05–05 | Engine/Matches | None. |
-| `Le` / chunk function | 2285 | Marks directional clear/explosion and queues animation (2286–2300). | `markGemForClear` | resolved | High. | 05–05 | Engine/Matches | Direction enum pending. |
+| `Le` / chunk function | 2285 | Marks directional clear/explosion and queues animation (2286–2300); shadowed by board-spawn function at 3874. | `markGemForClear` | resolved | High. | 05–08 | Engine/Matches | Direction enum pending. |
 | `t`,`o` / `Le` parameters | 2285 | Gem and direction; `Ne` selects X. | `gem`,`direction` | resolved | High. | 05–05 | Engine/Matches | None. |
 | `Q` / chunk move finder | 2302 | Shadows reset helper; transactional swaps detect legal match (2303–2347). | `findLegalMove` | resolved | High. | 05–05 | Engine/Matches | Returns one candidate gem. |
 | `e`,`t`,`p` / move loops | 2304–2306 | Row, column, cardinal direction. | `row`,`column`,`direction` | resolved | High. | 05–05 | Engine/Matches | None. |
@@ -518,9 +518,58 @@ Completed factories are resolved by pool/field contracts. The open match scanner
 | `e` / `nt` friend loops | 3315, 3348 | Friend-list index in distinct nested loop scopes. | `friendIndex` | resolved | High. | 07–07 | UI/Leaderboard | None. |
 | `Ne` / shadow function; `t`,`n` params | 3369 | Throttled timer `OnUpdate`; delta parameter `n` is consumed before a later local shadows it. Shadows direction constant for later code. | `updateTimer`; `frame`,`delta` | resolved | High. | 07–07 | UI/Timer | None. |
 | `n` / `Ne` timed-window local | 3378 | Timed-window object used after delta accumulation. | `timedWindow` | resolved | High. | 07–07 | UI/Timer | None. |
-| `i`,`a`,`t`,`o` / `UpdateSavedVariablesDatabase` locals | 3463–3466 | Classic stats, timed stats, saved state, and player identity/checksum; `o` changes role after upgrade checks. | `classicStats`,`timedStats`,`savedState`,`playerNameOrChecksum` | working | Medium-high. | 07–07 | Persistence/Migration | Continue method in batch 08. |
-| `n` / score-migration popup scope | 3494 | Popup frame constructed for incomplete score migration; construction continues after 3500. | `migrationPopup` | working | High for object role. | 07–07 | UI/Migration | Complete in batch 08. |
+| `i`,`a`,`t`,`o` / `UpdateSavedVariablesDatabase` locals | 3463–3466 | Classic stats, timed stats, saved state, and player identity then checksum seed through completed migration (3463–3614). | `classicStats`,`timedStats`,`savedState`,`playerNameOrChecksum` | resolved | High. | 07–08 | Persistence/Migration | Split `o` roles in rewrite. |
+| `n` / score-migration popup scope | 3494 | Popup frame fully constructed, stored as `Bejeweled.updatePopup`, and shown by upgrade controls (3494–3560). | `migrationPopup` | resolved | High. | 07–08 | UI/Migration | Duplicate global No button is preserved defect evidence. |
 
 ## Batch 07 resolution policy
 
 Bindings are resolved only where complete control/data flow closes within this batch or the completed cross-batch `he` body. Locals in the open saved-variable method and ambiguous animator/row temporaries remain working; unused declarations are marked dead without yet authorizing removal.
+
+## Batch 08 declarations and scopes
+
+| Legacy identifier / scope | Decl. | Evidence | Proposed name | Status | Confidence | First–last | Target | Question |
+| --- | ---: | --- | --- | --- | --- | --- | --- | --- |
+| `t` / migration backdrop local | 3501 | Fresh `C()` descriptor mutated and passed to popup backdrop. | `backdropInfo` | resolved | High. | 08–08 | UI/Migration | None. |
+| `t` / migration close-button local | 3509 | Popup close button configured through callback. | `closeButton` | resolved | High. | 08–08 | UI/Migration | None. |
+| `e` / close callback | 3512 | Button whose parent is hidden. | `button` | resolved | High. | 08–08 | UI/Migration | None. |
+| `t` / migration message local | 3515 | Popup explanatory font string. | `messageText` | resolved | High. | 08–08 | UI/Migration | None. |
+| `t` / migration action-control local | 3524 | Yes button, then reassigned to two No buttons and upgrade launcher (3524–3561). | `actionControl` | resolved | High. | 08–08 | UI/Migration | Preserve duplicate named No construction. |
+| `e` / Yes/No callbacks | 3528, 3537, 3546 | Distinct callback button parameters; Yes ignores it, No callbacks hide its parent. | `button` | resolved | High. | 08–08 | UI/Migration | None. |
+| `t` / upgrade-launch callback | 3559 | Callback parameter is never read. | — | dead | High. | 08–08 | UI/Migration | None. |
+| `e` / migration repair helper and params | 3564 | Local helper/table parameter validates and repairs one ten-row leaderboard. | `repairLeaderboard`; `leaderboard` | resolved | High. | 08–08 | Persistence/Migration | Calls cover only two distinct lists. |
+| `r`,`n`,`d` / repair-helper params | 3564 | Classic flag, fallback score, and decrement step. | `isClassic`,`fallbackScore`,`fallbackStep` | resolved | High. | 08–08 | Persistence/Migration | None. |
+| `i`,`o` / repair-helper locals | 3565 | PopCap fallback name and decoded signed payload. | `fallbackName`,`decodedPayload` | resolved | High. | 08–08 | Persistence/Migration | None. |
+| `t` / first repair local | 3565 | First duplicate binding is hidden by the second same-statement `t`. | — | shadowed | High. | 08–08 | Persistence/Migration | None. |
+| `t` / second repair local | 3565 | Survives the declaration but has no read outside the nested numeric-loop scopes. | — | dead | High. | 08–08 | Persistence/Migration | None. |
+| `l` / repair-helper local | 3566 | Counts invalid rows but is never read. | — | dead | High. | 08–08 | Persistence/Migration | None. |
+| `a` / repair-helper local | 3567 | Byte-sum checksum seed for PopCap fallback name. | `fallbackSeed` | resolved | High. | 08–08 | Persistence/Migration | None. |
+| `t` / repair outer and shift loops | 3568, 3577 | Descending record index and nested upward shift index in distinct scopes. | `recordIndex`,`shiftIndex` | resolved | High. | 08–08 | Persistence/Migration | None. |
+| `e` / personal-best local | 3601 | Verified payload reused for classic and timed profile scores. | `decodedPayload` | resolved | High. | 08–08 | Persistence/Migration | None. |
+| `Ze` / shadow function; `t` param | 3619 | Command-text handler parses reset token or toggles window; shadows earlier dimension constant. | `handleCommand`; `message` | resolved | High. | 08–08 | Commands | Registration site pending. |
+| `n` / `Ze` local | 3620 | Copy/remainder of command text; transformations have no observable consumer. | — | dead | High. | 08–08 | Commands | None. |
+| `t` / `Ze` command local | 3621 | First token lowercased and compared with `reset`. | `command` | resolved | High. | 08–08 | Commands | None. |
+| `o` / `Ze` local | 3622 | Index of first space used to split command. | `separatorIndex` | resolved | High. | 08–08 | Commands | None. |
+| `e` / `Ze` toggle local | 3732 | Global main-window frame toggled visible/hidden. | `window` | resolved | High. | 08–08 | Commands, UI/MainWindow | Replace `getglobal` only after API baseline. |
+| `e` / checkbox-click param | 3740 | Checkbox name yields setting key; checked value is stored. | `checkbox` | resolved | High. | 08–08 | UI/Settings | None. |
+| `e` / slider-change param | 3744 | Slider supplies setting metadata, value, caption, and update callback. | `slider` | resolved | High. | 08–08 | UI/Settings | Truthy-only setting write is behavior-critical. |
+| `a`,`l`,`s`,`h`,`n`,`t`,`o`,`d`,`r`,`i`,`S` / `CreateSlider` params | 3758 | X,Y,width,label,setting key,parent,min/default,max,step,percent flag,update callback. | positional roles as observed | resolved | High. | 08–08 | UI/Settings | Preserve `o` dual role. |
+| `t` / `CreateSlider` result local | 3759 | Slider frame; shadows parent parameter only after RHS initializer. | `slider` | resolved | High. | 08–08 | UI/Settings | Lua 5.1 initializer scope is required. |
+| `d`,`r`,`a`,`o`,`l`,`t`,`n`,`i` / `CreateCheckbox` params | 3798 | X,Y,label,setting key,checked value,parent,callback,radio flag. | positional roles as observed | resolved | High. | 08–08 | UI/Settings | None. |
+| `t` / `CreateCheckbox` result local | 3799 | Check-button frame; shadows parent parameter only after RHS initializer. | `checkbox` | resolved | High. | 08–08 | UI/Settings | Lua 5.1 initializer scope is required. |
+| `fe` / shadow function; `t`,`o` params | 3829 | Throttled gameplay timer updater for timer frame and elapsed delta; shadows signed-score verifier. | `updateGameTimer`; `timer`,`delta` | resolved | High. | 08–08 | Engine/Timer | None. |
+| `e` / `fe` flight-sync local | 3854 | Flight timer used to reconcile elapsed/remaining values. | `flightTimer` | resolved | High. | 08–08 | Engine/Timer | None. |
+| `Le` / shadow function; `i` param | 3874 | Spawn/refill controller remains open after 4000; shadows earlier `markGemForClear`. | `spawnAndRefillBoard` | working | High for prefix. | 08–08 | Engine/BoardSpawn | Complete in batch 09. |
+| `s` / first two `Le` declarations | 3878 | First and second duplicate bindings are hidden by later same-statement `s` declarations. | — | shadowed | High. | 08–08 | Engine/BoardSpawn | None. |
+| `s` / final `Le` declaration | 3878 | Accessible same-spelling nil binding; no resolved role before boundary. | unknown temporary | unresolved | Low. | 08–08 | Engine/BoardSpawn | Trace after 4000. |
+| `t`,`d`,`l`,`r` / `Le` initial locals | 3878 | Current gem, randomized vertical spacing, column, and row. | `gem`,`verticalGap`,`column`,`row` | working | High for observed prefix. | 08–08 | Engine/BoardSpawn | Confirm reuse after 4000. |
+| `e` / `Le` column loop | 3879 | Board column and column-offset index. | `column` | resolved | High. | 08–08 | Engine/BoardSpawn | None. |
+| `l` / `Le` row loop | 3884 | Bottom-up board row; shadows/reuses local spelling by loop scope. | `row` | resolved | High. | 08–08 | Engine/BoardSpawn | None. |
+| `d` / `Le` post-fill local | 3937 | Declared nil before legal-board retry; no read before boundary. | unknown | unresolved | Low. | 08–08 | Engine/BoardSpawn | Trace after 4000. |
+| `n` / `Le` retry loop | 3939 | Attempt number 1–200; shadows current-game upvalue only inside loop. | `attempt` | resolved | High. | 08–08 | Engine/BoardSpawn | None. |
+| `e` / `Le` refill loops | 3941, 3944 | Distinct indices over `newJewel` for clear then refill. | `index` | resolved | High. | 08–08 | Engine/BoardSpawn | None. |
+| `e` / `Le` big-star loops | 3963, 3964, 3975 | Count, six random attempts, and cyclic scan in nested declaration-specific scopes. | `starIndex`,`attempt`,`scanIndex` | resolved | High. | 08–08 | Engine/BoardSpawn | None. |
+| `e` / `Le` hyper loops | 3998, 3999 | Hyper count and six-attempt loop both continue after boundary. | working loop roles | working | Medium-high. | 08–08 | Engine/BoardSpawn | Complete in batch 09. |
+
+## Batch 08 resolution policy
+
+The completed migration, command, settings, and timer bodies support resolved roles. Duplicate calls/control construction and truthy-only writes are recorded as evidence without correction. All bindings belonging to open `Le` remain working or unresolved unless their individual loop scope closes within this batch.
