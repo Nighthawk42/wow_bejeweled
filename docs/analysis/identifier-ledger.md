@@ -7,7 +7,7 @@ Each row identifies one declaration, not merely one spelling. `chunk` means the 
 | `t` / chunk (first binding) | 4 | String initializer only before shadow at 186. | `addonRootPath` | dead | High: path literal at 4; no read before 186. | 01–01 | Core/Constants | Was elimination intentional? |
 | `l` / chunk | 5 | Image/font root used for bundled fonts and attempted legal-popup background path (5, 618, 633, 1664). | `imageRootPath` | resolved | High: literal and direct asset-path consumers. | 01–04 | Core/Constants | Other consumers remain to inventory. |
 | `ut` / chunk | 6 | Path initializer; no batch-01 read. | `soundRootPath` | working | High: literal ends in `sounds\` (6). | 01–01 | Core/Audio | Confirm path casing/contracts. |
-| `xe` / chunk | 7 | Starts as `BEJEWELED2`; migration completion changes it to `BEJ2a` at 3563. | `addonMessagePrefix` | working | High for role. | 01–08 | Core/Init, Persistence/Migration | Confirm registration/send sites and version routing. |
+| `xe` / chunk | 7 | Starts as `BEJEWELED2`; migration may change it to `BEJ2a` (3563), and network factory registers it alongside literal `BEJ2a` (4972–4973). | `addonMessagePrefix` | resolved | High. | 01–10 | Core/Init, Persistence/Migration, Network | Preserve dual registration. |
 | `ft` / chunk | 8 | Seven-entry colored/name table; no batch-01 read. | `gemDisplayNames` | working | Medium: ordered color names (8). | 01–01 | UI/HUD | Confirm indices and markup purpose. |
 | `he` / chunk | 169 | Nine RGB triples; initialized only in batch 01. | `gemColors` | working | Medium: values mirror seven gem colors plus two white entries (169–179). | 01–01 | Core/Constants | Determine meanings of indices 8–9. |
 | `U` / chunk | 180 | Numeric keys 1–7 map to lowercase color names. | `gemColorNames` | working | High: complete table at 180. | 01–01 | Core/Constants | Confirm use in asset filenames. |
@@ -17,7 +17,7 @@ Each row identifies one declaration, not merely one spelling. `chunk` means the 
 | `O` / chunk | 184 | Written at 50 numeric indices using 10×5 normalized UV cells (188–198). | `atlas10x5Rects` | working | High for shape, medium for texture. | 01–01 | UI/Animations | Identify owning texture. |
 | `ie` / chunk | 185 | Written at 16 indices using a 4×4 UV grid (211–217). | `atlas4x4Rects` | working | High for shape, medium for texture. | 01–01 | UI/Animations | Identify owning texture. |
 | `t` / chunk (second binding) | 186 | Declared nil, then shadowed again at 263; no read. | — | dead | High: no assignment/read before shadow. | 01–01 | Unassigned | Minifier artifact? |
-| `i` / chunk | 186 | Set to 1 (187, 210); indexes `F`, `J`, `ie`; incremented by 5/4 (208, 216). | `atlasIndex` | resolved | High: direct loop-index data flow (187–216). | 01–01 | UI/Animations | None for these loops. |
+| `i` / chunk | 186 | Atlas scratch indexes `F`,`J`,`ie` (187–216); animator factory later reuses the captured binding for rotation angle radians (4939–4941). | `atlasOrAngleScratch` | resolved | High: both temporal roles explicit. | 01–10 | UI/Animations | Split roles in rewrite. |
 | `e` / first atlas loop | 188 | Loop values 0–4; multiplies row offsets and indices (189–203). | `row` | resolved | High: numeric-for and row arithmetic (188–203). | 01–01 | UI/Animations | None for this scope. |
 | `e` / second atlas loop | 211 | Loop values 0–3; computes vertical quarters (212–215). | `row` | resolved | High: loop and `/4` UV math (211–215). | 01–01 | UI/Animations | None for this scope. |
 | `e` / third atlas loop | 218 | Loop values 0–2; computes 3×3 indices/UVs (219–221). | `row` | resolved | High: loop and `*3`/`.33` math (218–221). | 01–01 | UI/Animations | Exact `.33` edge behavior later. |
@@ -47,7 +47,7 @@ Each row identifies one declaration, not merely one spelling. `chunk` means the 
 | `bt` / chunk | 250 | Constant `16`; no batch-01 read. | unknown constant | unresolved | Low. | 01–01 | Unassigned | Locate consumers. |
 | `He` / chunk | 251 | Constant `5`; no batch-01 read. | unknown enum five | unresolved | Low. | 01–01 | Engine | Locate consumers. |
 | `Xe` / chunk | 252 | Constant `12`; no batch-01 read. | unknown enum twelve | unresolved | Low. | 01–01 | Engine | Locate consumers. |
-| `A` / chunk | 253 | Constant `6`; no batch-01 read. | unknown enum six | unresolved | Low. | 01–01 | Engine | Locate consumers. |
+| `A` / chunk | 253 | Effect enum `6`; in clear phase dispatches score/power/hyper/big-star work (4404–4522), then is shadowed by animator factory at 4922. | `FX_CLEAR_WORK` | resolved | High. | 01–10 | UI/Animator, Engine/Matches | Preserve numeric wire/state value. |
 | `se` / chunk | 254 | Constant `4`; no batch-01 read. | unknown enum four | unresolved | Low. | 01–01 | Engine | Distinguish from `Oe`. |
 | `je` / chunk | 255 | Constant `7`; no batch-01 read. | unknown enum seven | unresolved | Low. | 01–01 | Engine | Locate consumers. |
 | `it` / chunk | 256 | Assigned `#FX_SHINE_ALPHA` (=6). | shine alpha count | working | High: direct length operation (223, 256). | 01–01 | UI/Animations | Confirm later iteration contract. |
@@ -87,7 +87,7 @@ Each row identifies one declaration, not merely one spelling. `chunk` means the 
 | `gt` / chunk | 290 | Derived `Je / 2` (=5). | half unknown dimension | unresolved | Low. | 01–01 | UI | Identify source dimension. |
 | `h` / chunk | 291 | Constant `8`; upper bound of inner column loop indexing `o[row][column]` (1276–1277). | `GRID_WIDTH` | resolved | High: direct grid traversal. | 01–03 | Engine/Grid | None. |
 | `a` / chunk | 292 | Constant `8`; upper bound of outer row loop indexing `o[row][column]` (1275–1277). | `GRID_HEIGHT` | resolved | High: direct grid traversal. | 01–03 | Engine/Grid | None. |
-| `V` / chunk | 293 | Constant `0`; no batch-01 read. | unknown enum zero | unresolved | Low. | 01–01 | Engine | Locate consumers. |
+| `V` / chunk | 293 | Animator idle status `0`, used by state transitions/update/factory (4145, 4177, 4192, 4326, 4937), then shadowed by network factory at 4971. | `ANIM_IDLE` | resolved | High. | 01–10 | UI/Animator | Preserve numeric state value. |
 | `Pe` / chunk | 294 | Constant `1`; no batch-01 read. | unknown enum one | unresolved | Low. | 01–01 | Engine | Locate consumers. |
 | `Ct` / chunk | 295 | Constant `2`; no batch-01 read. | unknown enum two | unresolved | Low. | 01–01 | Engine | Locate consumers. |
 | `t` / chunk (line 296) | 296 | Constant `3`; shadowed at 306. | unknown enum three | shadowed | Low. | 01–01 | Engine | Locate any pre-306 read. |
@@ -558,7 +558,7 @@ Bindings are resolved only where complete control/data flow closes within this b
 | `t` / `CreateCheckbox` result local | 3799 | Check-button frame; shadows parent parameter only after RHS initializer. | `checkbox` | resolved | High. | 08–08 | UI/Settings | Lua 5.1 initializer scope is required. |
 | `fe` / shadow function; `t`,`o` params | 3829 | Throttled gameplay timer updater for timer frame and elapsed delta; shadows signed-score verifier. | `updateGameTimer`; `timer`,`delta` | resolved | High. | 08–08 | Engine/Timer | None. |
 | `e` / `fe` flight-sync local | 3854 | Flight timer used to reconcile elapsed/remaining values. | `flightTimer` | resolved | High. | 08–08 | Engine/Timer | None. |
-| `Le` / shadow function; `i` param | 3874 | Spawns/refills empty cells, rerolls for a legal board, restores special gems, advances levels, and checks total-gem achievement through close at 4039; captures earlier `de` and `ne`. | `spawnAndRefillBoard` | resolved | High. | 08–09 | Engine/BoardSpawn | None. |
+| `Le` / shadow function; `i` param | 3874 | Spawns/refills empty cells, rerolls for a legal board, restores special gems, advances levels, and checks achievement; attached as animator `HandleJewelDropping` at 4965. | `handleJewelDropping` | resolved | High. | 08–10 | Engine/BoardSpawn, UI/Animator | None. |
 | `s` / first two `Le` declarations | 3878 | First and second duplicate bindings are hidden by later same-statement `s` declarations. | — | shadowed | High. | 08–08 | Engine/BoardSpawn | None. |
 | `s` / final `Le` declaration | 3878 | Accessible same-spelling nil binding is never read before function close. | — | dead | High. | 08–09 | Engine/BoardSpawn | None. |
 | `t`,`d`,`l`,`r` / `Le` initial locals | 3878 | Current gem, randomized vertical spacing, column, and row used across refill and special restoration. | `gem`,`verticalGap`,`column`,`row` | resolved | High. | 08–09 | Engine/BoardSpawn | None. |
@@ -578,31 +578,31 @@ The completed migration, command, settings, and timer bodies support resolved ro
 
 | Legacy identifier / scope | Decl. | Evidence | Proposed name | Status | Confidence | First–last | Target | Question |
 | --- | ---: | --- | --- | --- | --- | --- | --- | --- |
-| `X` / shadow function; `r` param | 4041 | Collapses nonempty contents/big-star ownership downward into fixed empty cell frames; `r` schedules moved gems and the closure retains earlier `Se`. | `collapseGems`; `animator` | resolved | High. | 09–09 | Engine/Gravity | None. |
+| `X` / shadow function; `r` param | 4041 | Collapses contents/big-star ownership into empty cells, retains earlier `Se`, and is attached as animator `HandleJewelFalling` at 4966. | `handleJewelFalling`; `animator` | resolved | High. | 09–10 | Engine/Gravity, UI/Animator | None. |
 | `e` / `X` local | 4042 | Destination empty-cell frame receiving source state. | `targetGem` | resolved | High. | 09–09 | Engine/Gravity | None. |
 | `t` / first two `X` locals | 4042 | Hidden by later same-statement `t` bindings. | — | shadowed | High. | 09–09 | Engine/Gravity | None. |
 | `t` / final `X` local | 4042 | Accessible binding is hidden within all relevant work by the column-loop `t` and never read after it. | — | dead | High. | 09–09 | Engine/Gravity | None. |
 | `l`,`t`,`i` / `X` loops | 4043–4046 | Destination row bottom-up, column, and nearest candidate source row above. | `targetRow`,`column`,`sourceRow` | resolved | High. | 09–09 | Engine/Gravity | None. |
-| `ne` / shadow function; `t` param | 4093 | Drives new-game 3/2/1/Go countdown for animator and enables play; shadows half-height constant. | `updateStartCountdown`; `animator` | resolved | High. | 09–09 | Engine/Countdown | None. |
+| `ne` / shadow function; `t` param | 4093 | Drives new-game 3/2/1/Go countdown and is attached as animator `HandleNewGameCountdown` at 4967; shadows half-height constant. | `handleNewGameCountdown`; `animator` | resolved | High. | 09–10 | Engine/Countdown, UI/Animator | None. |
 | `t` / `ne` fade local | 4120 | Fade descriptor shadows animator parameter after its final use. | `fadeInfo` | resolved | High. | 09–09 | UI/HUD | Verify replacement for `UIFrameFade`. |
-| `de` / shadow function; `t`,`o` params | 4139 | Coordinates animation-state transitions for animator and prior state; shadows random-gem assignment. | `advanceAnimationState`; `animator`,`previousState` | resolved | High. | 09–09 | Engine/StateMachine | None. |
+| `de` / shadow function; `t`,`o` params | 4139 | Coordinates animation-state transitions and is attached as animator `HandleAnimatorStatusChange` at 4964; shadows random-gem assignment. | `handleAnimatorStatusChange`; `animator`,`previousState` | resolved | High. | 09–10 | Engine/StateMachine, UI/Animator | None. |
 | `i`,`o` / `de` locals | 4148 | Match-found result and later legal-move candidate; local `o` shadows consumed parameter. | `matchFound`,`legalMove` | resolved | High. | 09–09 | Engine/StateMachine | None. |
-| `Se` / shadow function; `l`,`w` params | 4235 | Central animator update for animator and elapsed delta continues after 4500; shadows selection-clear helper. | `updateAnimator`; `animator`,`delta` | working | High for prefix. | 09–09 | UI/Animator | Complete in batch 10. |
-| `T`,`K` / `Se` locals | 4244–4245 | Global animator and game-board references; later consumers remain in open body. | `animatorRef`,`gameBoard` | working | High for binding, incomplete use. | 09–09 | UI/Animator | Continue in batch 10. |
-| `k`,`_`,`P`,`I` / `Se` motion locals | 4246–4249 | Elapsed-scaled constants derived from `Te`,`et`,`wt`,`Gt`; full physics roles continue later. | motion-step temporaries | working | Medium. | 09–09 | UI/Animator | Resolve by consumers in batch 10. |
+| `Se` / shadow function; `l`,`w` params | 4235 | Central animator update closes at 4920 and is attached as animator `OnUpdate` at 4933; shadows selection-clear helper. | `updateAnimator`; `animator`,`delta` | resolved | High. | 09–10 | UI/Animator | None. |
+| `T`,`K` / `Se` locals | 4244–4245 | Animator reference used for effect creation/stack adds and game-board anchor for floating text. | `animatorRef`,`gameBoard` | resolved | High. | 09–10 | UI/Animator | None. |
+| `k`,`_`,`P`,`I` / `Se` motion locals | 4246–4249 | Gravity for shards/free flight, swap offset step, board-drop acceleration, and floating-text frame/position step. | `gravityStep`,`swapStep`,`dropAcceleration`,`textStep` | resolved | High. | 09–10 | UI/Animator | None. |
 | `t` / first `Se` local | 4250 | Derived `et * .025` then immediately shadowed at 4251. | — | shadowed | High. | 09–09 | UI/Animator | None. |
-| `t` / second `Se` local | 4251 | Initial value 20 is overwritten before read; binding subsequently holds each animation object. | `animationObject` | working | High for observed use. | 09–09 | UI/Animator | Trace remaining effect branches. |
+| `t` / second `Se` local | 4251 | Initial value 20 is overwritten before read; binding then holds each animation-stack object through function close. | `animationObject` | resolved | High. | 09–10 | UI/Animator | None. |
 | `x` / `Se` local | 4258 | Alias of mutable animation stack. | `animationStack` | resolved | High. | 09–09 | UI/Animator | None. |
 | `r` / two locals at 4259 | 4259 | First is hidden by same-statement final `r`; final is then hidden by line-4260 `r`. | — | shadowed | High. | 09–09 | UI/Animator | None. |
 | `f` / `Se` local | 4259 | Mutable current stack index adjusted after removals. | `stackIndex` | resolved | High. | 09–09 | UI/Animator | Preserve mutation order. |
-| `i`,`C`,`s`,`j`,`D`,`L`,`U` / `Se` locals | 4259 | Effect-frame and effect-specific temporaries whose full uses extend beyond 4500. | effect temporaries | working | Medium. | 09–09 | UI/Animator | Resolve on function completion. |
-| `c`,`r` / `Se` locals | 4260 | Additional effect-specific temporaries; `r` shadows earlier duplicates. | effect temporaries | working | Low. | 09–09 | UI/Animator | Resolve on function completion. |
+| `i`,`C`,`s`,`j`,`D`,`L`,`U` / `Se` locals | 4259 | Effect frame/index, big-star blend alpha, adjacent shine gem, and four spawn-crop UV coordinates. | `frameOrIndex`,`blendAlpha`,`adjacentGem`,`uvLeft`,`uvRight`,`uvTop`,`uvBottom` | resolved | High. | 09–10 | UI/Animator | Split by branch in rewrite. |
+| `c`,`r` / `Se` locals | 4260 | X and Y displacement/position temporaries across swap/drop branches; `r` shadows earlier duplicates. | `xOffset`,`yOffset` | resolved | High. | 09–10 | UI/Animator | Split vertical roles in rewrite. |
 | `m` / `Se` local | 4261 | Snapshot of animator `animationStatus` selecting idle/clear/drop branches. | `animationStatus` | resolved | High. | 09–09 | UI/Animator | None. |
 | `G`,`v` / `Se` locals | 4262 | Per-update guards serializing hyper trigger and big-star explosion work. | `hyperProcessed`,`bigStarProcessed` | resolved | High for observed branches. | 09–09 | UI/Animator | Confirm later reset-free scope at close. |
-| `H` / `Se` local | 4272 | Normalized oscillating glow offset; consumer remains beyond 4500. | `glowOffset` | working | Medium-high. | 09–09 | UI/Animator | Trace consumer. |
+| `H` / `Se` local | 4272 | Normalized oscillating alpha multiplier applied to hyper/big-star 5×5 glow fields. | `glowAlphaScale` | resolved | High. | 09–10 | UI/Animator | None. |
 | `e` / `Se` periodic/board/queue loops | 4277, 4282, 4291 | Row indices for lightwaves/glow reset and queue-drain count in distinct scopes. | `rowOrIndex` by scope | resolved | High. | 09–09 | UI/Animator | None. |
 | `n` / `Se` board loop | 4283 | Column index; shadows current-game upvalue only within loop. | `column` | resolved | High. | 09–09 | UI/Animator | None. |
-| `w` / `Se` local | 4295 | Shadows consumed delta parameter with non-idle/activity flag; later mutated by effect branches. | `animationActive` | working | Medium-high. | 09–09 | UI/Animator | Resolve final return/use. |
+| `w` / `Se` local | 4295 | Shadows consumed delta parameter; starts true for non-idle state, active effects clear it, and a surviving true value advances animator status at 4916–4918. | `phaseComplete` | resolved | High. | 09–10 | UI/Animator | None. |
 | `Y` / `Se` animation loop | 4302 | Counts original animation-stack length while `f` tracks mutable current index. | `iteration` | resolved | High. | 09–09 | UI/Animator | None. |
 | `e` / lightwave parent local | 4308 | Parent gem for position/visibility and right-neighbor wave propagation. | `parentGem` | resolved | High. | 09–09 | UI/Animator | None. |
 | `n`,`e` / shine-coordinate locals | 4353–4354 | Adjacent target column and row derived from shine offset tables. | `targetColumn`,`targetRow` | resolved | High. | 09–09 | UI/Animator | None. |
@@ -614,3 +614,25 @@ The completed migration, command, settings, and timer bodies support resolved ro
 ## Batch 09 resolution policy
 
 Complete spawn, gravity, countdown, and state-transition bodies support resolved names. The open animator update is named only at working confidence; locals whose consumers lie after line 4500 remain working, while closed loop/branch bindings are resolved independently.
+
+## Batch 10 declarations and scopes
+
+| Legacy identifier / scope | Decl. | Evidence | Proposed name | Status | Confidence | First–last | Target | Question |
+| --- | ---: | --- | --- | --- | --- | --- | --- | --- | --- |
+| `frame2` / implicit chunk global | external; writes 4650, 4655 | Secondary counter for opposing big-star highlight rotation; read for rotation and stored back to `t.fxFrame2`. | `secondaryRotationFrame` | resolved | High; accidental global. | 10–10 | UI/Animator | Must become local without changing per-object update. |
+| `e` / hyper-glow local | 4628 | Gem receiving weighted glow inside a 5×5 hyper neighborhood. | `glowGem` | resolved | High. | 10–10 | UI/Animator | None. |
+| `i`,`n` / hyper-glow loops | 4629, 4631 | Relative row/column offsets -2..2. | `rowOffset`,`columnOffset` | resolved | High. | 10–10 | UI/Animator | None. |
+| `e` / big-star-glow local | 4678 | Gem receiving weighted glow around star parent. | `glowGem` | resolved | High. | 10–10 | UI/Animator | None. |
+| `i`,`n` / big-star-glow loops | 4679, 4681 | Relative row/column offsets -2..2. | `rowOffset`,`columnOffset` | resolved | High. | 10–10 | UI/Animator | None. |
+| `e` / swap completion local | 4810 | Boolean set when either axis reaches its target, driving reversal/finalization. | `axisComplete` | resolved | High. | 10–10 | Engine/Swaps | Preserve single-axis trigger behavior. |
+| `A` / shadow function | 4922 | Constructs/wires invisible animator frame and all effect queues/helpers; shadows clear-work effect enum. | `createAnimator` | resolved | High. | 10–10 | UI/Animator | None. |
+| `e` / `A` local | 4923 | Animator frame configured and returned. | `animator` | resolved | High. | 10–10 | UI/Animator | `movingGems`/`movingJewels` mismatch. |
+| `t` / `A` rotation loop | 4938 | Degree 0–360 used to precompute sine/cosine tables. | `degrees` | resolved | High. | 10–10 | UI/Animator | None. |
+| `V` / shadow function | 4971 | Network-frame factory remains open after 5000; shadows idle animator state captured by earlier closures/factory. | `createNetwork` | working | High for prefix. | 10–10 | Network/Transport | Complete in batch 11. |
+| `o` / `V` local | 4974 | Network frame with queue, send method, throttling, and callbacks. | `network` | working | High for prefix. | 10–10 | Network/Transport | Complete in batch 11. |
+| `l`,`i`,`o`,`n`,`t` / network `Send` params | 4981 | Unused self, message type, two required payload fields, optional final field. | `self`,`messageType`,`field1`,`field2`,`field3` | resolved | High. | 10–10 | Network/Transport | Determine semantic fields from callers. |
+| `t`,`o` / network `OnUpdate` params | 4988 | Network frame and elapsed delta; callback continues after 5000. | `network`,`delta` | working | High for prefix. | 10–10 | Network/Transport | Complete in batch 11. |
+
+## Batch 10 resolution policy
+
+`Se` and `A` close in this batch, so their data-flow roles and explicit method attachments are resolved. Implicit `frame2` is recorded as accidental global evidence. Network factory `V` and its open update callback remain working until batch 11.
