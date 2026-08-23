@@ -78,10 +78,10 @@ foreach ($file in $allFiles) {
     }
 }
 
-$schedule = Get-Content -LiteralPath 'docs/analysis/batch-schedule.md'
+$schedule = Get-Content -LiteralPath 'docs/analysis/batch-schedule.md' -Encoding UTF8
 $intervals = @()
 foreach ($line in $schedule) {
-    if ($line -match '^\|\s*\d+\s*\|\s*(\d{4})–(\d{4})\s*\|') {
+    if ($line -match '^\|\s*\d+\s*\|\s*(\d{4})(?:\u2013|-)(\d{4})\s*\|') {
         $intervals += ,@([int]$Matches[1], [int]$Matches[2])
     }
 }
@@ -94,31 +94,46 @@ foreach ($interval in $intervals) {
 }
 Assert-True ($next -eq 8402) "Schedule does not end at 8401"
 
-$report = Get-Content -LiteralPath 'docs/analysis/lines-0001-0500.md'
-$covered = [Collections.Generic.HashSet[int]]::new()
-$inCoverageTable = $false
-foreach ($line in $report) {
-    if ($line -eq '| Lines | Evidence represented |') {
-        $inCoverageTable = $true
-        continue
-    }
-    if ($inCoverageTable -and $line -like '## *') {
-        $inCoverageTable = $false
-    }
-    if ($inCoverageTable -and $line -match '^\|\s*(\d+)(?:–(\d+))?\s*\|') {
-        $start = [int]$Matches[1]
-        $end = if ($Matches[2]) { [int]$Matches[2] } else { $start }
-        if ($start -le 500 -and $end -le 500) {
+function Assert-ReportCoverage {
+    param(
+        [string]$Path,
+        [int]$ExpectedStart,
+        [int]$ExpectedEnd
+    )
+
+    $report = Get-Content -LiteralPath $Path -Encoding UTF8
+    $covered = [Collections.Generic.HashSet[int]]::new()
+    $inCoverageTable = $false
+    foreach ($line in $report) {
+        if ($line -eq '| Lines | Evidence represented |') {
+            $inCoverageTable = $true
+            continue
+        }
+        if ($inCoverageTable -and $line -like '## *') {
+            $inCoverageTable = $false
+        }
+        if ($inCoverageTable -and $line -match '^\|\s*(\d+)(?:(?:\u2013|-)(\d+))?\s*\|') {
+            $start = [int]$Matches[1]
+            $end = if ($Matches[2]) { [int]$Matches[2] } else { $start }
+            Assert-True ($start -ge $ExpectedStart -and $end -le $ExpectedEnd) "Out-of-range coverage in $Path`: $start-$end"
             for ($number = $start; $number -le $end; $number++) {
-                Assert-True ($covered.Add($number)) "Duplicate batch-01 coverage for line $number"
+                Assert-True ($covered.Add($number)) "Duplicate coverage in $Path for line $number"
             }
         }
     }
+
+    $expectedCount = $ExpectedEnd - $ExpectedStart + 1
+    Assert-True ($covered.Count -eq $expectedCount) "$Path covers $($covered.Count) of $expectedCount lines"
+    for ($number = $ExpectedStart; $number -le $ExpectedEnd; $number++) {
+        Assert-True ($covered.Contains($number)) "$Path is missing line $number"
+    }
 }
-Assert-True ($covered.Count -eq 500) "Batch-01 coverage contains $($covered.Count) of 500 lines"
+
+Assert-ReportCoverage 'docs/analysis/lines-0001-0500.md' 1 500
+Assert-ReportCoverage 'docs/analysis/lines-0501-1000.md' 501 1000
 
 $lineCount = (Get-Content -LiteralPath 'Legacy/Bejeweled_Mainline.lua').Count
 Assert-True ($lineCount -eq 8401) "Legacy source has $lineCount lines, expected 8401"
 
 Write-Output "Verified: forbidden files absent; legacy and $($assetPaths.Count) asset hashes match $SourceCommit."
-Write-Output "Verified: strict UTF-8 text, exact 8,401-line schedule, and complete batch-01 line coverage."
+Write-Output "Verified: strict UTF-8 text, exact 8,401-line schedule, and complete batch-01/02 line coverage."
