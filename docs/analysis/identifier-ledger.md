@@ -396,12 +396,57 @@ The completed `M`, flight loader, rotation helper, and pause helper are resolved
 | `e`,`n`,`o` / `Q` parameters | 1952 | Gem, column, row; coordinates/keys assigned after cleanup (1965–1979). | `gem`, `column`, `row` | resolved | High. | 04–04 | UI/GemPool | None. |
 | `t` / `Q` local | 1953 | Receives each value's type and gates removal of numeric-valued keys (1954–1958). | `valueType` | resolved | High. | 04–04 | UI/GemPool | None. |
 | `n`,`o` / `Q` generic loop | 1954 | Shadow parameters inside loop as key/value; removes numeric values (1955–1958). | `key`, `value` | resolved | High. | 04–04 | UI/GemPool | None. |
-| `Ke` / chunk function | 1984 | Begins board-wide gem transition; continues after 2000. | `startGameOverGemAnimation` | working | Medium: prefix only. | 04–04 | UI/Animations | Complete in batch 05. |
+| `Ke` / chunk function | 1984 | Applies game-over movement/effects and queues every gem (1985–2002). | `startGameOverGemAnimation` | resolved | High: complete body. | 04–05 | UI/Animations | Dispatcher remains ahead. |
 | `n` / `Ke` duplicate preliminary bindings 1–2 | 1985 | Hidden by animator local at 1986. | — | dead | High. | 04–04 | Unassigned | Minifier artifact. |
-| `t` / `Ke` local | 1985 | Receives each gem and mutates animation fields (1989–1999). | `gem` | working | High for prefix. | 04–04 | UI/Animations | Continuation pending. |
-| `n` / `Ke` animator local | 1986 | Aliases animator and receives every gem via `Add` (1999). | `animator` | working | High for prefix. | 04–04 | UI/Animations | Continuation pending. |
+| `t` / `Ke` local | 1985 | Receives/mutates each gem before queueing (1989–2000). | `gem` | resolved | High. | 04–05 | UI/Animations | None. |
+| `n` / `Ke` animator local | 1986 | Receives every grid gem (1999–2002). | `animator` | resolved | High. | 04–05 | UI/Animations | None. |
 | `i`,`e` / `Ke` grid loops | 1987, 1988 | Iterate grid rows/columns and index gem grid (1989). | `row`, `column` | resolved | High. | 04–04 | Engine/Grid | None. |
 
 ## Batch 04 resolution policy
 
 Completed event callbacks and helpers are resolved by full local data flow. Legacy positional API fields remain `working` where modern contracts are unverified. Duplicate declarations and proven-unused callback parameters are `dead`; accidental global writes remain explicit `working`/`unresolved` evidence. `Ke` and its transition-state constants stay working across the batch boundary.
+
+## Batch 05 declarations and scopes
+
+| Legacy identifier / lexical scope | Decl. | Observed interactions | Proposed name | Status | Confidence/evidence | First–last | Target | Open question |
+| --- | ---: | --- | --- | --- | --- | --- | --- | --- |
+| `de` / chunk function | 2004 | Randomly assigns color and optionally avoids initial matches (2005–2057). | `assignRandomGem` | resolved | High: complete body. | 05–05 | Engine/Grid | None. |
+| `t`,`n`,`f`,`i` / `de` parameters | 2004 | Column, row, avoidance flag, skip-reset flag. | `column`,`row`,`avoidMatches`,`skipReset` | resolved | High. | 05–05 | Engine/Grid | None. |
+| `p` / `de` duplicate locals 1–5 | 2005 | Hidden by later bindings or unread. | — | dead | High. | 05–05 | Unassigned | Minifier artifact. |
+| `s`,`c`,`d`,`S`,`e` / `de` locals | 2005 | Match count, safe flag, two scan steps, chosen color (2006–2049). | `matchCount`,`safe`,`xStep`,`yStep`,`color` | resolved | High. | 05–05 | Engine/Grid | None. |
+| `i`,`l` / `de` loops | 2012, 2014, 2020, 2025 | Attempts, pattern, row offset, column offset. | `attempt/pattern`,`rowOffset`,`columnOffset` | resolved | High. | 05–05 | Engine/Grid | None. |
+| `t` / `de` gem local | 2049 | Shadows column after indexing and receives rendered gem. | `gem` | resolved | High. | 05–05 | UI/GemPool | None. |
+| `R` / chunk renderer | 2059 | Shadows type alias; renders normal/hyper/empty gem (2060–2075). | `renderGem` | resolved | High. | 05–05 | UI/GemPool | Earlier reset closure retains old alias. |
+| `t` / renderer parameter | 2059 | Gem/content receiver. | `gem` | resolved | High. | 05–05 | UI/GemPool | None. |
+| `j` / chunk game function | 2077 | Shadows leaderboard merger; initializes/restores game (2078–2245). | `startGame` | resolved | High. | 05–05 | Engine/Grid | Attachment pending. |
+| `l`,`s`,`r` / game parameters | 2077 | Mode, duration, resume flag. | `mode`,`duration`,`resume` | resolved | High. | 05–05 | Engine/Grid | None. |
+| `d`,`i`,`t` / game locals | 2078–2079 | Player name (after dead duplicate), object temporary, game-state alias. | `playerName`,`object`,`gameState` | resolved | High. | 05–05 | Engine/Grid | None. |
+| `t`,`e` / game loops | 2099, 2129–2130, 2184–2192, 2202–2203 | Animation/grid indices. | `index/row/column` | resolved | High. | 05–05 | Engine/Grid, UI/Animations | None. |
+| `n`,`l`,`r` / resume locals | 2199–2201 | Saved state, encoded gem, animator. | `savedState`,`encodedGem`,`animator` | resolved | High. | 05–05 | Core/SavedVariables | None. |
+| `ee` / chunk function | 2247 | Creates power gem/big star and achievement (2248–2264). | `createPowerGem` | resolved | High. | 05–05 | Engine/Matches | None. |
+| `Z` / chunk function | 2266 | Creates hyper gem and achievement (2267–2283). | `createHyperGem` | resolved | High. | 05–05 | Engine/Matches | None. |
+| `t`,`i`,`o` / `ee` and `Z` bindings | 2247–2267 | Gem, forced flag, created result in each helper. | `gem`,`forced`,`created` | resolved | High. | 05–05 | Engine/Matches | None. |
+| `Le` / chunk function | 2285 | Marks directional clear/explosion and queues animation (2286–2300). | `markGemForClear` | resolved | High. | 05–05 | Engine/Matches | Direction enum pending. |
+| `t`,`o` / `Le` parameters | 2285 | Gem and direction; `Ne` selects X. | `gem`,`direction` | resolved | High. | 05–05 | Engine/Matches | None. |
+| `Q` / chunk move finder | 2302 | Shadows reset helper; transactional swaps detect legal match (2303–2347). | `findLegalMove` | resolved | High. | 05–05 | Engine/Matches | Returns one candidate gem. |
+| `e`,`t`,`p` / move loops | 2304–2306 | Row, column, cardinal direction. | `row`,`column`,`direction` | resolved | High. | 05–05 | Engine/Matches | None. |
+| `n`,`i`,`c`,`f`,`d`,`s`,`S`,`l` / move locals | 2303 | Neighbor row/column, swapped gem, validity and four run bounds. | `neighborRow`,`neighborColumn`,`gem`,`valid`,`left`,`right`,`top`,`bottom` | resolved | High. | 05–05 | Engine/Matches | Preliminary duplicate `e` bindings dead. |
+| `e` / `TotalTime` local | 2350 | Accumulates duration text. | `text` | resolved | High. | 05–05 | UI/HUD | None. |
+| `Se` / chunk function | 2384 | Clears current/next selection and selector UI (2385–2401). | `clearSelection` | resolved | High. | 05–05 | Engine/Grid | None. |
+| `t`,`e` / `Se` bindings | 2384–2385 | Next flag and selected gem. | `next`,`gem` | resolved | High. | 05–05 | Engine/Grid | None. |
+| `Me` / chunk function | 2403 | Finalizes game and starts board wipe (2404–2456). | `endGame` | resolved | High. | 05–05 | Engine/Scoring | Summary follows later. |
+| `o`,`t` / `Me` locals | 2404–2405 | Animator and status text. | `animator`,`statusText` | resolved | High. | 05–05 | UI/HUD | None. |
+| `e` / `Me` duplicate/loop bindings | 2423–2429 | Dead duplicate locals; live loops clear saved state. | `column/index` | resolved | High. | 05–05 | Core/SavedVariables | None. |
+| `At` / chunk function | 2458 | Creates positioned layered BackdropTemplate frame (2459–2482). | `createImageFrame` | resolved | High. | 05–05 | UI/GemPool | First parameter unused. |
+| `a`,`o`,`i`,`n`,`t`,`e`,`l` / `At` parameters | 2458 | Unused, X, Y, width, height, parent, overlay flag. | —,`x`,`y`,`width`,`height`,`parent`,`overlay` | working | High except unused first. | 05–05 | UI/GemPool | Identify first argument. |
+| `e` / `At` frame local | 2459 | Shadows parent after initializer; returned frame. | `frame` | resolved | High. | 05–05 | UI/GemPool | None. |
+| `tt` / chunk function | 2484 | Begins gem-frame creation; continues after 2500. | `createGemFrame` | working | High for prefix. | 05–05 | UI/GemPool | Complete in batch 06. |
+| `n`,`i`,`o`,`t`,`e` / `tt` bindings | 2484–2485 | X, Y, parent, color, created frame. | `x`,`y`,`parent`,`color`,`gem` | working | High for prefix. | 05–05 | UI/GemPool | Continue in batch 06. |
+| `t` / `TotalTime` parameter | 2349 | Floored and reduced by day/hour/minute moduli (2351–2375). | `seconds` | resolved | High. | 05–05 | UI/HUD | None. |
+| `o`,`n`,`e`,`t` / `Print` parameters | 2380 | Passed directly to chat-frame message plus RGB values (2381). | `message`,`red`,`green`,`blue` | resolved | High. | 05–05 | UI/HUD | None. |
+| `t`,`e` / `Me` saved-grid loops | 2424–2425 | Row/column indices clearing saved grid. | `row`,`column` | resolved | High. | 05–05 | Core/SavedVariables | None. |
+| `e` / `Me` metadata loop | 2429 | Index clearing saved metadata row. | `index` | resolved | High. | 05–05 | Core/SavedVariables | None. |
+
+## Batch 05 resolution policy
+
+Complete helpers are resolved from full bodies. Same-spelling functions are separate entries because earlier closures retain prior bindings. `tt` and dispatcher-dependent constants remain working.
