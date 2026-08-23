@@ -450,3 +450,35 @@ Completed event callbacks and helpers are resolved by full local data flow. Lega
 ## Batch 05 resolution policy
 
 Complete helpers are resolved from full bodies. Same-spelling functions are separate entries because earlier closures retain prior bindings. `tt` and dispatcher-dependent constants remain working.
+
+## Batch 06 declarations and scopes
+
+| Legacy identifier / scope | Decl. | Evidence | Proposed name | Status | Confidence | First–last | Target | Question |
+| --- | ---: | --- | --- | --- | --- | --- | --- | --- |
+| `tt` / chunk | 2484 | Completes layered gem frame at 2506. | `createGemFrame` | resolved | High. | 05–06 | UI/GemPool | None. |
+| `It` / chunk; `t`,`e` params | 2508 | Configures `e` as hyper gem; `t` unused. | `configureHyperGem`; —,`gem` | resolved | High. | 06–06 | UI/GemPool | None. |
+| `Ht` / chunk; `t`,`o`,`i`,`n`,`e` bindings | 2519–2520 | Pooled big-star factory: animator,x,y,parent,object. | `createBigStar` | resolved | High. | 06–06 | UI/Animations | None. |
+| `Ot` / chunk; `n`,`i`,`a`,`o`,`t` bindings | 2545–2546 | Pooled explosion factory: animator,x,y,source,object. | `createExplosion` | resolved | High. | 06–06 | UI/Animations | None. |
+| `Et` / chunk; `t`,`n` params | 2566 | Lazy hint factory/reset for animator and optional gem. | `createHintArrow` | resolved | High. | 06–06 | UI/Animations | None. |
+| `vt` / chunk; `n`,`t`,`o`,`e` bindings | 2585–2586 | Pooled delayed lightwave for animator,parent,delay. | `createLightwave` | resolved | High. | 06–06 | UI/Animations | `lightWaveObv` typo compatibility. |
+| `lt` / shadow function | 2604 | Pooled lightning factory; removed route drawing (2605–2621). | `createLightning` | resolved | High. | 06–06 | UI/Animations | Replacement geometry required. |
+| `a`,`r`,`o`,`i`,`n`,`d`,`t` / `lt` bindings | 2604–2605 | Animator, endpoints, color index, texture object. | `animator`,`x1`,`y1`,`x2`,`y2`,`color`,`lightning` | resolved | High. | 06–06 | UI/Animations | None. |
+| `qe` / shadow function | 2623 | Pooled colored shard factory (2624–2643). | `createShard` | resolved | High. | 06–06 | UI/Animations | None. |
+| `n`,`i`,`o`,`a`,`r`,`t` / `qe` bindings | 2623–2624 | Animator, offsets, source gem, color, shard. | `animator`,`x`,`y`,`gem`,`color`,`shard` | resolved | High. | 06–06 | UI/Animations | None. |
+| `Qe` / shadow function | 2645 | Clears gem/big star and spawns directional shards (2646–2698). | `clearGem` | resolved | High. | 06–06 | Engine/Matches, UI/Animations | None. |
+| `r`,`S`,`s`,`e`,`a`,`i`,`l`,`d` / `Qe` params | 2645 | Animator, position, gem, color, direction vector, suppression flag. | `animator`,`x`,`y`,`gem`,`color`,`dx`,`dy`,`suppressScore` | resolved | High. | 06–06 | Engine/Matches | None. |
+| `h`,`o`,`t` / `Qe` locals | 2646 | Unused `h`, shard object, sign/speed temporary. | —,`shard`,`sign` | working | High except unused. | 06–06 | UI/Animations | Split dead `h`. |
+| `Je` / shadow function | 2700 | Pooled floating-text factory (2701–2729). | `createFloatingText` | resolved | High. | 06–06 | UI/Animations | None. |
+| `d`,`i`,`n`,`o`,`a`,`l`,`t`,`r` / `Je` bindings | 2700–2702 | Animator,x,y,text,color,non-score,object,parent. | resolved by position | resolved | High. | 06–06 | UI/Animations | None. |
+| `Ye` / chunk; `t` param | 2749 | Defers or applies mouse-over gem. | `handleGemMouseEnter`; `gem` | resolved | High. | 06–06 | UI/GemPool | None. |
+| `Ue` / shadow function; `t` local | 2770–2771 | Advances current-game level/multiplier/threshold. | `advanceLevel`; `gameState` | resolved | High. | 06–06 | Engine/Scoring | None. |
+| `Ce` / shadow function; `t`,`n` bindings | 2800–2801 | Processes hyper chain using gem and animator. | `triggerHyperChain` | resolved | High. | 06–06 | Engine/Matches | None. |
+| `S`,`s`,`i`,`r`,`l`,`d`,`e` / `Ce` locals/loops | 2814–2821 | Source/target centers, coordinates, row/column, matching gem. | coordinate/search roles | resolved | High. | 06–06 | Engine/Matches | None. |
+| `he` / chunk function | 2842 | Match scanner/marker continues after 3000. | `findAndMarkMatches` | working | High for prefix. | 06–06 | Engine/Matches | Complete in batch 07. |
+| `x`,`e`,`S`,`c`,`T`,`r`,`s`,`w`,`g`,`C`,`u`,`l`,`d`,`p`,`f` / `he` locals | 2843–2844 | Match-found flag, run length/color/counts, gem, creation flags and cross-arm bounds. | working match-scan roles | working | Medium: function incomplete. | 06–06 | Engine/Matches | Resolve on completion. |
+| `i`,`t`,`n`,`e`,`d`,`l` / `he` loops | 2845–2999 | Grid and vertical/horizontal run/cross-arm indices. | row/column/run indices | working | High for observed scopes. | 06–06 | Engine/Matches | Continue in batch 07. |
+| `explodeCount` / implicit chunk global | external; writes 2887, 2975 | Accumulates `Le` explosion returns and is passed to `M`. | `explosionCount` | working | High; accidental global. | 06–06 | Engine/Matches | Must become local. |
+
+## Batch 06 resolution policy
+
+Completed factories are resolved by pool/field contracts. The open match scanner and its reused locals remain working until batch 07; accidental `explodeCount` is recorded as global evidence.
