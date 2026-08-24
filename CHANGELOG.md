@@ -2,9 +2,9 @@
 
 All notable changes and updates to the Bejeweled addon for World of Warcraft.
 
-## [12.0.7] - 2026
+## [12.1.0] - 2026
 
-- **Midnight Migration**: Updated TOC interface version for World of Warcraft: Midnight (12.0.7 / 120100).
+- **Midnight Migration**: Updated TOC interface version for World of Warcraft: Midnight (12.1.0 / 120100).
 - **Client Branches**: Split repository into dedicated branches for each active WoW client flavor (`master` / Retail, `mists`, `tbc`, `vanilla`, `wrath`, `cata`).
 - **Single TOC & Lua**: Standardized addon structure to a single `Bejeweled.toc` and `Bejeweled.lua` per client branch.
 - **Score Sync Fixes**: Fixed guild and friend high score synchronization by properly registering addon message prefixes (`BEJEWELED2` and `BEJ2a`).
