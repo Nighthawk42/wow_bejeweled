@@ -54,6 +54,7 @@ LoadAddonFile("Bejeweled/UI/GemPool.lua", addon)
 LoadAddonFile("Bejeweled/UI/Animations.lua", addon)
 LoadAddonFile("Bejeweled/UI/HUD.lua", addon)
 LoadAddonFile("Bejeweled/UI/MainWindow.lua", addon)
+LoadAddonFile("Bejeweled/UI/Compartment.lua", addon)
 
 AssertEqual(eventFrame.registeredEvent, "ADDON_LOADED", "initializer event registration")
 AssertEqual(addon.Constants.GRID_WIDTH, 8, "grid width")
@@ -2162,6 +2163,7 @@ assert(addon.gemPoolFactory == addon.GemPool, "addon initialization did not inst
 assert(addon.animationFactory == addon.Animations, "addon initialization did not install Animations")
 assert(addon.hudFactory == addon.HUD, "addon initialization did not install HUD")
 assert(addon.mainWindowFactory == addon.MainWindow, "addon initialization did not install MainWindow")
+assert(addon.compartment == addon.Compartment, "addon initialization did not install Compartment")
 assert(addon.inputFactory == addon.Input, "addon initialization did not install Input")
 assert(addon.sessionFactory == addon.Session, "addon initialization did not install Session")
 assert(eventFrame.registeredEvent == nil, "initializer event was not unregistered")
@@ -2181,6 +2183,7 @@ assert(addon.gemPoolFactory == initializedGemPoolFactory, "GemPool initializatio
 assert(addon.animationFactory == initializedAnimationFactory, "Animations initialization is not idempotent")
 assert(addon.hudFactory == initializedHUDFactory, "HUD initialization is not idempotent")
 assert(addon.mainWindowFactory == addon.MainWindow, "MainWindow initialization is not idempotent")
+assert(addon.compartment == addon.Compartment, "Compartment initialization is not idempotent")
 assert(addon.inputFactory == initializedInputFactory, "Input initialization is not idempotent")
 assert(addon.sessionFactory == initializedSessionFactory, "Session initialization is not idempotent")
 addon.runtimeForTest = addon:StartRuntime({
@@ -2193,4 +2196,75 @@ assert(addon.runtimeForTest == addon.runtime, "StartRuntime did not retain the p
 AssertEqual(addon.runtimeForTest.activeOverlay, "menu", "StartRuntime did not open the initial menu")
 assert(addon:StartRuntime() == addon.runtimeForTest, "StartRuntime is not idempotent")
 
-print("Runtime verification passed: playable Classic/Timed window shell, HUD, pause/restore/level/game-over sessions, input, cascade/effect animation, gem projection, UI backdrops, audio, SavedVariables, and deterministic gameplay engine.")
+function addon:TestCompartmentForTest()
+	local mockRuntime = { visible = false, toggleCount = 0 }
+	function mockRuntime:Toggle()
+		self.visible = not self.visible
+		self.toggleCount = self.toggleCount + 1
+		return self
+	end
+	function mockRuntime:IsShown()
+		return self.visible
+	end
+	local providerCalls = 0
+	local tooltip = { lines = {} }
+	function tooltip:SetOwner(owner, anchor)
+		self.owner = owner
+		self.anchor = anchor
+	end
+	function tooltip:SetText(value)
+		self.text = value
+	end
+	function tooltip:AddLine(...)
+		self.lines[#self.lines + 1] = { ... }
+	end
+	function tooltip:Show()
+		self.shown = true
+	end
+	function tooltip:Hide()
+		self.shown = false
+	end
+	local compartment = self.Compartment:New({
+		addon = self,
+		tooltip = tooltip,
+		runtimeProvider = function()
+			providerCalls = providerCalls + 1
+			return mockRuntime
+		end,
+	})
+	local shown = compartment:OnClick("Bejeweled", "LeftButton")
+	AssertEqual(shown.status, "shown", "pre-runtime compartment show status")
+	assert(shown.runtime == mockRuntime, "pre-runtime compartment did not retain the provided runtime")
+	AssertEqual(providerCalls, 1, "pre-runtime provider call count")
+	local hidden = compartment:OnClick("Bejeweled", "LeftButton")
+	AssertEqual(hidden.status, "hidden", "compartment hide status")
+	AssertEqual(mockRuntime.toggleCount, 2, "compartment runtime toggle count")
+	local ignored = compartment:OnClick("Bejeweled", "RightButton")
+	AssertEqual(ignored.status, "ignored", "compartment non-left click status")
+	AssertEqual(providerCalls, 2, "ignored compartment click started a runtime")
+
+	local menuButton = {}
+	assert(compartment:OnEnter("Bejeweled", menuButton), "compartment hover did not show its tooltip")
+	assert(tooltip.owner == menuButton, "compartment tooltip owner changed")
+	AssertEqual(tooltip.anchor, "ANCHOR_LEFT", "compartment tooltip anchor")
+	AssertEqual(tooltip.text, "Bejeweled", "compartment tooltip title")
+	AssertEqual(tooltip.lines[1][1], "Left-click to show or hide the game.", "compartment tooltip instruction")
+	assert(tooltip.shown, "compartment tooltip did not show")
+	assert(compartment:OnLeave("Bejeweled", menuButton), "compartment hover leave was ignored")
+	assert(not tooltip.shown, "compartment tooltip did not hide")
+
+	assert(type(Bejeweled_OnAddonCompartmentClick) == "function", "compartment click global is unavailable")
+	assert(type(Bejeweled_OnAddonCompartmentEnter) == "function", "compartment enter global is unavailable")
+	assert(type(Bejeweled_OnAddonCompartmentLeave) == "function", "compartment leave global is unavailable")
+	local liveHidden = Bejeweled_OnAddonCompartmentClick("Bejeweled", "LeftButton")
+	AssertEqual(liveHidden.status, "hidden", "live compartment hide status")
+	assert(not self.runtimeForTest:IsShown(), "live compartment did not hide the runtime")
+	local liveShown = Bejeweled_OnAddonCompartmentClick("Bejeweled", "LeftButton")
+	AssertEqual(liveShown.status, "shown", "live compartment show status")
+	assert(self.runtimeForTest:IsShown(), "live compartment did not restore the runtime")
+end
+
+addon:TestCompartmentForTest()
+addon.TestCompartmentForTest = nil
+
+print("Runtime verification passed: addon-compartment access, playable Classic/Timed window shell, HUD, pause/restore/level/game-over sessions, input, cascade/effect animation, gem projection, UI backdrops, audio, SavedVariables, and deterministic gameplay engine.")

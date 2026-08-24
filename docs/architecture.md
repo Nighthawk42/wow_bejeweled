@@ -1,6 +1,6 @@
 # Target architecture (post-analysis)
 
-The analysis phase gate is satisfied. This ownership map now governs runtime implementation; currently implemented modules are `Core/Init.lua`, `Core/Constants.lua`, `Core/Audio.lua`, `Core/SavedVariables.lua`, `Engine/Grid.lua`, `Engine/Matches.lua`, `Engine/Cascade.lua`, `Engine/Scoring.lua`, `Engine/Input.lua`, `Engine/Session.lua`, `UI/Backdrops.lua`, `UI/GemPool.lua`, `UI/Animations.lua`, `UI/HUD.lua`, and `UI/MainWindow.lua`.
+The analysis phase gate is satisfied. This ownership map now governs runtime implementation; currently implemented modules are `Core/Init.lua`, `Core/Constants.lua`, `Core/Audio.lua`, `Core/SavedVariables.lua`, `Engine/Grid.lua`, `Engine/Matches.lua`, `Engine/Cascade.lua`, `Engine/Scoring.lua`, `Engine/Input.lua`, `Engine/Session.lua`, `UI/Backdrops.lua`, `UI/GemPool.lua`, `UI/Animations.lua`, `UI/HUD.lua`, `UI/MainWindow.lua`, and `UI/Compartment.lua`.
 
 ## Load order and ownership
 
@@ -19,7 +19,7 @@ The analysis phase gate is satisfied. This ownership map now governs runtime imp
 13. `UI/Animations.lua` — deterministic swap/rollback and clear/gravity/refill plans, reusable animation groups, session-controlled pause/resume, interaction locking, cancellation, and final-grid normalization. It also owns the legacy-cadence 40-frame hyper atlas, counter-rotating/cross-faded power layers, pooled 16-frame explosion atlas, and pooled 15-tick lightning lines that gate settling. Nonblocking effects share the same pausable 25 ms clock: every cleared gem emits a ten-shard burst, ambient lightwaves propagate across active boards, hints delay and bounce above a selected cell, and reusable floating text supports score and status presentation. Current fall timings are explicit modernization defaults pending in-game tuning.
 14. `UI/HUD.lua` — BackdropTemplate-safe Classic score/level/progress and Timed points-per-second/multiplier/countdown presentation. It consumes copied input/session callbacks, schedules idle hints, emits score and skill floating text through `UI/Animations.lua`, owns temporary status/achievement and pause overlays, and renders terminal summaries. Its `Update` method only refreshes presentation and expiry clocks; `Engine/Session.lua` remains the sole owner of elapsed time and gameplay transitions.
 15. `UI/MainWindow.lua` — the 448×510 movable runtime shell, 400×400 board construction, Menu/New Game overlays, Classic Continue/New Game and direct default five-minute Timed selection, session replacement, and show/hide pause ownership. Its frame update delegates authoritative elapsed time to `Engine/Session.lua`, HUD expiry to `UI/HUD.lua`, and queued sound flushing to `Core/Audio.lua`. `Core/Init.lua` assembles and shows this shell after `ADDON_LOADED` when live `UIParent` and player identity are available.
-16. `UI/Compartment.lua` — addon-compartment click and hover callbacks.
+16. `UI/Compartment.lua` — the minimal public-global boundary required by Retail TOC metadata. Its left-click callback acquires or reuses the private runtime and toggles `UI/MainWindow.lua`; its distinct hover callbacks own anchored `GameTooltip` help. Right clicks and callbacks for another addon name are ignored.
 
 ## Data flow
 

@@ -20,6 +20,7 @@ function addon:Initialize(accountData, profileData)
 	assert(self.Animations, "Animations module is not loaded")
 	assert(self.HUD, "HUD module is not loaded")
 	assert(self.MainWindow, "MainWindow module is not loaded")
+	assert(self.Compartment, "Compartment module is not loaded")
 	assert(self.Input, "Input module is not loaded")
 	assert(self.Session, "Session module is not loaded")
 
@@ -31,6 +32,7 @@ function addon:Initialize(accountData, profileData)
 	self.animationFactory = self.Animations
 	self.hudFactory = self.HUD
 	self.mainWindowFactory = self.MainWindow
+	self.compartment = self.Compartment
 	self.inputFactory = self.Input
 	self.sessionFactory = self.Session
 	self.initialized = true

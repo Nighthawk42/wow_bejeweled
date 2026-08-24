@@ -18,6 +18,11 @@ try {
         $toc -notcontains "## SavedVariablesPerCharacter: BejeweledProfile") {
         throw "Runtime TOC does not preserve the legacy SavedVariables declarations."
     }
+    if ($toc -notcontains "## AddonCompartmentFunc: Bejeweled_OnAddonCompartmentClick" -or
+        $toc -notcontains "## AddonCompartmentFuncOnEnter: Bejeweled_OnAddonCompartmentEnter" -or
+        $toc -notcontains "## AddonCompartmentFuncOnLeave: Bejeweled_OnAddonCompartmentLeave") {
+        throw "Runtime TOC does not register the verified addon-compartment callbacks."
+    }
     $expectedFiles = @(
         "Core\Init.lua",
         "Core\Constants.lua",
@@ -33,7 +38,8 @@ try {
         "UI\GemPool.lua",
         "UI\Animations.lua",
         "UI\HUD.lua",
-        "UI\MainWindow.lua"
+        "UI\MainWindow.lua",
+        "UI\Compartment.lua"
     )
     $actualFiles = @($toc | Where-Object { $_ -match "\.lua$" })
     if (Compare-Object -ReferenceObject $expectedFiles -DifferenceObject $actualFiles -SyncWindow 0) {
@@ -47,7 +53,7 @@ try {
         }
     }
 
-    Write-Output "Verified: Retail TOC order and Lua 5.1-compatible playable window/session runtime."
+    Write-Output "Verified: Retail TOC order, addon-compartment access, and Lua 5.1-compatible playable window/session runtime."
 }
 finally {
     Pop-Location

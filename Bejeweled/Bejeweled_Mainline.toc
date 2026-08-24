@@ -4,6 +4,9 @@
 ## Notes: Mainline modernization of the legacy Bejeweled addon.
 ## Author: Bejeweled Modernization Contributors
 ## IconTexture: Interface\AddOns\Bejeweled\images\bejeweled_icon.tga
+## AddonCompartmentFunc: Bejeweled_OnAddonCompartmentClick
+## AddonCompartmentFuncOnEnter: Bejeweled_OnAddonCompartmentEnter
+## AddonCompartmentFuncOnLeave: Bejeweled_OnAddonCompartmentLeave
 ## SavedVariables: BejeweledData
 ## SavedVariablesPerCharacter: BejeweledProfile
 
@@ -22,3 +25,4 @@ UI\GemPool.lua
 UI\Animations.lua
 UI\HUD.lua
 UI\MainWindow.lua
+UI\Compartment.lua
