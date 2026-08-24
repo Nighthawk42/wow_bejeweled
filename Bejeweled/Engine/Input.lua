@@ -91,6 +91,8 @@ function Input:New(grid, gemPool, animations, options)
 	instance.selectedY = nil
 	instance.locked = false
 	instance.paused = false
+	instance.sessionLocked = false
+	instance.sessionLockReason = nil
 	instance.pendingMove = nil
 	instance.lastMove = nil
 	instance.moves = instance.scoringState and (instance.scoringState.moves or 0) or (options.moves or 0)
@@ -98,11 +100,30 @@ function Input:New(grid, gemPool, animations, options)
 end
 
 function Input:IsLocked()
-	return self.paused or self.locked or self.animations:IsPlaying()
+	return self.paused or self.sessionLocked or self.locked or self.animations:IsPlaying()
 end
 
 function Input:IsPaused()
 	return self.paused
+end
+
+function Input:SetSessionLocked(locked, reason)
+	assert(type(locked) == "boolean", "input session lock state must be Boolean")
+	if self.sessionLocked == locked then
+		return false
+	end
+	self.sessionLocked = locked
+	self.sessionLockReason = locked and (reason or "session") or nil
+	if locked then
+		self:ClearSelection("session-locked")
+	end
+	self.gemPool:SetInteractive(
+		not self.paused
+			and not self.sessionLocked
+			and not self.locked
+			and not self.animations:IsPlaying()
+	)
+	return true
 end
 
 function Input:SetPaused(paused)
@@ -117,9 +138,11 @@ function Input:SetPaused(paused)
 		self.gemPool:SetInteractive(false)
 	else
 		self.animations:Resume()
-		if not self.locked and not self.animations:IsPlaying() then
-			self.gemPool:SetInteractive(true)
-		end
+		self.gemPool:SetInteractive(
+			not self.sessionLocked
+				and not self.locked
+				and not self.animations:IsPlaying()
+		)
 	end
 	return true
 end

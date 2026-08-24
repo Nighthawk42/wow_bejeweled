@@ -994,14 +994,23 @@ local sessionState = addon.Scoring:NewState(addon.Constants.GAME_MODE_CLASSIC, {
 local sessionPauseEvents = {}
 local sessionSaveEvents = {}
 local sessionRestoreEvents = {}
+local sessionLevelStartedEvents = {}
+local sessionLevelCompleteEvents = {}
+local sessionSounds = {}
 local session = addon.Session:New(sessionGrid, sessionPool, sessionAnimations, {
 	profile = sessionProfile,
 	playerName = "Nighthawk",
 	scoringState = sessionState,
 	timerElapsed = 42.75,
+	deferLevelTransitions = true,
 	inputOptions = {
 		random = MakeRandom(4810),
 		requireLegalMove = false,
+		audio = {
+			Play = function(_, soundName)
+				sessionSounds[#sessionSounds + 1] = soundName
+			end,
+		},
 	},
 	onPauseChanged = function(result)
 		sessionPauseEvents[#sessionPauseEvents + 1] = result
@@ -1011,6 +1020,12 @@ local session = addon.Session:New(sessionGrid, sessionPool, sessionAnimations, {
 	end,
 	onRestored = function(result)
 		sessionRestoreEvents[#sessionRestoreEvents + 1] = result
+	end,
+	onLevelTransitionStarted = function(result)
+		sessionLevelStartedEvents[#sessionLevelStartedEvents + 1] = result
+	end,
+	onLevelTransitionComplete = function(result)
+		sessionLevelCompleteEvents[#sessionLevelCompleteEvents + 1] = result
 	end,
 })
 local manualSessionSave = session:SaveClassicGame("test-save")
@@ -1103,6 +1118,65 @@ AssertEqual(sessionMove.status, "complete", "resumed session move completion sta
 assert(sessionMove.saveResult and sessionMove.saveResult.status == "saved", "stable session move was not auto-saved")
 AssertEqual(#sessionSaveEvents, 2, "session save callback count")
 AssertEqual(sessionProfile.settings.savedState[9][4], sessionState.moves, "auto-saved move count")
+
+sessionState.score = 500
+sessionState.pointsToLevelUp = 500
+sessionState.level = 1
+sessionState.pointMultiplier = 1
+sessionState.levelPending = true
+local levelSourceMove = { status = "complete" }
+session:HandleMoveComplete(levelSourceMove)
+assert(session:IsLevelTransitionPending(), "session did not retain the presentation handoff")
+assert(session:IsLocked(), "pending level transition did not lock input")
+assert(not sessionPool:GetFrame(1, 1).mouseEnabled, "pending level transition left gems interactive")
+AssertEqual(sessionState.level, 1, "level advanced before presentation completion")
+assert(sessionState.levelPending, "pending level flag was consumed before presentation completion")
+AssertEqual(#sessionLevelStartedEvents, 1, "level-transition start callback count")
+AssertEqual(sessionLevelStartedEvents[1].kind, "level-up", "classic level-transition kind")
+AssertEqual(sessionLevelStartedEvents[1].oldLevel, 1, "level-transition starting level")
+AssertEqual(sessionLevelStartedEvents[1].level, 2, "level-transition target level")
+AssertEqual(sessionSounds[#sessionSounds], "LevelUp", "level-transition sound")
+sessionLevelStartedEvents[1].level = 99
+levelSourceMove.levelTransition.oldLevel = 99
+AssertEqual(session:GetLevelTransition().level, 2, "callback mutated active level-transition record")
+AssertEqual(session:GetLevelTransition().oldLevel, 1, "source move mutated active level-transition record")
+local transitionSaveSucceeded = pcall(function()
+	session:SaveClassicGame("during-level-transition")
+end)
+assert(not transitionSaveSucceeded, "session saved an incomplete level transition")
+session:Pause("level-transition")
+session:Resume("level-transition")
+assert(session:IsLocked(), "pause cycle released the level-transition lock")
+assert(not sessionPool:GetFrame(1, 1).mouseEnabled, "pause cycle re-enabled input during level transition")
+
+local completedLevelTransition = session:CompleteLevelTransition()
+AssertEqual(completedLevelTransition.status, "complete", "level-transition completion status")
+AssertEqual(completedLevelTransition.level, 2, "session-advanced level")
+AssertEqual(completedLevelTransition.pointMultiplier, 1.5, "session-advanced point multiplier")
+AssertEqual(completedLevelTransition.pointsToLevelUp, 1975, "session-advanced level threshold")
+assert(not sessionState.levelPending, "completed transition retained the pending level flag")
+assert(not session:IsLevelTransitionPending(), "completed level transition remained active")
+assert(not session:IsLocked(), "completed level transition left input locked")
+assert(sessionPool:GetFrame(1, 1).mouseEnabled, "completed level transition left gems disabled")
+AssertEqual(#sessionLevelCompleteEvents, 1, "level-transition completion callback count")
+AssertEqual(#sessionSaveEvents, 3, "level-transition autosave callback count")
+assert(levelSourceMove.saveResult and levelSourceMove.saveResult.status == "saved", "level transition was not auto-saved")
+AssertEqual(sessionProfile.settings.savedState[9][2], 1975, "auto-saved level threshold")
+AssertEqual(sessionProfile.settings.savedState[9][3], 2, "auto-saved advanced level")
+
+session.deferLevelTransitions = false
+sessionState.score = 1975
+sessionState.levelPending = true
+local automaticLevelMove = { status = "complete" }
+session:HandleMoveComplete(automaticLevelMove)
+assert(not session:IsLevelTransitionPending(), "automatic level transition remained deferred")
+AssertEqual(sessionState.level, 3, "automatic session-advanced level")
+AssertEqual(sessionState.pointMultiplier, 2, "automatic session-advanced point multiplier")
+AssertEqual(sessionState.pointsToLevelUp, 5550, "automatic session-advanced threshold")
+AssertEqual(#sessionLevelStartedEvents, 2, "automatic level-transition start callback count")
+AssertEqual(#sessionLevelCompleteEvents, 2, "automatic level-transition completion callback count")
+AssertEqual(#sessionSaveEvents, 4, "automatic level-transition autosave callback count")
+assert(automaticLevelMove.saveResult, "automatic level transition omitted stable-state autosave")
 end
 TestSessionRestore()
 
@@ -1480,4 +1554,4 @@ assert(addon.animationFactory == initializedAnimationFactory, "Animations initia
 assert(addon.inputFactory == initializedInputFactory, "Input initialization is not idempotent")
 assert(addon.sessionFactory == initializedSessionFactory, "Session initialization is not idempotent")
 
-print("Runtime verification passed: pause/restore sessions, input, cascade animation, gem projection, UI backdrops, audio, SavedVariables, and deterministic gameplay engine.")
+print("Runtime verification passed: pause/restore/level-transition sessions, input, cascade animation, gem projection, UI backdrops, audio, SavedVariables, and deterministic gameplay engine.")

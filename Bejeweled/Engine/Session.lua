@@ -12,6 +12,8 @@ local CALLBACK_NAMES = {
 	"onPauseChanged",
 	"onSaved",
 	"onRestored",
+	"onLevelTransitionStarted",
+	"onLevelTransitionComplete",
 }
 
 local RESTORED_STATE_KEYS = {
@@ -32,6 +34,23 @@ local function CopyTable(source)
 	for key, value in pairs(source or {}) do
 		copy[key] = value
 	end
+	return copy
+end
+
+local function CopyRecords(records)
+	local copy = {}
+	for index = 1, #(records or {}) do
+		copy[index] = CopyTable(records[index])
+	end
+	return copy
+end
+
+local function CopyLevelTransition(record)
+	if not record then
+		return nil
+	end
+	local copy = CopyTable(record)
+	copy.skillEvents = CopyRecords(record.skillEvents)
 	return copy
 end
 
@@ -70,9 +89,13 @@ function Session:New(grid, gemPool, animations, options)
 		active = options.active ~= false,
 		paused = false,
 		autoSave = options.autoSave ~= false,
+		deferLevelTransitions = options.deferLevelTransitions == true,
+		levelTransitionSequence = 0,
+		levelTransition = nil,
 		callbacks = ValidateCallbacks(options),
 	}, self)
 	assert(type(instance.timerElapsed) == "number" and instance.timerElapsed >= 0, "session elapsed time must be nonnegative")
+	assert(options.deferLevelTransitions == nil or type(options.deferLevelTransitions) == "boolean", "deferred level-transition state must be Boolean")
 
 	local inputOptions = CopyTable(options.inputOptions)
 	local userMoveComplete = inputOptions.onMoveComplete
@@ -114,6 +137,14 @@ end
 
 function Session:IsLocked()
 	return self.input:IsLocked()
+end
+
+function Session:IsLevelTransitionPending()
+	return self.levelTransition ~= nil
+end
+
+function Session:GetLevelTransition()
+	return self.levelTransition and CopyLevelTransition(self.levelTransition.record) or nil
 end
 
 function Session:SetPaused(paused, reason)
@@ -164,6 +195,7 @@ end
 
 function Session:SaveClassicGame(reason)
 	assert(self.active and self.gameMode == Constants.GAME_MODE_CLASSIC, "only an active classic session can be saved")
+	assert(not self.levelTransition, "classic session level transition must complete before saving")
 	assert(not self.input.pendingMove and not self.animations:IsPlaying(), "classic session must be stable before saving")
 	local savedState = self.savedVariables:SaveClassicGame(
 		self.grid,
@@ -181,7 +213,80 @@ function Session:SaveClassicGame(reason)
 	return result
 end
 
+function Session:BeginLevelTransition(sourceMove)
+	assert(type(sourceMove) == "table", "level transition requires a source move")
+	assert(self.active and sourceMove.status == "complete", "level transition requires a completed active move")
+	assert(not self.levelTransition, "level transition is already active")
+	assert(not self.input.pendingMove and not self.animations:IsPlaying(), "level transition requires a stable board")
+	assert(self.scoringState.levelPending, "scoring state has no pending level")
+
+	self.input:SetSessionLocked(true, "level-transition")
+	self.levelTransitionSequence = self.levelTransitionSequence + 1
+	local record = {
+		status = "started",
+		transitionID = self.levelTransitionSequence,
+		kind = self.gameMode == Constants.GAME_MODE_CLASSIC and "level-up" or "multiplier-up",
+		gameMode = self.gameMode,
+		score = self.scoringState.score,
+		oldLevel = self.scoringState.level,
+		level = self.scoringState.level + 1,
+		oldPointMultiplier = self.scoringState.pointMultiplier,
+		oldPointsToLevelUp = self.scoringState.pointsToLevelUp,
+		sound = "LevelUp",
+		skillEvents = {},
+	}
+	self.levelTransition = {
+		record = record,
+		sourceMove = sourceMove,
+	}
+	sourceMove.levelTransition = CopyLevelTransition(record)
+	self.input:PlaySound(record.sound)
+	self:Notify("onLevelTransitionStarted", CopyLevelTransition(record))
+
+	if not self.deferLevelTransitions and self.levelTransition then
+		self:CompleteLevelTransition()
+	end
+	return CopyLevelTransition(record)
+end
+
+function Session:CompleteLevelTransition()
+	local activeTransition = self.levelTransition
+	assert(activeTransition, "no level transition is active")
+	local advanced = Scoring:AdvanceLevel(self.scoringState, self.profile, {
+		random = self.input.random,
+		skillLimit = self.input.skillLimit,
+	})
+	self.levelTransition = nil
+	self.input:SetSessionLocked(false)
+
+	local started = activeTransition.record
+	local result = {
+		status = "complete",
+		transitionID = started.transitionID,
+		kind = started.kind,
+		gameMode = started.gameMode,
+		score = started.score,
+		oldLevel = advanced.oldLevel,
+		level = advanced.level,
+		oldPointMultiplier = started.oldPointMultiplier,
+		pointMultiplier = advanced.pointMultiplier,
+		oldPointsToLevelUp = started.oldPointsToLevelUp,
+		pointsToLevelUp = advanced.pointsToLevelUp,
+		skillEvents = CopyRecords(advanced.skillEvents),
+	}
+	activeTransition.sourceMove.levelTransitionComplete = CopyLevelTransition(result)
+	if self.autoSave and self.active and self.gameMode == Constants.GAME_MODE_CLASSIC then
+		activeTransition.sourceMove.saveResult = self:SaveClassicGame("level-transition")
+	end
+	self:Notify("onLevelTransitionComplete", CopyLevelTransition(result))
+	return CopyLevelTransition(result)
+end
+
 function Session:HandleMoveComplete(result)
+	if self.active and result.status == "complete" and self.scoringState.levelPending then
+		self:BeginLevelTransition(result)
+		return
+	end
 	if self.autoSave
 		and self.active
 		and self.gameMode == Constants.GAME_MODE_CLASSIC
@@ -195,6 +300,7 @@ function Session:RestoreClassicGame(options)
 	assert(type(options) == "table", "classic restore options must be a table")
 	local pauseAfterRestore = options.paused
 	assert(pauseAfterRestore == nil or type(pauseAfterRestore) == "boolean", "restore pause state must be Boolean")
+	assert(not self.levelTransition, "cannot restore during a level transition")
 	assert(not self.input.pendingMove and not self.animations:IsPlaying(), "cannot restore during an active move")
 	local wasPaused = self.paused
 	local restored = self.savedVariables:RestoreClassicGame(self.grid, self.profile, self:ResolvePlayerName())
