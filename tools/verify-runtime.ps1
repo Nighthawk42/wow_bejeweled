@@ -21,6 +21,7 @@ try {
     $expectedFiles = @(
         "Core\Init.lua",
         "Core\Constants.lua",
+        "Core\Audio.lua",
         "Core\SavedVariables.lua",
         "Engine\Grid.lua",
         "Engine\Matches.lua",

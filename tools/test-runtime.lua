@@ -41,6 +41,7 @@ end
 local addon = {}
 LoadAddonFile("Bejeweled/Core/Init.lua", addon)
 LoadAddonFile("Bejeweled/Core/Constants.lua", addon)
+LoadAddonFile("Bejeweled/Core/Audio.lua", addon)
 LoadAddonFile("Bejeweled/Core/SavedVariables.lua", addon)
 LoadAddonFile("Bejeweled/Engine/Grid.lua", addon)
 LoadAddonFile("Bejeweled/Engine/Matches.lua", addon)
@@ -51,6 +52,75 @@ AssertEqual(eventFrame.registeredEvent, "ADDON_LOADED", "initializer event regis
 AssertEqual(addon.Constants.GRID_WIDTH, 8, "grid width")
 AssertEqual(addon.Constants.GRID_HEIGHT, 8, "grid height")
 AssertEqual(addon.Constants.GEM_COLOR_COUNT, 7, "gem color count")
+
+local playedFiles = {}
+local playedSoundKits = {}
+local audioSettings = {}
+local audioVisible = true
+local audio = addon.Audio:New(audioSettings, {
+	isVisible = function()
+		return audioVisible
+	end,
+	playSoundFile = function(path)
+		playedFiles[#playedFiles + 1] = path
+		return true, #playedFiles
+	end,
+	playSound = function(soundKitID)
+		playedSoundKits[#playedSoundKits + 1] = soundKitID
+		return true, #playedSoundKits
+	end,
+	soundKit = {
+		UI_SCENARIO_STAGE_END = 31757,
+		UI_AUTO_QUEST_COMPLETE = 23404,
+	},
+})
+
+assert(audio:Play("Select"), "select sound request was rejected")
+assert(audio:Play("Invalid"), "invalid-move sound request was rejected")
+assert(audio:Play("Select"), "duplicate select sound request was rejected")
+local ordinarySounds = audio:Update(0.1)
+AssertEqual(#ordinarySounds, 2, "ordinary sound coalescing")
+AssertEqual(ordinarySounds[1].name, "Invalid", "ordinary sound playback order")
+AssertEqual(ordinarySounds[2].name, "Select", "ordinary sound playback order")
+AssertEqual(playedFiles[1], addon.Constants.SOUND_ROOT .. "bad2.mp3", "invalid-move sound path")
+AssertEqual(playedFiles[2], addon.Constants.SOUND_ROOT .. "select.mp3", "selection sound path")
+
+audioSettings.quietSounds = 1
+assert(audio:Play("PowerCreate"), "quiet power-create sound request was rejected")
+audio:Update(0)
+AssertEqual(playedFiles[3], addon.Constants.SOUND_ROOT .. "q_multishot.mp3", "quiet sound path")
+
+assert(audio:Play("Combo", 9), "capped combo sound request was rejected")
+assert(audio:Play("Combo", 2), "second combo sound request was rejected")
+local firstComboSounds = audio:Update(0)
+AssertEqual(#firstComboSounds, 1, "one combo per update")
+AssertEqual(firstComboSounds[1].comboIndex, 2, "lowest pending combo tier")
+AssertEqual(playedFiles[4], addon.Constants.SOUND_ROOT .. "q_combo32.mp3", "combo-two sound path")
+local secondComboSounds = audio:Update(0)
+AssertEqual(secondComboSounds[1].comboIndex, 6, "capped combo tier")
+AssertEqual(playedFiles[5], addon.Constants.SOUND_ROOT .. "q_combo72.mp3", "combo-six sound path")
+
+assert(not audio:Play("GemClick"), "initial gem click bypassed throttle")
+audio:Update(0.11)
+assert(audio:Play("GemClick"), "elapsed gem click was rejected")
+audio:Update(0)
+AssertEqual(playedFiles[6], addon.Constants.SOUND_ROOT .. "q_gemongem2.mp3", "gem-click sound path")
+assert(not audio:Play("GemClick"), "immediate repeated gem click bypassed throttle")
+
+audioVisible = false
+assert(not audio:Play("Go"), "hidden-window sound request was accepted")
+audioVisible = true
+audioSettings.disableSounds = 1
+assert(not audio:Play("Go"), "disabled sound request was accepted")
+local clickTimeBeforeDisabledUpdate = audio.lastClick
+audio:Update(1)
+AssertEqual(audio.lastClick, clickTimeBeforeDisabledUpdate, "disabled audio advanced its click timer")
+audioSettings.disableSounds = nil
+
+assert(audio:Play("LevelUp"), "level-up sound request was rejected")
+local levelSounds = audio:Update(0)
+AssertEqual(levelSounds[1].name, "LevelUp", "level-up sound event")
+AssertEqual(playedSoundKits[1], 31757, "supported level-up SoundKit")
 
 local existingSettings = { gameAlpha = 0.65, customSetting = "preserved" }
 local account = { customAccountField = true }
@@ -464,9 +534,12 @@ assert(not addon.initialized, "foreign ADDON_LOADED initialized the addon")
 eventFrame.scripts.OnEvent(eventFrame, "ADDON_LOADED", "Bejeweled", false)
 assert(addon.initialized, "addon initialization did not complete")
 assert(addon.grid, "addon initialization did not create a grid")
+assert(addon.audio, "addon initialization did not create audio")
 assert(eventFrame.registeredEvent == nil, "initializer event was not unregistered")
 local initializedGrid = addon.grid
+local initializedAudio = addon.audio
 addon:Initialize({}, {})
 assert(addon.grid == initializedGrid, "addon initialization is not idempotent")
+assert(addon.audio == initializedAudio, "audio initialization is not idempotent")
 
-print("Runtime verification passed: SavedVariables and deterministic gameplay engine.")
+print("Runtime verification passed: audio, SavedVariables, and deterministic gameplay engine.")
