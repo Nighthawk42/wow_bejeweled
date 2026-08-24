@@ -1,17 +1,8 @@
-December 21st, 2024 -- Project paused. Please don't expect new features or bug fixes. TOC updates may or may not come, the addon should work simply by checking "Load Outdated Addons" within the game client. 
-If you have a feature or bug fix, please fork the project and submit a pull request and I'll review it.
+Community fork of Nighthawk42/wow_bejeweled with one fix added: TBC Classic / TBC Anniversary Edition support.
 
-**2026 Update:** Added support for TBC Classic / TBC Anniversary Edition (see Bejeweled_TBC.toc/.lua). Previously the addon would not appear in the AddOns list at all on that client flavor since no matching .toc file existed for it.
+Patched by redeem so 'next topic move on' raiders have something to do while the gm is yapping, and while the 'reaper' guild is putting up with the gm moaning during raid
 
-----
-Bejeweled has returned to Azeroth! A game made by PopCap Games, Inc.
+What's fixed: The original addon only shipped .toc files for Retail (Mainline), Cataclysm Classic (Cata), and Classic Era (Vanilla). It had no .toc file for the TBC flavor, so on TBC Classic / TBC Anniversary Edition clients the addon would not appear in the AddOns list at all. This release adds Bejeweled_TBC.toc and Bejeweled_TBC.lua so it loads correctly there too.
 
-Download the zip and place the "Bejeweled" folder into the /Interface/AddOns/ folder.
 
-Please use a bug reporting addon before opening issues.
-
-Any help getting this addon working 100% is welcome.
-
-----
-
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/P5P21QRW51)
+<img width="999" height="763" alt="image" src="https://github.com/user-attachments/assets/6fe5bb5f-97e2-4328-9d2e-8083e088d84e" />
