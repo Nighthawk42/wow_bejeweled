@@ -65,6 +65,8 @@ function addon:StartRuntime(options)
 		random = options.random,
 		timedDuration = options.timedDuration,
 		hintsEnabled = options.hintsEnabled,
+		flightOptionProvider = options.flightOptionProvider,
+		onFlightTimedRequested = options.onFlightTimedRequested,
 	})
 	self.runtime:Show()
 	return self.runtime

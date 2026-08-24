@@ -18,6 +18,8 @@ local BOARD_BORDER_HEIGHT = 412
 local BOARD_WIDTH = Constants.GRID_WIDTH * Constants.GEM_WIDTH
 local BOARD_HEIGHT = Constants.GRID_HEIGHT * Constants.GEM_HEIGHT
 local DEFAULT_TIMED_DURATION = 5 * 60
+local MIN_TIMED_MINUTES = 2
+local MAX_TIMED_MINUTES = 10
 local FONT_PATH = Constants.IMAGE_ROOT .. "Contb___.ttf"
 
 local function SetFrameSize(frame, width, height)
@@ -41,6 +43,19 @@ end
 local function ValidateCallback(callback, name)
 	assert(callback == nil or type(callback) == "function", name .. " must be a function")
 	return callback
+end
+
+local function CopyTable(source)
+	local copy = {}
+	for key, value in pairs(source) do
+		copy[key] = value
+	end
+	return copy
+end
+
+local function FormatDuration(seconds)
+	seconds = math.max(0, math.floor(seconds))
+	return string.format("%d min %d sec", math.floor(seconds / 60), seconds % 60)
 end
 
 function MainWindow:CreateBackdropFrame(parent, preset, width, height, levelOffset, frameType)
@@ -187,8 +202,8 @@ function MainWindow:CreateMenus()
 		self:ChooseClassic()
 	end)
 	mode.classic:SetPoint("TOP", mode, "TOP", 0, -36)
-	mode.timed = self:CreateButton(mode, "Timed (5 minutes)", 160, 28, function()
-		self:StartTimed()
+	mode.timed = self:CreateButton(mode, "Timed", 160, 28, function()
+		self:ShowTimedMenu()
 	end)
 	mode.timed:SetPoint("TOP", mode.classic, "BOTTOM", 0, -8)
 	mode.back = self:CreateButton(mode, "Back", 160, 28, function()
@@ -210,10 +225,49 @@ function MainWindow:CreateMenus()
 	end)
 	classic.back:SetPoint("TOP", classic.newGame, "BOTTOM", 0, -8)
 
+	local timed = self:CreateOverlay("Timed Mode", 242)
+	timed.timeCaption = CreateFontString(timed, 11, "Time", { 1, 1, 1, 1 })
+	timed.timeCaption:SetPoint("TOP", timed, "TOP", 0, -36)
+	timed.durationValue = CreateFontString(timed, 13, string.format("%d Minutes", self.timedMinutes), { 1, 0.85, 0, 1 })
+	timed.durationValue:SetPoint("TOP", timed.timeCaption, "BOTTOM", 0, -6)
+	timed.slider = self:CreateBackdropFrame(timed, "slider", 148, 18, 2, "Slider")
+	timed.slider:SetPoint("TOP", timed.durationValue, "BOTTOM", 0, -10)
+	timed.slider:SetMinMaxValues(MIN_TIMED_MINUTES, MAX_TIMED_MINUTES)
+	timed.slider:SetValueStep(1)
+	timed.slider:SetObeyStepOnDrag(true)
+	timed.slider:SetOrientation("HORIZONTAL")
+	timed.slider:SetThumbTexture(Constants.IMAGE_ROOT .. "selector")
+	local thumb = timed.slider:GetThumbTexture()
+	SetTextureSize(thumb, 18, 18)
+	timed.slider:SetScript("OnValueChanged", function(_, value)
+		self:SetTimedMinutes(value)
+	end)
+	timed.slider:SetValue(self.timedMinutes)
+
+	timed.flightToggle = self:CreateButton(timed, "[ ] Use flight path time", 160, 28, function()
+		self:SetFlightOptionSelected(not self.flightOptionSelected)
+	end)
+	assert(timed.flightToggle.label:SetFont(FONT_PATH, 11, "OUTLINE"), "bundled window font could not be loaded")
+	timed.flightToggle:SetPoint("TOP", timed.slider, "BOTTOM", 0, -10)
+	timed.flightStatus = CreateFontString(timed, 10, "", { 1, 1, 1, 1 })
+	timed.flightStatus:SetPoint("TOP", timed.flightToggle, "BOTTOM", 0, -6)
+	timed.flightWarning = CreateFontString(timed, 10, "Flight time is too short\nfor a timed game.", { 1, 0.6, 0.13, 1 })
+	timed.flightWarning:SetPoint("TOP", timed.slider, "BOTTOM", 0, -15)
+
+	timed.go = self:CreateButton(timed, "Go!", 160, 28, function()
+		self:StartTimedSelection()
+	end)
+	timed.go:SetPoint("BOTTOM", timed, "BOTTOM", 0, 42)
+	timed.back = self:CreateButton(timed, "Back", 160, 28, function()
+		self:ShowModeMenu()
+	end)
+	timed.back:SetPoint("TOP", timed.go, "BOTTOM", 0, -6)
+
 	self.overlays = {
 		menu = menu,
 		mode = mode,
 		classic = classic,
+		timed = timed,
 	}
 end
 
@@ -242,6 +296,8 @@ function MainWindow:New(uiParent, options)
 		hintsEnabled = options.hintsEnabled,
 		onSessionStarted = ValidateCallback(options.onSessionStarted, "onSessionStarted"),
 		onSessionStopped = ValidateCallback(options.onSessionStopped, "onSessionStopped"),
+		flightOptionProvider = ValidateCallback(options.flightOptionProvider, "flightOptionProvider"),
+		onFlightTimedRequested = ValidateCallback(options.onFlightTimedRequested, "onFlightTimedRequested"),
 		grid = options.grid or Grid:New(options.random),
 		session = nil,
 		activeOverlay = nil,
@@ -253,6 +309,12 @@ function MainWindow:New(uiParent, options)
 	assert(type(instance.createFrame) == "function", "CreateFrame is unavailable for main window")
 	assert(type(instance.random) == "function", "main-window random provider must be a function")
 	assert(type(instance.timedDuration) == "number" and instance.timedDuration > 0, "timed duration must be positive")
+	assert(
+		(instance.flightOptionProvider == nil) == (instance.onFlightTimedRequested == nil),
+		"flight timing requires both provider and request callbacks"
+	)
+	instance.timedMinutes = math.floor(instance.timedDuration / 60 + 0.5)
+	instance.timedMinutes = math.max(MIN_TIMED_MINUTES, math.min(MAX_TIMED_MINUTES, instance.timedMinutes))
 	instance:CreateWindowFrame()
 	instance:CreateBoard()
 	instance:CreateMenus()
@@ -297,6 +359,89 @@ end
 function MainWindow:ShowModeMenu()
 	self:PauseForMenu()
 	return self:ShowOverlay("mode")
+end
+
+function MainWindow:SetTimedMinutes(minutes)
+	assert(type(minutes) == "number", "timed minutes must be numeric")
+	minutes = math.floor(minutes + 0.5)
+	assert(minutes >= MIN_TIMED_MINUTES and minutes <= MAX_TIMED_MINUTES, "timed minutes are outside the 2-10 range")
+	self.timedMinutes = minutes
+	self.timedDuration = minutes * 60
+	if self.overlays and self.overlays.timed then
+		self.overlays.timed.durationValue:SetText(string.format("%d Minutes", minutes))
+	end
+	return minutes
+end
+
+function MainWindow:GetFlightOptionState()
+	if not self.flightOptionProvider then
+		return nil
+	end
+	local state = self.flightOptionProvider(self)
+	if state == nil then
+		return nil
+	end
+	assert(type(state) == "table", "flight option provider must return a table or nil")
+	assert(type(state.seconds) == "number" and state.seconds >= 0, "flight option seconds must be nonnegative")
+	assert(state.learning == nil or type(state.learning) == "boolean", "flight option learning state must be Boolean")
+	state = CopyTable(state)
+	state.learning = state.learning and true or false
+	state.eligible = state.learning or state.seconds >= 60
+	return state
+end
+
+function MainWindow:SetFlightOptionSelected(selected)
+	selected = selected and true or false
+	if not self.flightOptionState or not self.flightOptionState.eligible then
+		selected = false
+	end
+	self.flightOptionSelected = selected
+	local timed = self.overlays and self.overlays.timed
+	if timed then
+		timed.flightToggle.label:SetText(selected and "[x] Use flight path time" or "[ ] Use flight path time")
+	end
+	return selected
+end
+
+function MainWindow:RefreshTimedSetup(resetSelection)
+	local timed = self.overlays.timed
+	local state = self:GetFlightOptionState()
+	local selected = not resetSelection and self.flightOptionSelected or false
+	self.flightOptionState = state
+	timed.flightToggle:Hide()
+	timed.flightStatus:Hide()
+	timed.flightWarning:Hide()
+	if not state then
+		self:SetFlightOptionSelected(false)
+		return nil
+	end
+	if not state.eligible then
+		self:SetFlightOptionSelected(false)
+		timed.flightWarning:Show()
+		return state
+	end
+	self:SetFlightOptionSelected(selected)
+	timed.flightToggle:Show()
+	timed.flightStatus:SetText(
+		(state.learning and "Recording flight time: " or "Remaining flight time: ") .. FormatDuration(state.seconds)
+	)
+	timed.flightStatus:Show()
+	return state
+end
+
+function MainWindow:ShowTimedMenu()
+	self:PauseForMenu()
+	local timed = self:ShowOverlay("timed")
+	self:RefreshTimedSetup(true)
+	return timed
+end
+
+function MainWindow:StartTimedSelection()
+	if self.flightOptionSelected then
+		assert(self.flightOptionState and self.flightOptionState.eligible, "selected flight option is unavailable")
+		return self.onFlightTimedRequested(CopyTable(self.flightOptionState), self)
+	end
+	return self:StartTimed(self.timedMinutes * 60)
 end
 
 function MainWindow:ChooseClassic()
@@ -394,7 +539,7 @@ function MainWindow:StartClassic(restore)
 end
 
 function MainWindow:StartTimed(duration)
-	duration = duration or self.timedDuration
+	duration = duration or self.timedMinutes * 60
 	assert(type(duration) == "number" and duration > 0, "timed game duration must be positive")
 	return self:StartGame(Constants.GAME_MODE_TIMED, false, duration)
 end
@@ -458,5 +603,7 @@ end
 MainWindow.WINDOW_WIDTH = WINDOW_WIDTH
 MainWindow.WINDOW_HEIGHT = WINDOW_HEIGHT
 MainWindow.DEFAULT_TIMED_DURATION = DEFAULT_TIMED_DURATION
+MainWindow.MIN_TIMED_MINUTES = MIN_TIMED_MINUTES
+MainWindow.MAX_TIMED_MINUTES = MAX_TIMED_MINUTES
 
 addon.MainWindow = MainWindow

@@ -19,7 +19,7 @@ The eventual addon will target current Retail/Mainline World of Warcraft while p
 - `Bejeweled/sounds/` — immutable legacy sounds.
 - `Bejeweled/Core/` — private addon initialization, constants, supported audio playback, non-destructive SavedVariables defaulting, legacy-authenticated Classic save encoding, terminal save clearing, account game counts, and authenticated personal bests.
 - `Bejeweled/Engine/` — deterministic gameplay state; currently the 8×8 grid, selection/swap and pause/resume sessions, authenticated restoration, session-locked level/game-over transitions, legal moves, legacy cell encoding, stable cascade resolution, legacy score formulas, move accounting, final summary metrics, statistics, skill gains, achievements, and level thresholds.
-- `Bejeweled/UI/` — Retail-safe frame/rendering boundaries; currently shared backdrop construction, board tiles, persistent gem-frame projection, recorded cascade-transition playback, pooled legacy-cadence board effects, the session-bound HUD, the playable main-window/session shell, and addon-compartment access that can restore a closed window.
+- `Bejeweled/UI/` — Retail-safe frame/rendering boundaries; currently shared backdrop construction, board tiles, persistent gem-frame projection, recorded cascade-transition playback, pooled legacy-cadence board effects, the session-bound HUD, the playable main-window/session shell with Timed setup, and addon-compartment access that can restore a closed window.
 - `docs/analysis/` — sequential batch reports, identifier ledger, and exact coverage schedule.
 - `docs/architecture.md` — module ownership and authoritative runtime data flow.
 - `docs/api-baseline.md` — verified Retail API constraints for implementation.

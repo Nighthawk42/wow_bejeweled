@@ -224,6 +224,41 @@ local function CreateGemPoolFrame(frameType, name, parent, template)
 	function frame:SetHeight(height)
 		self.height = height
 	end
+	function frame:SetMinMaxValues(minimum, maximum)
+		self.minimum = minimum
+		self.maximum = maximum
+	end
+	function frame:SetValueStep(step)
+		self.valueStep = step
+	end
+	function frame:SetObeyStepOnDrag(obey)
+		self.obeyStepOnDrag = obey
+	end
+	function frame:SetOrientation(orientation)
+		self.orientation = orientation
+	end
+	function frame:SetThumbTexture(path)
+		self.thumbTexture = CreateMockTexture("ARTWORK")
+		self.thumbTexture.path = path
+	end
+	function frame:GetThumbTexture()
+		return self.thumbTexture
+	end
+	function frame:SetValue(value)
+		if self.minimum then
+			value = math.max(self.minimum, math.min(self.maximum, value))
+		end
+		if self.valueStep then
+			value = math.floor(value / self.valueStep + 0.5) * self.valueStep
+		end
+		self.value = value
+		if self.scripts.OnValueChanged then
+			self.scripts.OnValueChanged(self, value, false)
+		end
+	end
+	function frame:GetValue()
+		return self.value
+	end
 	function frame:CreateTexture(name, layer)
 		local texture = CreateMockTexture(layer)
 		self.createdTextures = self.createdTextures or {}
@@ -1694,6 +1729,8 @@ function runtimeAudio:Update(elapsed)
 end
 local sessionStarts = {}
 local sessionStops = {}
+local flightState
+local flightRequests = {}
 local runtime = addon.MainWindow:New(gemPoolParent, {
 	createFrame = CreateGemPoolFrame,
 	profile = runtimeProfile,
@@ -1706,6 +1743,13 @@ local runtime = addon.MainWindow:New(gemPoolParent, {
 	end,
 	onSessionStopped = function(result)
 		sessionStops[#sessionStops + 1] = result
+	end,
+	flightOptionProvider = function()
+		return flightState
+	end,
+	onFlightTimedRequested = function(state, window)
+		flightRequests[#flightRequests + 1] = state
+		return window:StartTimed(state.seconds)
 	end,
 })
 AssertEqual(runtime.frame.width, addon.MainWindow.WINDOW_WIDTH, "runtime window width")
@@ -1759,6 +1803,20 @@ AssertEqual(#sessionStops, 1, "runtime Continue omitted session-stop callback")
 runtime:ShowMenu()
 runtime.overlays.menu.newGame.scripts.OnClick()
 runtime.overlays.mode.timed.scripts.OnClick()
+AssertEqual(runtime.activeOverlay, "timed", "runtime Timed choice did not show setup")
+AssertEqual(runtime.overlays.timed.slider.minimum, addon.MainWindow.MIN_TIMED_MINUTES, "runtime Timed minimum minutes")
+AssertEqual(runtime.overlays.timed.slider.maximum, addon.MainWindow.MAX_TIMED_MINUTES, "runtime Timed maximum minutes")
+AssertEqual(runtime.overlays.timed.slider.valueStep, 1, "runtime Timed minute step")
+assert(runtime.overlays.timed.slider.obeyStepOnDrag, "runtime Timed slider did not obey its minute step")
+AssertEqual(runtime.overlays.timed.slider.value, 5, "runtime Timed default minutes")
+AssertEqual(runtime.overlays.timed.durationValue.text, "5 Minutes", "runtime Timed default caption")
+assert(not runtime.overlays.timed.flightToggle.shown, "runtime exposed flight timing without adapter state")
+runtime.overlays.timed.slider:SetValue(10)
+AssertEqual(runtime.overlays.timed.durationValue.text, "10 Minutes", "runtime Timed upper-bound caption")
+runtime.overlays.timed.slider:SetValue(2)
+AssertEqual(runtime.overlays.timed.durationValue.text, "2 Minutes", "runtime Timed lower-bound caption")
+runtime.overlays.timed.slider:SetValue(5)
+runtime.overlays.timed.go.scripts.OnClick()
 local timedRuntime = runtime.session
 AssertEqual(timedRuntime.gameMode, addon.Constants.GAME_MODE_TIMED, "runtime Timed mode")
 assert(not runtime.animations:IsPaused(), "runtime Timed session inherited the menu pause")
@@ -1773,6 +1831,32 @@ assert(timedRuntime:IsGameOver() and timedRuntime:IsLocked(), "runtime Timed fix
 timedRuntime = runtime:StartTimed(60)
 assert(runtime.gemPool:GetFrame(1, 1).mouseEnabled, "runtime terminal replacement left gem input disabled")
 AssertEqual(timedRuntime.timeLimit, 60, "runtime custom Timed duration")
+
+flightState = { seconds = 59, learning = false, routeToken = "short-route" }
+runtime:ShowModeMenu()
+runtime.overlays.mode.timed.scripts.OnClick()
+assert(runtime.overlays.timed.flightWarning.shown, "short flight time warning was hidden")
+assert(not runtime.overlays.timed.flightToggle.shown, "short flight time remained selectable")
+flightState = { seconds = 12, learning = true, routeToken = "learning-route" }
+runtime:RefreshTimedSetup()
+assert(runtime.overlays.timed.flightToggle.shown, "flight-learning option was hidden")
+AssertEqual(runtime.overlays.timed.flightStatus.text, "Recording flight time: 0 min 12 sec", "flight-learning status")
+flightState = { seconds = 125, learning = false, routeToken = "known-route" }
+runtime:RefreshTimedSetup()
+assert(runtime.overlays.timed.flightToggle.shown, "known flight time option was hidden")
+AssertEqual(runtime.overlays.timed.flightStatus.text, "Remaining flight time: 2 min 5 sec", "known flight status")
+runtime.overlays.timed.flightToggle.scripts.OnClick()
+assert(runtime.flightOptionSelected, "flight timing option did not select")
+AssertEqual(runtime.overlays.timed.flightToggle.label.text, "[x] Use flight path time", "flight timing selected caption")
+runtime:RefreshTimedSetup()
+assert(runtime.flightOptionSelected, "flight timing refresh discarded an active selection")
+runtime.overlays.timed.go.scripts.OnClick()
+timedRuntime = runtime.session
+AssertEqual(#flightRequests, 1, "flight timing request callback count")
+assert(flightRequests[1] ~= flightState, "flight timing request leaked provider state")
+AssertEqual(flightRequests[1].routeToken, "known-route", "flight timing request context")
+AssertEqual(timedRuntime.timeLimit, 125, "flight timing request duration")
+assert(runtime.activeOverlay == nil, "accepted flight timing request retained setup")
 
 runtime:Hide()
 assert(timedRuntime:IsPaused(), "hidden runtime window did not pause play")
@@ -1795,8 +1879,8 @@ runtime.overlays.classic.newGame.scripts.OnClick()
 local freshClassic = runtime.session
 AssertEqual(freshClassic.scoringState.score, 0, "runtime fresh Classic retained prior score")
 assert(freshClassic ~= restoredClassic, "runtime fresh Classic reused a prior session")
-AssertEqual(#sessionStarts, 5, "runtime session-start callback count")
-AssertEqual(#sessionStops, 4, "runtime session-stop callback count")
+AssertEqual(#sessionStarts, 6, "runtime session-start callback count")
+AssertEqual(#sessionStops, 5, "runtime session-stop callback count")
 end
 
 TestSessionRestore()
@@ -2267,4 +2351,4 @@ end
 addon:TestCompartmentForTest()
 addon.TestCompartmentForTest = nil
 
-print("Runtime verification passed: addon-compartment access, playable Classic/Timed window shell, HUD, pause/restore/level/game-over sessions, input, cascade/effect animation, gem projection, UI backdrops, audio, SavedVariables, and deterministic gameplay engine.")
+print("Runtime verification passed: Timed setup/flight boundary, addon-compartment access, playable Classic/Timed window shell, HUD, pause/restore/level/game-over sessions, input, cascade/effect animation, gem projection, UI backdrops, audio, SavedVariables, and deterministic gameplay engine.")

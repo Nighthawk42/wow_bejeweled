@@ -53,7 +53,7 @@ try {
         }
     }
 
-    Write-Output "Verified: Retail TOC order, addon-compartment access, and Lua 5.1-compatible playable window/session runtime."
+    Write-Output "Verified: Retail TOC order, Timed setup/flight boundary, addon-compartment access, and Lua 5.1-compatible playable window/session runtime."
 }
 finally {
     Pop-Location
