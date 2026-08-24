@@ -21,6 +21,9 @@ function addon:Initialize(accountData, profileData)
 	assert(self.HUD, "HUD module is not loaded")
 	assert(self.Summary, "Summary module is not loaded")
 	assert(self.Skills, "Skills module is not loaded")
+	assert(self.Options, "Options module is not loaded")
+	assert(self.About, "About module is not loaded")
+	assert(self.Legal, "Legal module is not loaded")
 	assert(self.MainWindow, "MainWindow module is not loaded")
 	assert(self.Compartment, "Compartment module is not loaded")
 	assert(self.Input, "Input module is not loaded")
@@ -35,6 +38,9 @@ function addon:Initialize(accountData, profileData)
 	self.hudFactory = self.HUD
 	self.summaryFactory = self.Summary
 	self.skillsFactory = self.Skills
+	self.optionsFactory = self.Options
+	self.aboutFactory = self.About
+	self.legalFactory = self.Legal
 	self.mainWindowFactory = self.MainWindow
 	self.compartment = self.Compartment
 	self.inputFactory = self.Input

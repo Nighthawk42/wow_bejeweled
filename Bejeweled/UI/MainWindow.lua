@@ -9,6 +9,9 @@ local Animations = assert(addon.Animations, "Animations module is not loaded")
 local HUD = assert(addon.HUD, "HUD module is not loaded")
 local Summary = assert(addon.Summary, "Summary module is not loaded")
 local Skills = assert(addon.Skills, "Skills module is not loaded")
+local Options = assert(addon.Options, "Options module is not loaded")
+local About = assert(addon.About, "About module is not loaded")
+local Legal = assert(addon.Legal, "Legal module is not loaded")
 
 local MainWindow = {}
 MainWindow.__index = MainWindow
@@ -189,7 +192,31 @@ function MainWindow:CreateBoard()
 	self.skills = Skills:New(surface, {
 		createFrame = self.createFrame,
 		profile = self.profile,
+		accountData = self.accountData,
 		onBack = function()
+			return self:ShowMenu()
+		end,
+	})
+	self.options = Options:New(surface, {
+		createFrame = self.createFrame,
+		profile = self.profile,
+		onChanged = function(key)
+			return self:ApplySettings(key)
+		end,
+		onBack = function()
+			return self:ShowMenu()
+		end,
+	})
+	self.about = About:New(surface, {
+		createFrame = self.createFrame,
+		onBack = function()
+			return self:ShowMenu()
+		end,
+	})
+	self.legal = Legal:New(surface, {
+		createFrame = self.createFrame,
+		accountData = self.accountData,
+		onAcknowledge = function()
 			return self:ShowMenu()
 		end,
 	})
@@ -205,7 +232,7 @@ function MainWindow:CreateOverlay(title, height)
 end
 
 function MainWindow:CreateMenus()
-	local menu = self:CreateOverlay("Menu", 164)
+	local menu = self:CreateOverlay("Menu", 272)
 	menu.resume = self:CreateButton(menu, "Resume", 160, 28, function()
 		self:ResumeGame()
 	end)
@@ -218,6 +245,18 @@ function MainWindow:CreateMenus()
 		self:ShowSkills()
 	end)
 	menu.skills:SetPoint("TOP", menu.newGame, "BOTTOM", 0, -8)
+	menu.settings = self:CreateButton(menu, "Settings", 160, 28, function()
+		self:ShowOptions()
+	end)
+	menu.settings:SetPoint("TOP", menu.skills, "BOTTOM", 0, -8)
+	menu.about = self:CreateButton(menu, "About", 160, 28, function()
+		self:ShowAbout()
+	end)
+	menu.about:SetPoint("TOP", menu.settings, "BOTTOM", 0, -8)
+	menu.legal = self:CreateButton(menu, "Legal Notice", 160, 28, function()
+		self:ShowLegal()
+	end)
+	menu.legal:SetPoint("TOP", menu.about, "BOTTOM", 0, -8)
 
 	local mode = self:CreateOverlay("Game Type", 164)
 	mode.classic = self:CreateButton(mode, "Classic", 160, 28, function()
@@ -331,6 +370,11 @@ function MainWindow:New(uiParent, options)
 	assert(type(instance.createFrame) == "function", "CreateFrame is unavailable for main window")
 	assert(type(instance.random) == "function", "main-window random provider must be a function")
 	assert(type(instance.timedDuration) == "number" and instance.timedDuration > 0, "timed duration must be positive")
+	if instance.hintsEnabled == nil then
+		instance.hintsEnabled = function()
+			return not instance.profile.settings.disableHints
+		end
+	end
 	assert(
 		(instance.flightOptionProvider == nil) == (instance.onFlightTimedRequested == nil),
 		"flight timing requires both provider and request callbacks"
@@ -350,6 +394,15 @@ function MainWindow:HideOverlays()
 	if self.skills then
 		self.skills:Hide()
 	end
+	if self.options then
+		self.options:Hide()
+	end
+	if self.about then
+		self.about:Hide()
+	end
+	if self.legal then
+		self.legal:Hide()
+	end
 	for _, overlay in pairs(self.overlays) do
 		overlay:Hide()
 	end
@@ -362,6 +415,37 @@ function MainWindow:ShowSkills(tab)
 	self.skills:Show(tab)
 	self.activeOverlay = "skills"
 	return self.skills
+end
+
+function MainWindow:ShowOptions()
+	self:PauseForMenu()
+	self:HideOverlays()
+	self.options:Show()
+	self.activeOverlay = "options"
+	return self.options
+end
+
+function MainWindow:ShowAbout(tab)
+	self:PauseForMenu()
+	self:HideOverlays()
+	self.about:Show(tab)
+	self.activeOverlay = "about"
+	return self.about
+end
+
+function MainWindow:ShowLegal()
+	self:PauseForMenu()
+	self:HideOverlays()
+	self.legal:Show()
+	self.activeOverlay = "legal"
+	return self.legal
+end
+
+function MainWindow:ApplySettings(key)
+	if key == nil or key == "gameAlpha" then
+		self.frame:SetAlpha(self.profile.settings.gameAlpha or 1)
+	end
+	return key and self.profile.settings[key] or self.profile.settings
 end
 
 function MainWindow:ShowSummary(result)
@@ -599,7 +683,11 @@ function MainWindow:HandleWindowShown()
 	end
 	self.windowOwnsPause = false
 	if not self.session and not self.activeOverlay then
-		self:ShowMenu()
+		if self.accountData.legalDisplayed then
+			self:ShowMenu()
+		else
+			self:ShowLegal()
+		end
 	end
 end
 

@@ -55,6 +55,9 @@ LoadAddonFile("Bejeweled/UI/Animations.lua", addon)
 LoadAddonFile("Bejeweled/UI/HUD.lua", addon)
 LoadAddonFile("Bejeweled/UI/Summary.lua", addon)
 LoadAddonFile("Bejeweled/UI/Skills.lua", addon)
+LoadAddonFile("Bejeweled/UI/Options.lua", addon)
+LoadAddonFile("Bejeweled/UI/About.lua", addon)
+LoadAddonFile("Bejeweled/UI/Legal.lua", addon)
 LoadAddonFile("Bejeweled/UI/MainWindow.lua", addon)
 LoadAddonFile("Bejeweled/UI/Compartment.lua", addon)
 
@@ -1763,9 +1766,17 @@ AssertEqual(runtime.summary.frame.width, 400, "runtime summary width")
 AssertEqual(runtime.summary.frame.height, 400, "runtime summary height")
 AssertEqual(runtime.skills.frame.width, 400, "runtime skill-screen width")
 AssertEqual(runtime.skills.frame.height, 400, "runtime skill-screen height")
+AssertEqual(runtime.options.frame.width, 400, "runtime options width")
+AssertEqual(runtime.about.frame.width, 400, "runtime About width")
+AssertEqual(runtime.legal.frame.width, 400, "runtime legal width")
 runtime:Show()
 assert(runtime.frame.shown, "runtime window did not show")
 assert(runtime:IsShown(), "runtime visibility state did not follow Show")
+AssertEqual(runtime.activeOverlay, "legal", "runtime initial legal notice")
+assert(runtime.legal:IsShown(), "runtime initial legal notice remained hidden")
+assert(string.find(runtime.legal.frame.text.text, "PopCap Games", 1, true), "runtime legal notice omitted PopCap attribution")
+runtime.legal.okayButton.scripts.OnClick()
+assert(runtimeAccount.legalDisplayed, "runtime legal acknowledgement was not persisted")
 AssertEqual(runtime.activeOverlay, "menu", "runtime initial menu")
 assert(not runtime.overlays.menu.resume.shown, "runtime initial menu exposed Resume")
 
@@ -1773,6 +1784,10 @@ runtimeProfile.skill.rank = 3
 runtimeProfile.skill.skillPoints = 175
 runtimeProfile.skill.gainFun1 = true
 runtimeProfile.skill.gainAchieve1 = true
+runtimeProfile.stats.classic.score = 123456
+runtimeProfile.stats.timed.score = 42.5
+runtimeProfile.stats.gemMatch[4] = 99
+runtimeAccount.played.Nighthawk = 12
 runtime.overlays.menu.skills.scripts.OnClick()
 AssertEqual(runtime.activeOverlay, "skills", "runtime Feats action did not open the skill screen")
 assert(runtime.skills:IsShown(), "runtime skill screen remained hidden")
@@ -1784,12 +1799,29 @@ AssertEqual(visibleSkills[1].category, "Match Gems", "runtime first skill catego
 AssertEqual(visibleSkills[1].name, "Match 5 Gems (Create a |cFFA335EE[Hyper Cube]|r)", "runtime first skill challenge")
 visibleSkills[1].name = "changed by caller"
 AssertEqual(runtime.skills:GetVisibleRecords()[1].name, "Match 5 Gems (Create a |cFFA335EE[Hyper Cube]|r)", "runtime skill records were not copied")
+runtime.skills.statisticsTab.scripts.OnClick()
+AssertEqual(runtime.skills.activeTab, "statistics", "runtime statistics tab selection")
+local visibleStatistics = runtime.skills:GetVisibleRecords()
+AssertEqual(visibleStatistics[1].label, "Classic High Score", "runtime first personal statistic")
+AssertEqual(visibleStatistics[1].value, "123,456", "runtime formatted Classic high score")
+AssertEqual(runtime.skills:GetPageCount(), 3, "runtime statistics page count")
+runtime.skills.leaderboardsTab.scripts.OnClick()
+AssertEqual(runtime.skills.activeTab, "leaderboards", "runtime leaderboard tab selection")
+AssertEqual(runtime.skills.scopeButton.label.text, "Guild", "runtime default leaderboard scope")
+AssertEqual(runtime.skills.modeButton.label.text, "Classic", "runtime default leaderboard mode")
+local visibleScores = runtime.skills:GetVisibleRecords()
+AssertEqual(visibleScores[1].name, "PopCap Games", "runtime first local leaderboard name")
+AssertEqual(visibleScores[1].formattedScore, "1,000", "runtime first local leaderboard score")
+runtime.skills.scopeButton.scripts.OnClick()
+AssertEqual(runtime.skills.leaderboardScope, "friends", "runtime leaderboard scope toggle")
+runtime.skills.modeButton.scripts.OnClick()
+AssertEqual(runtime.skills.leaderboardMode, "timed", "runtime leaderboard mode toggle")
 runtime.skills.achievementsTab.scripts.OnClick()
 AssertEqual(runtime.skills.activeTab, "achievements", "runtime achievement tab selection")
 AssertEqual(runtime.skills.frame.status.text, "Unlocked 13 / 26   Completed 2", "runtime achievement counts")
 local visibleAchievements = runtime.skills:GetVisibleRecords()
 assert(visibleAchievements[1].completed, "runtime completed achievements were not sorted first")
-AssertEqual(runtime.skills:GetPageCount(), 2, "runtime achievement page count")
+AssertEqual(runtime.skills:GetPageCount(), 3, "runtime achievement page count")
 runtime.skills.nextButton.scripts.OnClick()
 AssertEqual(runtime.skills.page, 2, "runtime achievement next-page action")
 assert(runtime.skills.previousButton.shown, "runtime achievement previous-page action remained hidden")
@@ -1800,6 +1832,45 @@ runtimeProfile.skill.rank = 1
 runtimeProfile.skill.skillPoints = 0
 runtimeProfile.skill.gainFun1 = nil
 runtimeProfile.skill.gainAchieve1 = nil
+runtimeProfile.stats.classic.score = 0
+runtimeProfile.stats.timed.score = 0
+runtimeProfile.stats.gemMatch[4] = 0
+runtimeAccount.played.Nighthawk = nil
+
+runtime.overlays.menu.settings.scripts.OnClick()
+AssertEqual(runtime.activeOverlay, "options", "runtime Settings action")
+assert(runtime.options:IsShown(), "runtime Settings screen remained hidden")
+runtime.options.rows[1].scripts.OnClick()
+AssertEqual(runtimeProfile.settings.gameAlpha, 0.9, "runtime game-opacity setting")
+AssertEqual(runtime.frame.alpha, 0.9, "runtime game-opacity application")
+runtime.options.rows[3].scripts.OnClick()
+AssertEqual(runtime.options:GetSoundMode(), "Quiet", "runtime sound-mode setting")
+runtime.options.rows[4].scripts.OnClick()
+assert(runtimeProfile.settings.disableHints, "runtime hint setting")
+assert(not runtime.hud:AreHintsEnabled(), "runtime hint setting did not reach the HUD")
+runtime.options.backButton.scripts.OnClick()
+AssertEqual(runtime.activeOverlay, "menu", "runtime Settings Back action")
+runtimeProfile.settings.gameAlpha = 1
+runtimeProfile.settings.disableHints = nil
+runtimeProfile.settings.quietSounds = nil
+runtimeProfile.settings.enableSounds = 1
+runtime:ApplySettings("gameAlpha")
+
+runtime.overlays.menu.about.scripts.OnClick()
+AssertEqual(runtime.activeOverlay, "about", "runtime About action")
+AssertEqual(runtime.about.activeTab, "tutorial", "runtime default About tab")
+runtime.about.tabs.story.scripts.OnClick()
+AssertEqual(runtime.about.activeTab, "story", "runtime About story tab")
+assert(string.find(runtime.about.contents.story.text.text, "github.com/Nighthawk42", 1, true), "runtime About story omitted project home")
+runtime.about.tabs.credits.scripts.OnClick()
+AssertEqual(runtime.about.activeTab, "credits", "runtime About credits tab")
+runtime.about.backButton.scripts.OnClick()
+AssertEqual(runtime.activeOverlay, "menu", "runtime About Back action")
+
+runtime.overlays.menu.legal.scripts.OnClick()
+AssertEqual(runtime.activeOverlay, "legal", "runtime manual Legal action")
+runtime.legal.okayButton.scripts.OnClick()
+AssertEqual(runtime.activeOverlay, "menu", "runtime Legal acknowledgement action")
 
 runtime.overlays.menu.newGame.scripts.OnClick()
 AssertEqual(runtime.activeOverlay, "mode", "runtime New Game did not show mode selection")
@@ -2328,6 +2399,10 @@ assert(addon.gemPoolFactory == addon.GemPool, "addon initialization did not inst
 assert(addon.animationFactory == addon.Animations, "addon initialization did not install Animations")
 assert(addon.hudFactory == addon.HUD, "addon initialization did not install HUD")
 assert(addon.summaryFactory == addon.Summary, "addon initialization did not install Summary")
+assert(addon.skillsFactory == addon.Skills, "addon initialization did not install Skills")
+assert(addon.optionsFactory == addon.Options, "addon initialization did not install Options")
+assert(addon.aboutFactory == addon.About, "addon initialization did not install About")
+assert(addon.legalFactory == addon.Legal, "addon initialization did not install Legal")
 assert(addon.mainWindowFactory == addon.MainWindow, "addon initialization did not install MainWindow")
 assert(addon.compartment == addon.Compartment, "addon initialization did not install Compartment")
 assert(addon.inputFactory == addon.Input, "addon initialization did not install Input")
@@ -2349,6 +2424,10 @@ assert(addon.gemPoolFactory == initializedGemPoolFactory, "GemPool initializatio
 assert(addon.animationFactory == initializedAnimationFactory, "Animations initialization is not idempotent")
 assert(addon.hudFactory == initializedHUDFactory, "HUD initialization is not idempotent")
 assert(addon.summaryFactory == addon.Summary, "Summary initialization is not idempotent")
+assert(addon.skillsFactory == addon.Skills, "Skills initialization is not idempotent")
+assert(addon.optionsFactory == addon.Options, "Options initialization is not idempotent")
+assert(addon.aboutFactory == addon.About, "About initialization is not idempotent")
+assert(addon.legalFactory == addon.Legal, "Legal initialization is not idempotent")
 assert(addon.mainWindowFactory == addon.MainWindow, "MainWindow initialization is not idempotent")
 assert(addon.compartment == addon.Compartment, "Compartment initialization is not idempotent")
 assert(addon.inputFactory == initializedInputFactory, "Input initialization is not idempotent")
@@ -2360,7 +2439,9 @@ addon.runtimeForTest = addon:StartRuntime({
 	random = MakeRandom(13001),
 })
 assert(addon.runtimeForTest == addon.runtime, "StartRuntime did not retain the playable shell")
-AssertEqual(addon.runtimeForTest.activeOverlay, "menu", "StartRuntime did not open the initial menu")
+AssertEqual(addon.runtimeForTest.activeOverlay, "legal", "StartRuntime did not open the first-run legal notice")
+addon.runtimeForTest.legal.okayButton.scripts.OnClick()
+AssertEqual(addon.runtimeForTest.activeOverlay, "menu", "StartRuntime legal acknowledgement did not open the menu")
 assert(addon:StartRuntime() == addon.runtimeForTest, "StartRuntime is not idempotent")
 
 function addon:TestCompartmentForTest()

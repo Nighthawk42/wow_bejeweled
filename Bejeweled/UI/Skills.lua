@@ -7,7 +7,14 @@ local Skills = {}
 Skills.__index = Skills
 
 local FONT_PATH = Constants.IMAGE_ROOT .. "Contb___.ttf"
-local PAGE_SIZE = 7
+local PAGE_SIZE = 6
+
+local VALID_TABS = {
+	skills = true,
+	statistics = true,
+	leaderboards = true,
+	achievements = true,
+}
 
 local RANK_NAMES = {
 	"Apprentice",
@@ -101,6 +108,16 @@ local TIER_COLORS = {
 	{ 0.3, 0.3, 0.3, 1 },
 }
 
+local GEM_NAMES = {
+	"Yellow",
+	"White",
+	"Blue",
+	"Red",
+	"Purple",
+	"Orange",
+	"Green",
+}
+
 local function Clamp(value, minimum, maximum)
 	return math.max(minimum, math.min(maximum, value))
 end
@@ -111,6 +128,33 @@ local function CopyRecord(source)
 		copy[key] = value
 	end
 	return copy
+end
+
+local function FormatInteger(value)
+	local formatted = tostring(math.floor(value or 0))
+	while true do
+		local nextText, substitutions = string.gsub(formatted, "^(%-?%d+)(%d%d%d)", "%1,%2")
+		formatted = nextText
+		if substitutions == 0 then
+			return formatted
+		end
+	end
+end
+
+local function FormatDuration(seconds)
+	seconds = math.max(0, math.floor(seconds or 0))
+	local days = math.floor(seconds / 86400)
+	seconds = seconds % 86400
+	local hours = math.floor(seconds / 3600)
+	seconds = seconds % 3600
+	local minutes = math.floor(seconds / 60)
+	if days > 0 then
+		return string.format("%d d %d h %d min", days, hours, minutes)
+	end
+	if hours > 0 then
+		return string.format("%d h %d min", hours, minutes)
+	end
+	return string.format("%d min %d sec", minutes, seconds % 60)
 end
 
 local function CreateFontString(frame, size, text, color)
@@ -224,6 +268,72 @@ function Skills:BuildAchievementRecords()
 	}
 end
 
+function Skills:BuildStatisticRecords()
+	local stats = self.profile.stats or {}
+	local classic = stats.classic or {}
+	local timed = stats.timed or {}
+	local totalGames = 0
+	for _, games in pairs(self.accountData.played or {}) do
+		if type(games) == "number" and games >= 0 then
+			totalGames = totalGames + games
+		end
+	end
+	local favorite = "None"
+	local maximum = 0
+	local tied = false
+	for index, name in ipairs(GEM_NAMES) do
+		local matches = (stats.gemMatch or {})[index] or 0
+		if matches > maximum then
+			favorite = name
+			maximum = matches
+			tied = false
+		elseif matches == maximum and matches > 0 then
+			tied = true
+		end
+	end
+	if tied or maximum == 0 then
+		favorite = "None"
+	end
+	return {
+		{ label = "Classic High Score", value = FormatInteger(classic.score) },
+		{ label = "Timed High Score", value = string.format("%.2f PPS", timed.score or 0) },
+		{ label = "Highest Classic Level", value = FormatInteger(classic.highestLevel) },
+		{ label = "Most Timed Moves", value = FormatInteger(timed.mostMoves) },
+		{ label = "Largest Cascade", value = FormatInteger(stats.largestCascade) },
+		{ label = "Largest Combo", value = FormatInteger(stats.largestCombo) },
+		{ label = "Total Play Time", value = FormatDuration(stats.played) },
+		{ label = "Classic Play Time", value = FormatDuration(classic.played) },
+		{ label = "Timed Play Time", value = FormatDuration(timed.played) },
+		{ label = "Combat Entries", value = FormatInteger(stats.combatPause) },
+		{ label = "Favorite Gem", value = favorite },
+		{ label = "Gems Matched", value = FormatInteger(stats.totalGemsMatched) },
+		{ label = "Games Played", value = FormatInteger(totalGames) },
+		{ label = "Hyper Cubes Created", value = FormatInteger(stats.totalHyperGems) },
+		{ label = "Power Gems Created", value = FormatInteger(stats.totalPowerGems) },
+	}
+end
+
+function Skills:BuildLeaderboardRecords()
+	local records = {}
+	local scoreList = self.profile.scoreList or {}
+	local scope = scoreList[self.leaderboardScope] or {}
+	local board = scope[self.leaderboardMode] or {}
+	for index = 1, 10 do
+		local entry = board[index] or {}
+		local rank = Clamp(math.floor(tonumber(entry[2]) or 1), 1, Constants.SKILL_MAX_RANK)
+		local score = tonumber(entry[3]) or 0
+		records[#records + 1] = {
+			position = index,
+			name = tostring(entry[1] or "-"),
+			rank = rank,
+			rankName = RANK_NAMES[rank],
+			score = score,
+			formattedScore = self.leaderboardMode == "timed" and string.format("%.2f PPS", score) or FormatInteger(score),
+		}
+	end
+	return records
+end
+
 function Skills:GetRankState()
 	local skill = self.profile.skill
 	local rank = Clamp(math.floor(skill.rank or 1), 1, Constants.SKILL_MAX_RANK)
@@ -245,17 +355,21 @@ function Skills:New(parent, options)
 	options = options or {}
 	assert(type(options) == "table", "skill-screen options must be a table")
 	assert(type(options.profile) == "table" and type(options.profile.skill) == "table", "skill screen requires profile skill data")
+	assert(type(options.accountData) == "table", "skill screen requires account data")
 	assert(type(options.onBack) == "function", "skill screen requires an onBack callback")
 	local instance = setmetatable({
 		parent = parent,
 		createFrame = options.createFrame or CreateFrame,
 		profile = options.profile,
+		accountData = options.accountData,
 		onBack = options.onBack,
 		activeTab = "skills",
 		page = 1,
 		records = {},
 		visible = false,
 		rows = {},
+		leaderboardScope = "guild",
+		leaderboardMode = "classic",
 	}, self)
 	assert(type(instance.createFrame) == "function", "CreateFrame is unavailable for skill screen")
 
@@ -278,29 +392,63 @@ function Skills:New(parent, options)
 	progress.fill:SetBackdropColor(0.76, 0.5, 0.08, 1)
 	instance.progress = progress
 
-	instance.skillsTab = instance:CreateFrame(frame, "tooltip", 150, 24, 2, "Button")
-	instance.skillsTab:SetPoint("TOP", progress, "BOTTOM", -78, -6)
-	instance.skillsTab:EnableMouse(true)
-	instance.skillsTab.label = CreateFontString(instance.skillsTab, 11, "Skills", { 1, 0.85, 0, 1 })
-	instance.skillsTab.label:SetPoint("CENTER", instance.skillsTab, "CENTER", 0, 0)
-	instance.skillsTab:SetScript("OnClick", function()
-		instance:SetTab("skills")
-	end)
-	instance.achievementsTab = instance:CreateFrame(frame, "tooltip", 150, 24, 2, "Button")
-	instance.achievementsTab:SetPoint("LEFT", instance.skillsTab, "RIGHT", 6, 0)
-	instance.achievementsTab:EnableMouse(true)
-	instance.achievementsTab.label = CreateFontString(instance.achievementsTab, 11, "Achievements", { 1, 0.85, 0, 1 })
-	instance.achievementsTab.label:SetPoint("CENTER", instance.achievementsTab, "CENTER", 0, 0)
-	instance.achievementsTab:SetScript("OnClick", function()
-		instance:SetTab("achievements")
-	end)
+	instance.tabs = {}
+	local previousTab
+	local tabDefinitions = {
+		{ "skills", "Skills" },
+		{ "statistics", "Stats" },
+		{ "leaderboards", "Scores" },
+		{ "achievements", "Achievements" },
+	}
+	for _, definition in ipairs(tabDefinitions) do
+		local key = definition[1]
+		local tab = instance:CreateFrame(frame, "tooltip", 90, 24, 2, "Button")
+		if previousTab then
+			tab:SetPoint("LEFT", previousTab, "RIGHT", 4, 0)
+		else
+			tab:SetPoint("TOP", progress, "BOTTOM", -141, -6)
+		end
+		tab:EnableMouse(true)
+		tab.label = CreateFontString(tab, 9, definition[2], { 1, 0.85, 0, 1 })
+		tab.label:SetPoint("CENTER", tab, "CENTER", 0, 0)
+		tab:SetScript("OnClick", function()
+			instance:SetTab(key)
+		end)
+		instance.tabs[key] = tab
+		previousTab = tab
+	end
+	instance.skillsTab = instance.tabs.skills
+	instance.statisticsTab = instance.tabs.statistics
+	instance.leaderboardsTab = instance.tabs.leaderboards
+	instance.achievementsTab = instance.tabs.achievements
 
 	frame.status = CreateFontString(frame, 10, "", { 0.75, 0.75, 0.75, 1 })
-	frame.status:SetPoint("TOP", instance.skillsTab, "BOTTOM", 78, -4)
+	frame.status:SetPoint("TOP", frame, "TOP", 0, -105)
+
+	local function CreateSelector(text, x, callback)
+		local button = instance:CreateFrame(frame, "tooltip", 104, 20, 2, "Button")
+		button:SetPoint("TOP", frame.status, "BOTTOM", x, -2)
+		button:EnableMouse(true)
+		button.label = CreateFontString(button, 9, text, { 1, 0.85, 0, 1 })
+		button.label:SetPoint("CENTER", button, "CENTER", 0, 0)
+		button:SetScript("OnClick", callback)
+		button:Hide()
+		return button
+	end
+	instance.scopeButton = CreateSelector("Guild", -54, function()
+		instance.leaderboardScope = instance.leaderboardScope == "guild" and "friends" or "guild"
+		instance.page = 1
+		instance:Refresh()
+	end)
+	instance.modeButton = CreateSelector("Classic", 54, function()
+		instance.leaderboardMode = instance.leaderboardMode == "classic" and "timed" or "classic"
+		instance.page = 1
+		instance:Refresh()
+	end)
 
 	for index = 1, PAGE_SIZE do
 		local row = instance:CreateFrame(frame, "tooltip", 370, 30, 1)
-		row:SetPoint("TOP", frame.status, "BOTTOM", 0, -3 - ((index - 1) * 32))
+		row:SetPoint("TOP", instance.scopeButton, "BOTTOM", 54, -3 - ((index - 1) * 32))
 		row.icon = row:CreateTexture(nil, "ARTWORK")
 		row.icon:SetPoint("LEFT", row, "LEFT", 5, 0)
 		row.icon:SetWidth(24)
@@ -366,7 +514,7 @@ function Skills:RenderPage()
 				row.title:SetText(record.category .. ": " .. record.name)
 				row.title:SetTextColor(color[1], color[2], color[3], color[4])
 				row.description:SetText("")
-			else
+			elseif self.activeTab == "achievements" then
 				row.icon:SetTexture(record.icon)
 				row.icon:SetVertexColor(record.completed and 1 or 0.45, record.completed and 1 or 0.45, record.completed and 1 or 0.45, 1)
 				row.icon:Show()
@@ -375,7 +523,35 @@ function Skills:RenderPage()
 				row.title:SetWidth(328)
 				row.title:SetText((record.completed and "|cFF55CC55Complete|r - " or "") .. record.title)
 				row.title:SetTextColor(1, 1, 1, 1)
+				row.description:ClearAllPoints()
+				row.description:SetPoint("TOPLEFT", row.title, "BOTTOMLEFT", 0, -1)
+				row.description:SetWidth(328)
+				row.description:SetJustifyH("LEFT")
 				row.description:SetText(record.description)
+			elseif self.activeTab == "statistics" then
+				row.icon:Hide()
+				row.title:ClearAllPoints()
+				row.title:SetPoint("LEFT", row, "LEFT", 8, 0)
+				row.title:SetWidth(220)
+				row.title:SetText(record.label)
+				row.title:SetTextColor(1, 0.8, 0.15, 1)
+				row.description:SetText(record.value)
+				row.description:ClearAllPoints()
+				row.description:SetPoint("RIGHT", row, "RIGHT", -8, 0)
+				row.description:SetWidth(130)
+				row.description:SetJustifyH("RIGHT")
+			else
+				row.icon:Hide()
+				row.title:ClearAllPoints()
+				row.title:SetPoint("TOPLEFT", row, "TOPLEFT", 8, -3)
+				row.title:SetWidth(350)
+				row.title:SetText(string.format("#%d  %s", record.position, record.name))
+				row.title:SetTextColor(record.position == 1 and 0.25 or 1, record.position == 1 and 0.9 or 1, record.position == 1 and 0.25 or 1, 1)
+				row.description:ClearAllPoints()
+				row.description:SetPoint("TOPLEFT", row.title, "BOTTOMLEFT", 0, -1)
+				row.description:SetWidth(350)
+				row.description:SetJustifyH("LEFT")
+				row.description:SetText(record.rankName .. " - " .. record.formattedScore)
 			end
 			row:Show()
 		else
@@ -403,17 +579,32 @@ function Skills:Refresh()
 	self.progress.text:SetText(string.format("%d / %d", rank.points, rank.rankEnd))
 	self.progress.fill:SetWidth(math.max(1, 276 * rank.progress))
 	self.progress.ratio = rank.progress
+	self.scopeButton:Hide()
+	self.modeButton:Hide()
 	if self.activeTab == "achievements" then
 		local counts
 		self.records, counts = self:BuildAchievementRecords()
 		self.frame.status:SetText(string.format("Unlocked %d / %d   Completed %d", counts.unlocked, counts.total, counts.completed))
-		self.skillsTab:SetBackdropColor(0.08, 0.08, 0.08, 0.98)
-		self.achievementsTab:SetBackdropColor(0.25, 0.18, 0.04, 1)
+	elseif self.activeTab == "statistics" then
+		self.records = self:BuildStatisticRecords()
+		self.frame.status:SetText("Personal Bests and Fun Statistics")
+	elseif self.activeTab == "leaderboards" then
+		self.records = self:BuildLeaderboardRecords()
+		self.frame.status:SetText("Local saved leaderboards")
+		self.scopeButton.label:SetText(self.leaderboardScope == "guild" and "Guild" or "Friends")
+		self.modeButton.label:SetText(self.leaderboardMode == "classic" and "Classic" or "Timed")
+		self.scopeButton:Show()
+		self.modeButton:Show()
 	else
 		self.records = self:BuildSkillRecords()
 		self.frame.status:SetText(string.format("%d current skill challenges", #self.records))
-		self.skillsTab:SetBackdropColor(0.25, 0.18, 0.04, 1)
-		self.achievementsTab:SetBackdropColor(0.08, 0.08, 0.08, 0.98)
+	end
+	for key, tab in pairs(self.tabs) do
+		if key == self.activeTab then
+			tab:SetBackdropColor(0.25, 0.18, 0.04, 1)
+		else
+			tab:SetBackdropColor(0.08, 0.08, 0.08, 0.98)
+		end
 	end
 	self.page = Clamp(self.page, 1, self:GetPageCount())
 	self:RenderPage()
@@ -421,7 +612,7 @@ function Skills:Refresh()
 end
 
 function Skills:SetTab(tab)
-	assert(tab == "skills" or tab == "achievements", "unknown skill-screen tab")
+	assert(VALID_TABS[tab], "unknown skill-screen tab")
 	self.activeTab = tab
 	self.page = 1
 	self:Refresh()
@@ -430,7 +621,7 @@ end
 
 function Skills:Show(tab)
 	if tab then
-		assert(tab == "skills" or tab == "achievements", "unknown skill-screen tab")
+		assert(VALID_TABS[tab], "unknown skill-screen tab")
 		self.activeTab = tab
 	end
 	self.page = 1

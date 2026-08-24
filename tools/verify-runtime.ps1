@@ -40,6 +40,9 @@ try {
         "UI\HUD.lua",
         "UI\Summary.lua",
         "UI\Skills.lua",
+        "UI\Options.lua",
+        "UI\About.lua",
+        "UI\Legal.lua",
         "UI\MainWindow.lua",
         "UI\Compartment.lua"
     )
@@ -55,7 +58,7 @@ try {
         }
     }
 
-    Write-Output "Verified: Retail TOC order, local summary and Feats screens, Timed setup/flight boundary, addon-compartment access, and Lua 5.1-compatible playable window/session runtime."
+    Write-Output "Verified: Retail TOC order, complete local presentation screens, Timed setup/flight boundary, addon-compartment access, and Lua 5.1-compatible playable window/session runtime."
 }
 finally {
     Pop-Location

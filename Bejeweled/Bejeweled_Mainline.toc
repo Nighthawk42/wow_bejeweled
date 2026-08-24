@@ -26,5 +26,8 @@ UI\Animations.lua
 UI\HUD.lua
 UI\Summary.lua
 UI\Skills.lua
+UI\Options.lua
+UI\About.lua
+UI\Legal.lua
 UI\MainWindow.lua
 UI\Compartment.lua
