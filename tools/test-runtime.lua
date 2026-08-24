@@ -47,11 +47,71 @@ LoadAddonFile("Bejeweled/Engine/Grid.lua", addon)
 LoadAddonFile("Bejeweled/Engine/Matches.lua", addon)
 LoadAddonFile("Bejeweled/Engine/Cascade.lua", addon)
 LoadAddonFile("Bejeweled/Engine/Scoring.lua", addon)
+LoadAddonFile("Bejeweled/UI/Backdrops.lua", addon)
 
 AssertEqual(eventFrame.registeredEvent, "ADDON_LOADED", "initializer event registration")
 AssertEqual(addon.Constants.GRID_WIDTH, 8, "grid width")
 AssertEqual(addon.Constants.GRID_HEIGHT, 8, "grid height")
 AssertEqual(addon.Constants.GEM_COLOR_COUNT, 7, "gem color count")
+
+local windowBackdrop = addon.Backdrops:CreateDescriptor("window")
+AssertEqual(windowBackdrop.bgFile, addon.Constants.IMAGE_ROOT .. "windowBackground", "window backdrop texture")
+AssertEqual(windowBackdrop.edgeFile, addon.Constants.IMAGE_ROOT .. "windowBorder", "window backdrop border")
+AssertEqual(windowBackdrop.insets.right, 3, "window backdrop right inset")
+windowBackdrop.insets.right = 99
+AssertEqual(addon.Backdrops:CreateDescriptor("window").insets.right, 3, "backdrop preset shared mutable insets")
+
+local customPanelBackdrop = addon.Backdrops:CreateDescriptor("panel", {
+	edgeSize = 24,
+	insets = { left = 7 },
+})
+AssertEqual(customPanelBackdrop.edgeSize, 24, "backdrop scalar override")
+AssertEqual(customPanelBackdrop.insets.left, 7, "backdrop inset override")
+AssertEqual(customPanelBackdrop.insets.top, 3, "backdrop inset default preservation")
+
+local createdBackdropFrame
+local backdropCreateArguments
+local function CreateBackdropFrame(frameType, name, parent, template)
+	backdropCreateArguments = { frameType, name, parent, template }
+	createdBackdropFrame = {}
+	function createdBackdropFrame:SetBackdrop(descriptor)
+		self.descriptor = descriptor
+	end
+	function createdBackdropFrame:SetBackdropColor(red, green, blue, alpha)
+		self.backgroundColor = { red, green, blue, alpha }
+	end
+	function createdBackdropFrame:SetBackdropBorderColor(red, green, blue, alpha)
+		self.borderColor = { red, green, blue, alpha }
+	end
+	return createdBackdropFrame
+end
+
+local backdropParent = {}
+local appliedBackdropFrame, appliedDescriptor = addon.Backdrops:CreateFrame({
+	name = "BejeweledBackdropTest",
+	parent = backdropParent,
+	template = "UIPanelButtonTemplate",
+	preset = "panel",
+	backgroundColor = { 0.6, 0.6, 0.6, 1 },
+	borderColor = { 1, 0.8, 0.45 },
+	createFrame = CreateBackdropFrame,
+})
+assert(appliedBackdropFrame == createdBackdropFrame, "backdrop frame identity changed")
+assert(appliedDescriptor == createdBackdropFrame.descriptor, "created backdrop descriptor was not applied")
+AssertEqual(backdropCreateArguments[1], "Frame", "default backdrop frame type")
+AssertEqual(backdropCreateArguments[2], "BejeweledBackdropTest", "backdrop frame name")
+assert(backdropCreateArguments[3] == backdropParent, "backdrop frame parent changed")
+AssertEqual(backdropCreateArguments[4], "UIPanelButtonTemplate,BackdropTemplate", "backdrop template composition")
+AssertEqual(createdBackdropFrame.backgroundColor[4], 1, "backdrop background alpha")
+AssertEqual(createdBackdropFrame.borderColor[3], 0.45, "backdrop border blue")
+assert(createdBackdropFrame.borderColor[4] == nil, "three-channel border color gained an alpha")
+
+local existingTemplateFrame = addon.Backdrops:CreateFrame({
+	template = "BackdropTemplate",
+	createFrame = CreateBackdropFrame,
+})
+assert(existingTemplateFrame, "existing BackdropTemplate frame was not created")
+AssertEqual(backdropCreateArguments[4], "BackdropTemplate", "BackdropTemplate was duplicated")
 
 local playedFiles = {}
 local playedSoundKits = {}
@@ -535,11 +595,14 @@ eventFrame.scripts.OnEvent(eventFrame, "ADDON_LOADED", "Bejeweled", false)
 assert(addon.initialized, "addon initialization did not complete")
 assert(addon.grid, "addon initialization did not create a grid")
 assert(addon.audio, "addon initialization did not create audio")
+assert(addon.backdrops == addon.Backdrops, "addon initialization did not install backdrops")
 assert(eventFrame.registeredEvent == nil, "initializer event was not unregistered")
 local initializedGrid = addon.grid
 local initializedAudio = addon.audio
+local initializedBackdrops = addon.backdrops
 addon:Initialize({}, {})
 assert(addon.grid == initializedGrid, "addon initialization is not idempotent")
 assert(addon.audio == initializedAudio, "audio initialization is not idempotent")
+assert(addon.backdrops == initializedBackdrops, "backdrop initialization is not idempotent")
 
-print("Runtime verification passed: audio, SavedVariables, and deterministic gameplay engine.")
+print("Runtime verification passed: UI backdrops, audio, SavedVariables, and deterministic gameplay engine.")

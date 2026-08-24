@@ -15,10 +15,12 @@ function addon:Initialize(accountData, profileData)
 	assert(self.SavedVariables, "SavedVariables module is not loaded")
 	assert(self.Grid, "Grid module is not loaded")
 	assert(self.Audio, "Audio module is not loaded")
+	assert(self.Backdrops, "Backdrops module is not loaded")
 
 	self.accountData, self.profileData = self.SavedVariables:Initialize(accountData, profileData)
 	self.grid = self.Grid:New()
 	self.audio = self.Audio:New(self.profileData.settings)
+	self.backdrops = self.Backdrops
 	self.initialized = true
 
 	return self
