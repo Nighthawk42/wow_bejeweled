@@ -19,7 +19,7 @@ The immutable analysis source is `Legacy/Bejeweled_Mainline.lua` from commit `6f
 | 13 | 6001–6500 | 500 | `lines-6001-6500.md` | complete |
 | 14 | 6501–7000 | 500 | `lines-6501-7000.md` | complete |
 | 15 | 7001–7500 | 500 | `lines-7001-7500.md` | complete |
-| 16 | 7501–8000 | 500 | `lines-7501-8000.md` | pending |
+| 16 | 7501–8000 | 500 | `lines-7501-8000.md` | complete |
 | 17 | 8001–8401 | 401 | `lines-8001-8401.md` | pending |
 
 Count check: `16 × 500 + 401 = 8,401`.

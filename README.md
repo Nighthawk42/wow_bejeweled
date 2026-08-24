@@ -6,7 +6,7 @@ This branch is an analysis-only bootstrap for a Mainline-first modernization of 
 
 The preserved 8,401-line Mainline source must be analyzed sequentially, in evidence-backed batches, before runtime work begins. All behavior-critical shortened symbols must be resolved and all batches must be complete before any public Lua API, runtime module, modern TOC, packaging, or release work is added.
 
-Batches 01–15 (lines 1–7,500) are documented. The remaining batches are scheduled but not analyzed.
+Batches 01–16 (lines 1–8,000) are documented. The final batch remains scheduled but not analyzed.
 
 ## Goal
 
