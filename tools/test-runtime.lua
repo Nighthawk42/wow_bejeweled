@@ -49,6 +49,7 @@ LoadAddonFile("Bejeweled/Engine/Cascade.lua", addon)
 LoadAddonFile("Bejeweled/Engine/Scoring.lua", addon)
 LoadAddonFile("Bejeweled/UI/Backdrops.lua", addon)
 LoadAddonFile("Bejeweled/UI/GemPool.lua", addon)
+LoadAddonFile("Bejeweled/UI/Animations.lua", addon)
 
 AssertEqual(eventFrame.registeredEvent, "ADDON_LOADED", "initializer event registration")
 AssertEqual(addon.Constants.GRID_WIDTH, 8, "grid width")
@@ -176,6 +177,55 @@ local function CreateGemPoolFrame(frameType, name, parent, template)
 		self.createdTextures[#self.createdTextures + 1] = texture
 		return texture
 	end
+	function frame:CreateAnimationGroup()
+		local group = {
+			animations = {},
+			scripts = {},
+			playing = false,
+		}
+		function group:CreateAnimation(animationType)
+			local animation = { animationType = animationType }
+			function animation:SetDuration(duration)
+				self.duration = duration
+			end
+			function animation:SetOffset(offsetX, offsetY)
+				self.offsetX = offsetX
+				self.offsetY = offsetY
+			end
+			function animation:SetFromAlpha(alpha)
+				self.fromAlpha = alpha
+			end
+			function animation:SetToAlpha(alpha)
+				self.toAlpha = alpha
+			end
+			self.animations[#self.animations + 1] = animation
+			return animation
+		end
+		function group:SetScript(scriptName, callback)
+			self.scripts[scriptName] = callback
+		end
+		function group:Play()
+			self.playing = true
+		end
+		function group:Stop()
+			self.playing = false
+			self.stopped = true
+		end
+		function group:FinishForTest()
+			if not self.playing then
+				return false
+			end
+			self.playing = false
+			local callback = self.scripts.OnFinished
+			if callback then
+				callback(self)
+			end
+			return true
+		end
+		self.animationGroups = self.animationGroups or {}
+		self.animationGroups[#self.animationGroups + 1] = group
+		return group
+	end
 	function frame:SetAlpha(alpha)
 		self.alpha = alpha
 	end
@@ -193,6 +243,9 @@ local function CreateGemPoolFrame(frameType, name, parent, template)
 	end
 	function frame:Show()
 		self.shown = true
+	end
+	function frame:Hide()
+		self.shown = false
 	end
 	gemPoolCreatedFrames[#gemPoolCreatedFrames + 1] = frame
 	return frame
@@ -546,6 +599,89 @@ AssertEqual(cascadeGrid:Get(1, 8).contents, 2, "first compacted bottom gem")
 AssertEqual(cascadeGrid:Get(2, 8).contents, 3, "second compacted bottom gem")
 AssertEqual(cascadeGrid:Get(3, 8).contents, 4, "third compacted bottom gem")
 
+local function FinishAllGemAnimations()
+	local finishedAny = true
+	local passes = 0
+	while finishedAny do
+		finishedAny = false
+		passes = passes + 1
+		assert(passes <= 20, "animation completion did not converge")
+		for frameIndex = 1, #gemPoolCreatedFrames do
+			local frame = gemPoolCreatedFrames[frameIndex]
+			for groupIndex = 1, #(frame.animationGroups or {}) do
+				if frame.animationGroups[groupIndex]:FinishForTest() then
+					finishedAny = true
+				end
+			end
+		end
+	end
+end
+
+local animationGrid = addon.Grid:New(MakeRandom(9876))
+FillStablePattern(animationGrid)
+for x = 1, 3 do
+	animationGrid:Set(x, 8, 1)
+end
+local animationPool = addon.GemPool:New(gemPoolParent, {
+	createFrame = CreateGemPoolFrame,
+	createBoardTiles = false,
+})
+animationPool:Project(animationGrid, true)
+local animationStep = addon.Cascade:Step(animationGrid, addon.Matches:Find(animationGrid), {
+	random = MakeRandom(8765),
+	requireLegalMove = false,
+})
+local animationPhases = {}
+local animationCompleted = false
+local animations = addon.Animations:New(animationPool, {
+	clearDuration = 0.12,
+	fallPerCell = 0.04,
+	minimumFallDuration = 0.08,
+})
+local animationPlan = animations:BuildPlan(animationStep)
+AssertEqual(#animationPlan.steps, 1, "single-step animation plan count")
+AssertEqual(#animationPlan.steps[1].clear, 3, "animation clear plan count")
+AssertEqual(#animationPlan.steps[1].moves, 21, "animation move plan count")
+AssertEqual(#animationPlan.steps[1].refills, 3, "animation refill plan count")
+AssertEqual(animationPlan.steps[1].refills[1].fromY, 0, "refill entry row")
+AssertEqual(animationPlan.steps[1].refills[1].offsetY, -50, "refill translation offset")
+AssertEqual(animationPlan.steps[1].moves[1].duration, 0.08, "minimum movement duration")
+local animationRun
+animationRun = animations:Play(animationStep, animationGrid, {
+	onPhase = function(phase, stepIndex)
+		animationPhases[#animationPhases + 1] = phase .. ":" .. stepIndex
+	end,
+	onComplete = function(run)
+		assert(run == animationRun, "animation completion run changed")
+		animationCompleted = true
+	end,
+})
+assert(animations:IsPlaying(), "animation runner did not enter playing state")
+assert(not animationPool:GetFrame(1, 1).mouseEnabled, "animation runner left gem interaction enabled")
+AssertEqual(animationPhases[1], "clear:1", "animation clear phase notification")
+AssertEqual(animationPool:GetFrame(1, 8).bejeweledClearAnimation.alpha.duration, 0.12, "clear animation duration")
+FinishAllGemAnimations()
+assert(animationCompleted, "animation completion callback was not invoked")
+assert(not animations:IsPlaying(), "animation runner stayed active after completion")
+assert(animationPool:GetFrame(1, 1).mouseEnabled, "animation completion left gem interaction disabled")
+AssertEqual(animationPhases[2], "settle:1", "animation settle phase notification")
+AssertEqual(animationPool:GetFrame(1, 8).contents, animationGrid:Get(1, 8).contents, "animation final grid projection")
+AssertEqual(animationPool:GetFrame(1, 8).points[1][2], 0, "animation final frame x anchor")
+AssertEqual(animationPool:GetFrame(1, 8).points[1][3], -350, "animation final frame y anchor")
+
+local cancelledReason
+local cancelledRun = animations:Play(animationStep, animationGrid, {
+	onCancel = function(reason)
+		cancelledReason = reason
+	end,
+})
+assert(animations:Cancel("test-cancel"), "active animation cancellation failed")
+assert(cancelledRun.cancelled, "cancelled animation run was not marked")
+AssertEqual(cancelledReason, "test-cancel", "animation cancellation reason")
+assert(not animations:IsPlaying(), "cancelled animation runner stayed active")
+assert(animationPool:GetFrame(1, 1).mouseEnabled, "animation cancellation left gem interaction disabled")
+assert(not animations:Cancel(), "inactive animation cancellation succeeded")
+
 FillStablePattern(cascadeGrid)
 for x = 2, 5 do
 	cascadeGrid:Set(x, 8, 7)
@@ -750,15 +886,18 @@ assert(addon.grid, "addon initialization did not create a grid")
 assert(addon.audio, "addon initialization did not create audio")
 assert(addon.backdrops == addon.Backdrops, "addon initialization did not install backdrops")
 assert(addon.gemPoolFactory == addon.GemPool, "addon initialization did not install GemPool")
+assert(addon.animationFactory == addon.Animations, "addon initialization did not install Animations")
 assert(eventFrame.registeredEvent == nil, "initializer event was not unregistered")
 local initializedGrid = addon.grid
 local initializedAudio = addon.audio
 local initializedBackdrops = addon.backdrops
 local initializedGemPoolFactory = addon.gemPoolFactory
+local initializedAnimationFactory = addon.animationFactory
 addon:Initialize({}, {})
 assert(addon.grid == initializedGrid, "addon initialization is not idempotent")
 assert(addon.audio == initializedAudio, "audio initialization is not idempotent")
 assert(addon.backdrops == initializedBackdrops, "backdrop initialization is not idempotent")
 assert(addon.gemPoolFactory == initializedGemPoolFactory, "GemPool initialization is not idempotent")
+assert(addon.animationFactory == initializedAnimationFactory, "Animations initialization is not idempotent")
 
-print("Runtime verification passed: gem projection, UI backdrops, audio, SavedVariables, and deterministic gameplay engine.")
+print("Runtime verification passed: cascade animation, gem projection, UI backdrops, audio, SavedVariables, and deterministic gameplay engine.")

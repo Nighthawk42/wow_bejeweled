@@ -1,6 +1,6 @@
 # Target architecture (post-analysis)
 
-The analysis phase gate is satisfied. This ownership map now governs runtime implementation; currently implemented modules are `Core/Init.lua`, `Core/Constants.lua`, `Core/Audio.lua`, `Core/SavedVariables.lua`, `Engine/Grid.lua`, `Engine/Matches.lua`, `Engine/Cascade.lua`, `Engine/Scoring.lua`, `UI/Backdrops.lua`, and `UI/GemPool.lua`.
+The analysis phase gate is satisfied. This ownership map now governs runtime implementation; currently implemented modules are `Core/Init.lua`, `Core/Constants.lua`, `Core/Audio.lua`, `Core/SavedVariables.lua`, `Engine/Grid.lua`, `Engine/Matches.lua`, `Engine/Cascade.lua`, `Engine/Scoring.lua`, `UI/Backdrops.lua`, `UI/GemPool.lua`, and the core transition runner in `UI/Animations.lua`.
 
 ## Load order and ownership
 
@@ -14,7 +14,7 @@ The analysis phase gate is satisfied. This ownership map now governs runtime imp
 8. `Engine/Scoring.lua` — legacy score arithmetic, combo/mode/level multipliers, wire-compatible statistics, probabilistic skill gains, one-time achievements, rank advancement, and pending/explicit level transitions. It emits presentation events and owns no frames, text, sound, or chat publishing.
 9. `UI/Backdrops.lua` — backdrop-compatible frame construction and fresh-copy presets for tooltip, window, panel, slider, and level-border chrome. Every constructed frame explicitly inherits `BackdropTemplate`.
 10. `UI/GemPool.lua` — fixed allocation and reuse of the 64 interactive gem frames, the sixteen board-art tiles, input-handler attachment, and change-aware projection from authoritative grid cells into normal/hyper texture layers. Power-gem overlay animation remains downstream.
-11. `UI/Animations.lua` — animation groups, transition timing, and visual effect orchestration.
+11. `UI/Animations.lua` — deterministic clear/gravity/refill plans, reusable animation groups, interaction locking, cancellation, and final-grid normalization. The legacy power/hyper overlays, explosion atlas, shards, lightwaves/lightning, hint bounce, and floating text remain follow-on presentation work; current fall timings are explicit modernization defaults pending in-game tuning.
 12. `UI/HUD.lua` — score, timer, level, status, hint, and achievement presentation.
 13. `UI/Compartment.lua` — addon-compartment click and hover callbacks.
 

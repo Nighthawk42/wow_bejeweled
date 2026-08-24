@@ -17,12 +17,14 @@ function addon:Initialize(accountData, profileData)
 	assert(self.Audio, "Audio module is not loaded")
 	assert(self.Backdrops, "Backdrops module is not loaded")
 	assert(self.GemPool, "GemPool module is not loaded")
+	assert(self.Animations, "Animations module is not loaded")
 
 	self.accountData, self.profileData = self.SavedVariables:Initialize(accountData, profileData)
 	self.grid = self.Grid:New()
 	self.audio = self.Audio:New(self.profileData.settings)
 	self.backdrops = self.Backdrops
 	self.gemPoolFactory = self.GemPool
+	self.animationFactory = self.Animations
 	self.initialized = true
 
 	return self
