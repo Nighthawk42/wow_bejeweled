@@ -25,8 +25,6 @@ The eventual addon will target current Retail/Mainline World of Warcraft while p
 - `docs/api-baseline.md` — verified Retail API constraints for implementation.
 - `docs/mainline-integration.md` — safe migration gate for the dedicated-client repository restructure.
 - `tools/test-runtime.lua` and `tools/verify-runtime.ps1` — Lua 5.1-compatible engine tests and TOC verification.
-- `plan.md` — the bootstrap specification executed by the root commit.
-- `todo.md` — the running implementation roadmap and completed runtime slices.
 
 ## Contributing
 
