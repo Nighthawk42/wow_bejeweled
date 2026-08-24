@@ -1,6 +1,6 @@
 # Target architecture (post-analysis)
 
-The analysis phase gate is satisfied. This ownership map now governs runtime implementation; currently implemented modules are `Core/Init.lua`, `Core/Constants.lua`, `Core/SavedVariables.lua`, and `Engine/Grid.lua`.
+The analysis phase gate is satisfied. This ownership map now governs runtime implementation; currently implemented modules are `Core/Init.lua`, `Core/Constants.lua`, `Core/SavedVariables.lua`, `Engine/Grid.lua`, and `Engine/Matches.lua`.
 
 ## Load order and ownership
 
@@ -9,7 +9,7 @@ The analysis phase gate is satisfied. This ownership map now governs runtime imp
 3. `Core/Audio.lua` — supported sound playback and sound identifiers.
 4. `Core/SavedVariables.lua` — defaulting, validation, and eventual proven migrations.
 5. `Engine/Grid.lua` — deterministic grid representation, coordinates, swaps, and legal-move state.
-6. `Engine/Matches.lua` — match detection and special-gem classification.
+6. `Engine/Matches.lua` — pure legacy-order match detection, axis-overlap reporting, and power/hyper-gem classification; clearing and scoring remain downstream responsibilities.
 7. `Engine/Cascade.lua` — clears, gravity, refill, and cascade transitions.
 8. `Engine/Scoring.lua` — score, level, multiplier, skill, and achievement transitions.
 9. `UI/Backdrops.lua` — backdrop-compatible frame construction and shared chrome.

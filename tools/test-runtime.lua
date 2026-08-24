@@ -43,6 +43,7 @@ LoadAddonFile("Bejeweled/Core/Init.lua", addon)
 LoadAddonFile("Bejeweled/Core/Constants.lua", addon)
 LoadAddonFile("Bejeweled/Core/SavedVariables.lua", addon)
 LoadAddonFile("Bejeweled/Engine/Grid.lua", addon)
+LoadAddonFile("Bejeweled/Engine/Matches.lua", addon)
 
 AssertEqual(eventFrame.registeredEvent, "ADDON_LOADED", "initializer event registration")
 AssertEqual(addon.Constants.GRID_WIDTH, 8, "grid width")
@@ -141,6 +142,94 @@ for y = 1, addon.Constants.GRID_HEIGHT do
 	end
 end
 
+local matchGrid = addon.Grid:New()
+matchGrid:Set(2, 2, 3)
+matchGrid:Set(3, 2, 3)
+matchGrid:Set(4, 2, 3)
+local threeMatch = addon.Matches:Find(matchGrid)
+assert(threeMatch.hasMatches, "three-gem match was not found")
+AssertEqual(#threeMatch.groups, 1, "three-gem group count")
+AssertEqual(threeMatch.cellCount, 3, "three-gem matched cell count")
+AssertEqual(threeMatch.groups[1].axis, "horizontal", "three-gem primary axis")
+assert(not threeMatch.groups[1].special, "three-gem match created a special gem")
+assert(threeMatch.marks[2][2].horizontal, "horizontal match mark was not reported")
+assert(not matchGrid:Get(2, 2).markX, "match discovery mutated a grid cell")
+
+matchGrid:Reset()
+for x = 2, 5 do
+	matchGrid:Set(x, 3, 4)
+end
+local preferredPowerCell = matchGrid:Get(4, 3)
+local fourMatch = addon.Matches:Find(matchGrid, { preferredCell = preferredPowerCell })
+AssertEqual(fourMatch.groups[1].special.kind, "power", "four-gem classification")
+assert(fourMatch.groups[1].special.cell == preferredPowerCell, "preferred power-gem position was ignored")
+
+matchGrid:Reset()
+for y = 1, 5 do
+	matchGrid:Set(6, y, 5)
+end
+local fiveMatch = addon.Matches:Find(matchGrid, { random = function() return 2 end })
+AssertEqual(fiveMatch.groups[1].special.kind, "hyper", "five-gem classification")
+assert(fiveMatch.groups[1].special.cell == matchGrid:Get(6, 2), "hyper-gem fallback position was not deterministic")
+
+matchGrid:Reset()
+matchGrid:Set(3, 1, 6)
+matchGrid:Set(3, 2, 6)
+matchGrid:Set(3, 3, 6)
+matchGrid:Set(2, 3, 6)
+matchGrid:Set(4, 3, 6)
+local tMatch = addon.Matches:Find(matchGrid)
+AssertEqual(#tMatch.groups, 1, "T-match group count")
+AssertEqual(tMatch.groups[1].clearCount, 5, "T-match clear count")
+AssertEqual(tMatch.groups[1].special.kind, "power", "T-match classification")
+assert(tMatch.groups[1].special.cell == matchGrid:Get(3, 3), "T-match special was not placed at the intersection")
+
+matchGrid:Set(1, 3, 6)
+matchGrid:Set(5, 3, 6)
+local longCrossMatch = addon.Matches:Find(matchGrid)
+AssertEqual(longCrossMatch.groups[1].special.kind, "hyper", "five-wide cross classification")
+assert(longCrossMatch.groups[1].special.cell == matchGrid:Get(3, 3), "cross hyper gem was not placed at the intersection")
+
+matchGrid:Reset()
+for y = 1, 3 do
+	matchGrid:Set(2, y, 2)
+	matchGrid:Set(4, y, 2)
+end
+matchGrid:Set(3, 3, 2)
+local overlappingMatches = addon.Matches:Find(matchGrid)
+AssertEqual(#overlappingMatches.groups, 2, "overlapping match group count")
+AssertEqual(overlappingMatches.groups[1].clearCount, 5, "first overlapping group count")
+AssertEqual(overlappingMatches.groups[2].clearCount, 5, "second overlapping group count")
+AssertEqual(overlappingMatches.cellCount, 7, "overlapping unique cell count")
+
+matchGrid:Reset()
+matchGrid:Set(1, 8, addon.Constants.HYPER_CONTENTS)
+matchGrid:Set(2, 8, addon.Constants.HYPER_CONTENTS)
+matchGrid:Set(3, 8, addon.Constants.HYPER_CONTENTS)
+local hyperOnly = addon.Matches:Find(matchGrid)
+assert(not hyperOnly.hasMatches, "hyper gems were treated as an ordinary color match")
+
+for seed = 1, 100 do
+	local random = MakeRandom(seed * 97)
+	matchGrid:Reset()
+	for y = 1, addon.Constants.GRID_HEIGHT do
+		for x = 1, addon.Constants.GRID_WIDTH do
+			matchGrid:Set(x, y, random(1, addon.Constants.GEM_COLOR_COUNT))
+		end
+	end
+	local discovered = addon.Matches:Find(matchGrid, { random = random })
+	local discoveredCells = {}
+	for index = 1, #discovered.cells do
+		discoveredCells[discovered.cells[index]] = true
+	end
+	for y = 1, addon.Constants.GRID_HEIGHT do
+		for x = 1, addon.Constants.GRID_WIDTH do
+			local cell = matchGrid:Get(x, y)
+			AssertEqual(discoveredCells[cell] and true or false, matchGrid:HasMatchAt(x, y), "random-board match coverage")
+		end
+	end
+end
+
 eventFrame.scripts.OnEvent(eventFrame, "ADDON_LOADED", "AnotherAddon", false)
 assert(not addon.initialized, "foreign ADDON_LOADED initialized the addon")
 eventFrame.scripts.OnEvent(eventFrame, "ADDON_LOADED", "Bejeweled", false)
@@ -151,4 +240,4 @@ local initializedGrid = addon.grid
 addon:Initialize({}, {})
 assert(addon.grid == initializedGrid, "addon initialization is not idempotent")
 
-print("Runtime verification passed: SavedVariables and deterministic 8x8 grid.")
+print("Runtime verification passed: SavedVariables, deterministic 8x8 grid, and pure match discovery.")
