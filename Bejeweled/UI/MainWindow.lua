@@ -178,6 +178,14 @@ function MainWindow:CreateBoard()
 		createFrame = self.createFrame,
 		width = BOARD_WIDTH,
 		hintsEnabled = self.hintsEnabled,
+		profile = self.profile,
+		chatMessage = self.chatMessage,
+		skillLabel = function(event)
+			return Skills:GetSkillLabel(event.type, event.index)
+		end,
+		skillDescription = function(event)
+			return Skills:GetSkillDescription(event.type, event.index)
+		end,
 	})
 	self.summary = Summary:New(surface, {
 		createFrame = self.createFrame,
@@ -352,6 +360,7 @@ function MainWindow:New(uiParent, options)
 		audio = options.audio,
 		playerName = options.playerName,
 		random = options.random or math.random,
+		chatMessage = options.chatMessage,
 		timedDuration = options.timedDuration or DEFAULT_TIMED_DURATION,
 		hintsEnabled = options.hintsEnabled,
 		onSessionStarted = ValidateCallback(options.onSessionStarted, "onSessionStarted"),
@@ -411,6 +420,7 @@ end
 function MainWindow:ShowSkills(tab)
 	self:PauseForMenu()
 	self:HideOverlays()
+	self.hud:HideTransientOverlays()
 	self.skills:Show(tab)
 	self.activeOverlay = "skills"
 	return self.skills
@@ -419,6 +429,7 @@ end
 function MainWindow:ShowOptions()
 	self:PauseForMenu()
 	self:HideOverlays()
+	self.hud:HideTransientOverlays()
 	self.options:Show()
 	self.activeOverlay = "options"
 	return self.options
@@ -427,6 +438,7 @@ end
 function MainWindow:ShowAbout(tab)
 	self:PauseForMenu()
 	self:HideOverlays()
+	self.hud:HideTransientOverlays()
 	self.about:Show(tab)
 	self.activeOverlay = "about"
 	return self.about
@@ -435,6 +447,7 @@ end
 function MainWindow:ShowLegal()
 	self:PauseForMenu()
 	self:HideOverlays()
+	self.hud:HideTransientOverlays()
 	self.legal:Show()
 	self.activeOverlay = "legal"
 	return self.legal
@@ -450,7 +463,7 @@ end
 function MainWindow:ShowSummary(result)
 	assert(type(result) == "table", "main window summary requires a result")
 	self:HideOverlays()
-	self.hud.summaryFrame:Hide()
+	self.hud:HideTransientOverlays()
 	self.summary:Show(result)
 	self.activeOverlay = "summary"
 	return self.summary
@@ -460,6 +473,7 @@ function MainWindow:ShowOverlay(name)
 	local overlay = self.overlays[name]
 	assert(overlay, "unknown main-window overlay")
 	self:HideOverlays()
+	self.hud:HideTransientOverlays()
 	overlay:Show()
 	self.activeOverlay = name
 	return overlay

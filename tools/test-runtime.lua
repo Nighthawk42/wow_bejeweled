@@ -1598,6 +1598,7 @@ local hudAnimations = addon.Animations:New(hudPool, {
 	hintDelay = 0.05,
 })
 local hudProfile = addon.SavedVariables:CreateDefaultProfile()
+local hudChatMessages = {}
 local hudState = addon.Scoring:NewState(addon.Constants.GAME_MODE_CLASSIC, {
 	score = 12345,
 	level = 3,
@@ -1613,6 +1614,17 @@ local hud = addon.HUD:New(gemPoolParent, hudAnimations, {
 	createFrame = CreateGemPoolFrame,
 	statusDuration = 0.1,
 	achievementDuration = 0.1,
+	profile = hudProfile,
+	chatMessage = function(message)
+		hudChatMessages[#hudChatMessages + 1] = message
+		return true
+	end,
+	skillLabel = function(event)
+		return event.index == addon.Constants.ACHIEVEMENT_POWER100 and "I've Got The Power!" or nil
+	end,
+	skillDescription = function(event)
+		return event.index == addon.Constants.ACHIEVEMENT_POWER100 and "Get a Power Gem total of 100+" or nil
+	end,
 })
 local hudSession = hud:CreateSession(hudGrid, hudPool, {
 	profile = hudProfile,
@@ -1638,6 +1650,11 @@ AssertEqual(hud.levelPanel.caption.text, "LVL", "classic HUD level caption")
 AssertEqual(hud.levelPanel.value.text, "3", "classic HUD level value")
 AssertEqual(hud.dataPanel.value.text, "12,345", "classic HUD formatted score")
 AssertEqual(hud.progress.ratio, 12345 / 16000, "classic HUD progress ratio")
+AssertEqual(hud.levelPanel.width, 94, "classic HUD level capsule width")
+AssertEqual(hud.dataPanel.width, 128, "classic HUD score capsule width")
+AssertEqual(hud.progress.width, 236, "classic HUD progress width")
+AssertEqual(hud.progress.fill.points[1][1], "TOPLEFT", "classic HUD progress fill anchor")
+AssertEqual(hud.progress.fill.points[1][5], -5, "classic HUD progress fill vertical offset")
 assert(hudAnimations.hint and hudAnimations.hint.active, "HUD did not schedule an idle hint")
 
 hudSession:Pause("hud-test")
@@ -1664,8 +1681,24 @@ hud:OnCascadeResolved({
 	},
 })
 AssertEqual(#hudAnimations.activeFloatingText, floatingBefore + 2, "HUD omitted score or achievement floating text")
-AssertEqual(hud.achievementFrame.text.text, "Achievement unlocked #4", "HUD achievement message")
+AssertEqual(hud.achievementFrame.text.text, "Achievement: I've Got The Power!", "HUD achievement message")
+AssertEqual(#hudChatMessages, 1, "HUD local skill chat message count")
+AssertEqual(
+	hudChatMessages[1],
+	'[Bejeweled Addon] You just completed "Get a Power Gem total of 100+." +5 Skill!',
+	"HUD local skill chat message"
+)
 AssertEqual(hud:PresentSkillEvents({ skillEvent }), 0, "HUD repeated an already-presented skill event")
+AssertEqual(#hudChatMessages, 1, "HUD repeated local skill chat output")
+local rankMessages = hud:BuildSkillChatMessages({
+	gained = 1,
+	pointsAfter = 75,
+	rankUp = true,
+	rankAfter = 2,
+})
+AssertEqual(#rankMessages, 2, "HUD rank-up local message count")
+AssertEqual(rankMessages[1], "Your skill in Bejeweling has increased to 75.", "HUD rank-up skill message")
+AssertEqual(rankMessages[2], "Your Bejeweling skill is now of the Journeyman rank.", "HUD rank-up message")
 hud:Update(0.11)
 assert(not hud.achievementFrame.shown, "HUD achievement notice did not expire")
 hudAnimations:ClearTransientEffects()
@@ -1809,6 +1842,9 @@ assert(runtime.skills:IsShown(), "runtime skill screen remained hidden")
 AssertEqual(runtime.skills.frame.rank.text, "Bejeweling Skill Rank: Expert", "runtime skill rank caption")
 AssertEqual(runtime.skills.progress.text.text, "175 / 225", "runtime skill progress caption")
 AssertEqual(runtime.skills.progress.ratio, 25 / 75, "runtime skill rank progress")
+AssertEqual(runtime.skills.progress.fill.path, addon.Constants.IMAGE_ROOT .. "barArt", "runtime skill progress texture")
+AssertEqual(runtime.skills.progress.fill.points[1][1], "LEFT", "runtime skill progress fill anchor")
+AssertEqual(runtime.skills.progress.fill.points[1][5], 0, "runtime skill progress fill alignment")
 local visibleSkills = runtime.skills:GetVisibleRecords()
 AssertEqual(visibleSkills[1].category, "Match Gems", "runtime first skill category")
 AssertEqual(visibleSkills[1].name, "Match 5 Gems (Create a |cFFA335EE[Hyper Cube]|r)", "runtime first skill challenge")
@@ -1834,6 +1870,12 @@ AssertEqual(runtime.skills.leaderboardMode, "timed", "runtime leaderboard mode t
 runtime.skills.achievementsTab.scripts.OnClick()
 AssertEqual(runtime.skills.activeTab, "achievements", "runtime achievement tab selection")
 AssertEqual(runtime.skills.frame.status.text, "Unlocked 13 / 26   Completed 2", "runtime achievement counts")
+AssertEqual(runtime.skills:GetPageSize(), addon.Skills.ACHIEVEMENT_PAGE_SIZE, "runtime achievement page size")
+AssertEqual(runtime.skills.rows[1].height, 38, "runtime achievement row height")
+AssertEqual(runtime.skills.rows[1].icon.width, 32, "runtime achievement icon width")
+AssertEqual(runtime.skills.rows[1].icon.height, 32, "runtime achievement icon height")
+AssertEqual(runtime.skills.rows[1].title.points[1][4], 42, "runtime achievement title inset")
+AssertEqual(runtime.skills.rows[1].description.points[1][4], 42, "runtime achievement description inset")
 local visibleAchievements = runtime.skills:GetVisibleRecords()
 assert(visibleAchievements[1].completed, "runtime completed achievements were not sorted first")
 AssertEqual(runtime.skills:GetPageCount(), 3, "runtime achievement page count")
@@ -1905,6 +1947,9 @@ AssertEqual(runtimeAudio.elapsed, 1.5, "runtime update did not flush audio")
 runtime:ShowMenu()
 assert(firstClassic:IsPaused(), "runtime menu did not pause Classic play")
 assert(runtime.overlays.menu.resume.shown, "active runtime menu hid Resume")
+assert(not runtime.hud.statusFrame.shown, "runtime menu retained the HUD status banner")
+assert(not runtime.hud.achievementFrame.shown, "runtime menu retained the HUD achievement banner")
+assert(not runtime.hud.pausedFrame.shown, "runtime menu retained the HUD paused banner")
 runtime.overlays.menu.resume.scripts.OnClick()
 assert(not firstClassic:IsPaused(), "runtime Resume left Classic paused")
 assert(runtime.activeOverlay == nil, "runtime Resume retained a menu overlay")
@@ -2532,4 +2577,4 @@ end
 addon:TestCompartmentForTest()
 addon.TestCompartmentForTest = nil
 
-print("Runtime verification passed: full local summary, Timed setup/flight boundary, addon-compartment access, playable Classic/Timed window shell, HUD, pause/restore/level/game-over sessions, input, cascade/effect animation, gem projection, UI backdrops, audio, SavedVariables, and deterministic gameplay engine.")
+print("Runtime verification passed: local skill chat, aligned skill/footer presentation, full local summary, Timed setup/flight boundary, addon-compartment access, playable Classic/Timed window shell, HUD, pause/restore/level/game-over sessions, input, cascade/effect animation, gem projection, UI backdrops, audio, SavedVariables, and deterministic gameplay engine.")

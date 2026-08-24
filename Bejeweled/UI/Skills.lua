@@ -8,6 +8,7 @@ local Skills = {}
 Skills.__index = Skills
 
 local PAGE_SIZE = 6
+local ACHIEVEMENT_PAGE_SIZE = 5
 
 local VALID_TABS = {
 	skills = true,
@@ -163,6 +164,22 @@ local function CreateFontString(frame, size, text, color)
 	fontString:SetText(text or "")
 	fontString:SetTextColor(color[1], color[2], color[3], color[4] or 1)
 	return fontString
+end
+
+function Skills:GetSkillLabel(skillType, index)
+	if skillType >= Constants.SKILL_TYPE_FUN then
+		local achievement = ACHIEVEMENTS[skillType] and ACHIEVEMENTS[skillType][index]
+		return achievement and achievement[1] or nil
+	end
+	return SKILL_NAMES[skillType] and SKILL_NAMES[skillType][index] or nil
+end
+
+function Skills:GetSkillDescription(skillType, index)
+	if skillType >= Constants.SKILL_TYPE_FUN then
+		local achievement = ACHIEVEMENTS[skillType] and ACHIEVEMENTS[skillType][index]
+		return achievement and achievement[2] or nil
+	end
+	return SKILL_NAMES[skillType] and SKILL_NAMES[skillType][index] or nil
 end
 
 function Skills:CreateFrame(parent, preset, width, height, levelOffset, frameType)
@@ -383,13 +400,17 @@ function Skills:New(parent, options)
 	frame.rank:SetPoint("TOP", frame.title, "BOTTOM", 0, -3)
 	instance.frame = frame
 
-	local progress = instance:CreateFrame(frame, "slider", 280, 14, 1)
+	local progress = instance:CreateFrame(frame, "slider", 280, 18, 1)
 	progress:SetPoint("TOP", frame.rank, "BOTTOM", 0, -5)
 	progress.text = CreateFontString(progress, 9, "", { 1, 1, 1, 1 })
 	progress.text:SetPoint("CENTER", progress, "CENTER", 0, 0)
-	progress.fill = instance:CreateFrame(progress, "slider", 1, 10, 1)
+	progress.fillWidth = 276
+	progress.fill = progress:CreateTexture(nil, "ARTWORK")
+	progress.fill:SetTexture(Constants.IMAGE_ROOT .. "barArt")
 	progress.fill:SetPoint("LEFT", progress, "LEFT", 2, 0)
-	progress.fill:SetBackdropColor(0.76, 0.5, 0.08, 1)
+	progress.fill:SetWidth(0.01)
+	progress.fill:SetHeight(14)
+	progress.fill:SetVertexColor(0, 0.5, 1, 1)
 	instance.progress = progress
 
 	instance.tabs = {}
@@ -448,11 +469,10 @@ function Skills:New(parent, options)
 
 	for index = 1, PAGE_SIZE do
 		local row = instance:CreateFrame(frame, "tooltip", 370, 30, 1)
-		row:SetPoint("TOP", instance.scopeButton, "BOTTOM", 54, -3 - ((index - 1) * 32))
 		row.icon = row:CreateTexture(nil, "ARTWORK")
-		row.icon:SetPoint("LEFT", row, "LEFT", 5, 0)
-		row.icon:SetWidth(24)
-		row.icon:SetHeight(24)
+		row.icon:SetPoint("TOPLEFT", row, "TOPLEFT", 4, -3)
+		row.icon:SetWidth(32)
+		row.icon:SetHeight(32)
 		row.title = CreateFontString(row, 10, "", { 1, 1, 1, 1 })
 		row.title:SetPoint("TOPLEFT", row, "TOPLEFT", 34, -3)
 		row.title:SetWidth(328)
@@ -480,13 +500,18 @@ function Skills:New(parent, options)
 end
 
 function Skills:GetPageCount()
-	return math.max(1, math.ceil(#self.records / PAGE_SIZE))
+	return math.max(1, math.ceil(#self.records / self:GetPageSize()))
+end
+
+function Skills:GetPageSize()
+	return self.activeTab == "achievements" and ACHIEVEMENT_PAGE_SIZE or PAGE_SIZE
 end
 
 function Skills:GetVisibleRecords()
 	local visible = {}
-	local first = ((self.page - 1) * PAGE_SIZE) + 1
-	local last = math.min(#self.records, first + PAGE_SIZE - 1)
+	local pageSize = self:GetPageSize()
+	local first = ((self.page - 1) * pageSize) + 1
+	local last = math.min(#self.records, first + pageSize - 1)
 	for index = first, last do
 		visible[#visible + 1] = CopyRecord(self.records[index])
 	end
@@ -504,6 +529,16 @@ function Skills:RenderPage()
 	local visible = self:GetVisibleRecords()
 	for index, row in ipairs(self.rows) do
 		local record = visible[index]
+		local achievementRow = self.activeTab == "achievements"
+		row:ClearAllPoints()
+		row:SetHeight(achievementRow and 38 or 30)
+		row:SetPoint(
+			"TOP",
+			self.scopeButton,
+			"BOTTOM",
+			54,
+			-3 - ((index - 1) * (achievementRow and 40 or 32))
+		)
 		if record then
 			if self.activeTab == "skills" then
 				local color = TIER_COLORS[record.tier]
@@ -519,13 +554,13 @@ function Skills:RenderPage()
 				row.icon:SetVertexColor(record.completed and 1 or 0.45, record.completed and 1 or 0.45, record.completed and 1 or 0.45, 1)
 				row.icon:Show()
 				row.title:ClearAllPoints()
-				row.title:SetPoint("TOPLEFT", row, "TOPLEFT", 34, -3)
-				row.title:SetWidth(328)
+				row.title:SetPoint("TOPLEFT", row, "TOPLEFT", 42, -4)
+				row.title:SetWidth(320)
 				row.title:SetText((record.completed and "|cFF55CC55Complete|r - " or "") .. record.title)
 				row.title:SetTextColor(1, 1, 1, 1)
 				row.description:ClearAllPoints()
-				row.description:SetPoint("TOPLEFT", row.title, "BOTTOMLEFT", 0, -1)
-				row.description:SetWidth(328)
+				row.description:SetPoint("BOTTOMLEFT", row, "BOTTOMLEFT", 42, 4)
+				row.description:SetWidth(320)
 				row.description:SetJustifyH("LEFT")
 				row.description:SetText(record.description)
 			elseif self.activeTab == "statistics" then
@@ -577,7 +612,7 @@ function Skills:Refresh()
 	local rank = self:GetRankState()
 	self.frame.rank:SetText(string.format("Bejeweling Skill Rank: %s", rank.name))
 	self.progress.text:SetText(string.format("%d / %d", rank.points, rank.rankEnd))
-	self.progress.fill:SetWidth(math.max(1, 276 * rank.progress))
+	self.progress.fill:SetWidth(math.max(0.01, self.progress.fillWidth * rank.progress))
 	self.progress.ratio = rank.progress
 	self.scopeButton:Hide()
 	self.modeButton:Hide()
@@ -642,6 +677,7 @@ function Skills:IsShown()
 end
 
 Skills.PAGE_SIZE = PAGE_SIZE
+Skills.ACHIEVEMENT_PAGE_SIZE = ACHIEVEMENT_PAGE_SIZE
 Skills.RANK_NAMES = RANK_NAMES
 
 addon.Skills = Skills

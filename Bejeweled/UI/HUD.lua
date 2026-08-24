@@ -10,6 +10,12 @@ HUD.__index = HUD
 local DEFAULT_WIDTH = Constants.GRID_WIDTH * Constants.GEM_WIDTH
 local DEFAULT_STATUS_DURATION = 2.5
 local DEFAULT_ACHIEVEMENT_DURATION = 4
+local CLASSIC_LEVEL_WIDTH = 94
+local CLASSIC_DATA_WIDTH = 128
+local TIMED_LEVEL_WIDTH = 130
+local TIMED_DATA_WIDTH = 76
+local LEVEL_DATA_OVERLAP = 40
+local DATA_PROGRESS_OVERLAP = 18
 
 local SESSION_CALLBACKS = {
 	onPauseChanged = "OnPauseChanged",
@@ -106,6 +112,20 @@ local function CreateFontString(frame, size, text, color, justify)
 	return fontString
 end
 
+local function AddSkillChatMessage(message)
+	local chatFrame = DEFAULT_CHAT_FRAME
+	if not chatFrame or type(chatFrame.AddMessage) ~= "function" then
+		return false
+	end
+	local info = type(ChatTypeInfo) == "table" and ChatTypeInfo["SKILL"] or nil
+	if info then
+		chatFrame:AddMessage(message, info.r, info.g, info.b, info.id)
+	else
+		chatFrame:AddMessage(message, 1, 0.82, 0)
+	end
+	return true
+end
+
 local function ChainCallback(target, callbackName, callback)
 	local existing = target[callbackName]
 	assert(existing == nil or type(existing) == "function", callbackName .. " must be a function")
@@ -133,30 +153,34 @@ function HUD:CreateBackdropFrame(parent, preset, width, height, levelOffset)
 end
 
 function HUD:CreateStatusBar()
-	local statusBar = self:CreateBackdropFrame(self.parent, "slider", self.width, 32, 2)
+	local statusBar = self.createFrame("Frame", nil, self.parent)
+	SetFrameSize(statusBar, self.width, 32)
+	local frameLevel = ResolveFrameLevel(self.parent, 2)
+	if frameLevel then
+		statusBar:SetFrameLevel(frameLevel)
+	end
 	statusBar:SetPoint("TOPLEFT", self.parent, "BOTTOMLEFT", 0, 0)
 
-	local levelPanel = self:CreateBackdropFrame(statusBar, "level", 90, 32, 1)
+	local levelPanel = self:CreateBackdropFrame(statusBar, "level", CLASSIC_LEVEL_WIDTH, 32, 1)
 	levelPanel:SetPoint("LEFT", statusBar, "LEFT", 0, 0)
 	levelPanel.caption = CreateFontString(levelPanel, 10, "LVL", { 0.07, 0.67, 1, 1 }, "LEFT")
-	levelPanel.caption:SetPoint("LEFT", levelPanel, "LEFT", 8, 1)
 	levelPanel.value = CreateFontString(levelPanel, 15, "1", { 1, 1, 1, 1 }, "RIGHT")
-	levelPanel.value:SetPoint("RIGHT", levelPanel, "RIGHT", -8, 1)
 
-	local dataPanel = self:CreateBackdropFrame(statusBar, "level", 110, 32, 1)
-	dataPanel:SetPoint("LEFT", levelPanel, "RIGHT", -4, 0)
+	local dataPanel = self:CreateBackdropFrame(statusBar, "level", CLASSIC_DATA_WIDTH, 32, 1)
+	dataPanel:SetPoint("LEFT", levelPanel, "RIGHT", -LEVEL_DATA_OVERLAP, 0)
 	dataPanel.value = CreateFontString(dataPanel, 12, "0", { 1, 1, 1, 1 }, "CENTER")
 	dataPanel.value:SetPoint("CENTER", dataPanel, "CENTER", 0, 1)
 
-	local progressWidth = self.width - 90 - 110 + 8
+	local progressWidth = self.width - CLASSIC_LEVEL_WIDTH - CLASSIC_DATA_WIDTH
+		+ LEVEL_DATA_OVERLAP + DATA_PROGRESS_OVERLAP
 	local progress = self:CreateBackdropFrame(statusBar, "slider", progressWidth, 32, 1)
-	progress:SetPoint("LEFT", dataPanel, "RIGHT", -4, 0)
+	progress:SetPoint("LEFT", dataPanel, "RIGHT", -DATA_PROGRESS_OVERLAP, 0)
 	progress:SetPoint("RIGHT", statusBar, "RIGHT", 0, 0)
 	progress.fillWidth = progressWidth - 4
 	progress.fill = progress:CreateTexture(nil, "ARTWORK")
 	progress.fill:SetTexture(Constants.IMAGE_ROOT .. "barArt")
-	progress.fill:SetPoint("LEFT", progress, "LEFT", 2, -2)
-	SetTextureSize(progress.fill, 0.01, 22)
+	progress.fill:SetPoint("TOPLEFT", progress, "TOPLEFT", 2, -5)
+	SetTextureSize(progress.fill, 0.01, 32)
 	progress.text = CreateFontString(progress, 12, "", { 1, 1, 1, 1 }, "CENTER")
 	progress.text:SetPoint("CENTER", progress, "CENTER", 0, 1)
 
@@ -164,6 +188,41 @@ function HUD:CreateStatusBar()
 	self.levelPanel = levelPanel
 	self.dataPanel = dataPanel
 	self.progress = progress
+	self:LayoutStatusBar(Constants.GAME_MODE_CLASSIC)
+end
+
+function HUD:LayoutStatusBar(gameMode)
+	local classic = gameMode == Constants.GAME_MODE_CLASSIC
+	local levelWidth = classic and CLASSIC_LEVEL_WIDTH or TIMED_LEVEL_WIDTH
+	local dataWidth = classic and CLASSIC_DATA_WIDTH or TIMED_DATA_WIDTH
+	self.levelPanel:SetWidth(levelWidth)
+	self.dataPanel:SetWidth(dataWidth)
+
+	self.levelPanel.value:ClearAllPoints()
+	self.levelPanel.caption:ClearAllPoints()
+	if classic then
+		self.levelPanel.value:SetPoint("TOPRIGHT", self.levelPanel, "TOPRIGHT", -16, 0)
+		self.levelPanel.value:SetPoint("BOTTOMLEFT", self.levelPanel, "BOTTOMLEFT", 48, 1)
+		self.levelPanel.value:SetJustifyH("LEFT")
+		self.levelPanel.caption:SetPoint("TOPRIGHT", self.levelPanel.value, "TOPLEFT", 5, 0)
+		self.levelPanel.caption:SetWidth(20)
+		self.levelPanel.caption:SetHeight(30)
+		self.levelPanel.caption:SetJustifyH("LEFT")
+	else
+		self.levelPanel.value:SetPoint("TOPLEFT", self.levelPanel, "TOPLEFT", 16, 0)
+		self.levelPanel.value:SetPoint("BOTTOMRIGHT", self.levelPanel, "BOTTOMRIGHT", -48, 1)
+		self.levelPanel.value:SetJustifyH("RIGHT")
+		self.levelPanel.caption:SetPoint("TOPLEFT", self.levelPanel.value, "TOPRIGHT", -5, 0)
+		self.levelPanel.caption:SetPoint("BOTTOMRIGHT", self.levelPanel, "BOTTOMRIGHT", -20, 1)
+		self.levelPanel.caption:SetJustifyH("LEFT")
+	end
+
+	local progressWidth = self.width - levelWidth - dataWidth
+		+ LEVEL_DATA_OVERLAP + DATA_PROGRESS_OVERLAP
+	self.progress:SetWidth(progressWidth)
+	self.progress.fillWidth = progressWidth - 4
+	self:SetProgress(self.progress.ratio or 0, 0, classic and 0.5 or 1, classic and 1 or 0)
+	return progressWidth
 end
 
 function HUD:CreateOverlay(width, height, yOffset, fontSize, color)
@@ -200,12 +259,20 @@ function HUD:New(parent, animations, options)
 		achievementRemaining = nil,
 		statusVisible = false,
 		presentedSkillEvents = {},
+		settings = options.profile and options.profile.settings or options.settings,
+		chatMessage = options.chatMessage or AddSkillChatMessage,
+		skillLabel = options.skillLabel,
+		skillDescription = options.skillDescription,
 		session = nil,
 	}, self)
 	assert(type(instance.createFrame) == "function", "CreateFrame is unavailable for HUD")
 	assert(type(instance.width) == "number" and instance.width >= 300, "HUD width must be at least 300")
 	assert(type(instance.statusDuration) == "number" and instance.statusDuration > 0, "HUD status duration must be positive")
 	assert(type(instance.achievementDuration) == "number" and instance.achievementDuration > 0, "HUD achievement duration must be positive")
+	assert(instance.settings == nil or type(instance.settings) == "table", "HUD settings must be a table")
+	assert(type(instance.chatMessage) == "function", "HUD chat message provider must be a function")
+	assert(instance.skillLabel == nil or type(instance.skillLabel) == "function", "HUD skill label provider must be a function")
+	assert(instance.skillDescription == nil or type(instance.skillDescription) == "function", "HUD skill description provider must be a function")
 	assert(
 		instance.hintsEnabled == nil
 			or type(instance.hintsEnabled) == "boolean"
@@ -242,6 +309,7 @@ function HUD:Refresh(session)
 		return false
 	end
 	local state = session.scoringState
+	self:LayoutStatusBar(session.gameMode)
 	if session.gameMode == Constants.GAME_MODE_CLASSIC then
 		self.levelPanel.caption:SetText("LVL")
 		self.levelPanel.caption:SetTextColor(0.07, 0.67, 1, 1)
@@ -305,14 +373,53 @@ function HUD:DescribeSkillEvent(event)
 	if type(event) ~= "table" or (event.gained or 0) <= 0 then
 		return nil
 	end
+	local label = self.skillLabel and self.skillLabel(event) or nil
 	if event.rankUp then
 		return "Rank up: " .. tostring(event.rankAfter)
 	elseif event.completed and event.type == Constants.SKILL_TYPE_ACHIEVEMENT then
-		return "Achievement unlocked #" .. tostring(event.index)
+		return label and "Achievement: " .. label or "Achievement unlocked #" .. tostring(event.index)
 	elseif event.completed and event.type == Constants.SKILL_TYPE_FUN then
-		return "Feat unlocked #" .. tostring(event.index)
+		return label and "Feat: " .. label or "Feat unlocked #" .. tostring(event.index)
 	end
 	return "Skill +" .. tostring(event.gained)
+end
+
+function HUD:BuildSkillChatMessages(event)
+	if type(event) ~= "table" or (event.gained or 0) <= 0 then
+		return {}
+	end
+	local messages = {}
+	local description = self.skillDescription and self.skillDescription(event) or nil
+	if event.completed then
+		local completed = description and ('[Bejeweled Addon] You just completed "' .. description .. '."')
+			or "[Bejeweled Addon] You completed a Bejeweling achievement."
+		messages[#messages + 1] = completed .. " +" .. tostring(event.gained) .. " Skill!"
+	else
+		if self.settings and self.settings.verboseSkills and description then
+			messages[#messages + 1] = '[Bejeweled Addon] You just completed "' .. description .. '."'
+		end
+		messages[#messages + 1] = "Your skill in Bejeweling has increased to " .. tostring(event.pointsAfter) .. "."
+	end
+	if event.rankUp then
+		local rankName = addon.Skills and addon.Skills.RANK_NAMES[event.rankAfter]
+		messages[#messages + 1] = "Your Bejeweling skill is now of the "
+			.. tostring(rankName or event.rankAfter) .. " rank."
+	end
+	return messages
+end
+
+function HUD:PublishSkillEvent(event)
+	if not self.settings or not self.settings.publishSkillGains then
+		return 0
+	end
+	local messages = self:BuildSkillChatMessages(event)
+	local published = 0
+	for index = 1, #messages do
+		if self.chatMessage(messages[index]) ~= false then
+			published = published + 1
+		end
+	end
+	return published
 end
 
 function HUD:PresentSkillEvents(events)
@@ -330,11 +437,22 @@ function HUD:PresentSkillEvents(events)
 		if message and not self.presentedSkillEvents[eventKey] then
 			self.presentedSkillEvents[eventKey] = true
 			presented = presented + 1
+			self:PublishSkillEvent(event)
 			self:ShowAchievement(message)
 			self.animations:PlayFloatingText(105, 250, message, Constants.HYPER_CONTENTS, true)
 		end
 	end
 	return presented
+end
+
+function HUD:HideTransientOverlays()
+	self:HideStatus()
+	self.achievementRemaining = nil
+	self.achievementFrame:Hide()
+	self.pausedFrame:Hide()
+	self.summaryFrame:Hide()
+	self.animations:HideHint()
+	return true
 end
 
 function HUD:ScheduleHint()
