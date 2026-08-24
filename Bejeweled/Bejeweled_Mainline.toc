@@ -21,3 +21,4 @@ UI\Backdrops.lua
 UI\GemPool.lua
 UI\Animations.lua
 UI\HUD.lua
+UI\MainWindow.lua

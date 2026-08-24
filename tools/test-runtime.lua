@@ -53,6 +53,7 @@ LoadAddonFile("Bejeweled/UI/Backdrops.lua", addon)
 LoadAddonFile("Bejeweled/UI/GemPool.lua", addon)
 LoadAddonFile("Bejeweled/UI/Animations.lua", addon)
 LoadAddonFile("Bejeweled/UI/HUD.lua", addon)
+LoadAddonFile("Bejeweled/UI/MainWindow.lua", addon)
 
 AssertEqual(eventFrame.registeredEvent, "ADDON_LOADED", "initializer event registration")
 AssertEqual(addon.Constants.GRID_WIDTH, 8, "grid width")
@@ -318,8 +319,29 @@ local function CreateGemPoolFrame(frameType, name, parent, template)
 	function frame:SetFrameLevel(frameLevel)
 		self.frameLevel = frameLevel
 	end
+	function frame:GetFrameLevel()
+		if self.frameLevel then
+			return self.frameLevel
+		end
+		if self.parent and type(self.parent.GetFrameLevel) == "function" then
+			return self.parent:GetFrameLevel()
+		end
+		return 0
+	end
 	function frame:EnableMouse(enabled)
 		self.mouseEnabled = enabled
+	end
+	function frame:SetMovable(movable)
+		self.movable = movable
+	end
+	function frame:SetClampedToScreen(clamped)
+		self.clamped = clamped
+	end
+	function frame:StartMoving()
+		self.moving = true
+	end
+	function frame:StopMovingOrSizing()
+		self.moving = false
 	end
 	function frame:RegisterForDrag(button)
 		self.dragButton = button
@@ -1654,10 +1676,134 @@ AssertEqual(timedHUD.progress.text.text, "0:00", "timed HUD zero countdown")
 AssertEqual(timedHUD.progress.ratio, 0, "timed HUD empty progress")
 end
 
+function addon:TestMainWindowForTest()
+local runtimeProfile = addon.SavedVariables:CreateDefaultProfile()
+local runtimeAccount = addon.SavedVariables:CreateDefaultAccount()
+local runtimeAudio = {
+	played = {},
+	elapsed = 0,
+}
+function runtimeAudio:Play(soundName)
+	self.played[#self.played + 1] = soundName
+	return true
+end
+function runtimeAudio:Update(elapsed)
+	self.elapsed = self.elapsed + elapsed
+	return {}
+end
+local sessionStarts = {}
+local sessionStops = {}
+local runtime = addon.MainWindow:New(gemPoolParent, {
+	createFrame = CreateGemPoolFrame,
+	profile = runtimeProfile,
+	accountData = runtimeAccount,
+	audio = runtimeAudio,
+	playerName = "Nighthawk",
+	random = MakeRandom(12001),
+	onSessionStarted = function(result)
+		sessionStarts[#sessionStarts + 1] = result
+	end,
+	onSessionStopped = function(result)
+		sessionStops[#sessionStops + 1] = result
+	end,
+})
+AssertEqual(runtime.frame.width, addon.MainWindow.WINDOW_WIDTH, "runtime window width")
+AssertEqual(runtime.frame.height, addon.MainWindow.WINDOW_HEIGHT, "runtime window height")
+AssertEqual(runtime.boardSurface.width, 400, "runtime board width")
+AssertEqual(runtime.boardSurface.height, 400, "runtime board height")
+AssertEqual(#runtime.gemPool.tiles, 16, "runtime board tile count")
+runtime:Show()
+assert(runtime.frame.shown, "runtime window did not show")
+assert(runtime:IsShown(), "runtime visibility state did not follow Show")
+AssertEqual(runtime.activeOverlay, "menu", "runtime initial menu")
+assert(not runtime.overlays.menu.resume.shown, "runtime initial menu exposed Resume")
+
+runtime.overlays.menu.newGame.scripts.OnClick()
+AssertEqual(runtime.activeOverlay, "mode", "runtime New Game did not show mode selection")
+runtime.overlays.mode.classic.scripts.OnClick()
+local firstClassic = runtime.session
+assert(firstClassic and firstClassic.active, "runtime Classic session did not start")
+assert(not runtime.animations:IsPaused(), "runtime Classic session inherited the menu pause")
+AssertEqual(firstClassic.gameMode, addon.Constants.GAME_MODE_CLASSIC, "runtime Classic mode")
+assert(runtime.grid:FindLegalMove(), "runtime Classic board has no legal move")
+assert(runtimeProfile.settings.classicInProgress, "new Classic runtime was not resumable")
+assert(type(runtime.gemPool:GetFrame(1, 1).scripts.OnMouseDown) == "function", "runtime did not attach gem input")
+AssertEqual(sessionStarts[1].status, "started", "runtime Classic start callback")
+runtime:Update(1.5)
+AssertEqual(firstClassic.timerElapsed, 1.5, "runtime update did not advance session time")
+AssertEqual(runtimeAudio.elapsed, 1.5, "runtime update did not flush audio")
+
+runtime:ShowMenu()
+assert(firstClassic:IsPaused(), "runtime menu did not pause Classic play")
+assert(runtime.overlays.menu.resume.shown, "active runtime menu hid Resume")
+runtime.overlays.menu.resume.scripts.OnClick()
+assert(not firstClassic:IsPaused(), "runtime Resume left Classic paused")
+assert(runtime.activeOverlay == nil, "runtime Resume retained a menu overlay")
+
+firstClassic.scoringState.score = 2468
+firstClassic:SaveClassicGame("continue-fixture")
+runtime:ShowMenu()
+runtime.overlays.menu.newGame.scripts.OnClick()
+runtime.overlays.mode.classic.scripts.OnClick()
+AssertEqual(runtime.activeOverlay, "classic", "saved Classic did not show Continue/New Game")
+runtime.overlays.classic.continue.scripts.OnClick()
+local restoredClassic = runtime.session
+assert(restoredClassic ~= firstClassic, "runtime Continue reused the abandoned session")
+assert(not runtime.animations:IsPaused(), "runtime Continue inherited the menu pause")
+assert(not firstClassic.active and firstClassic:IsLocked(), "runtime replacement did not deactivate the old session")
+AssertEqual(restoredClassic.scoringState.score, 2468, "runtime Continue score")
+AssertEqual(sessionStarts[2].status, "restored", "runtime Continue callback")
+AssertEqual(#sessionStops, 1, "runtime Continue omitted session-stop callback")
+
+runtime:ShowMenu()
+runtime.overlays.menu.newGame.scripts.OnClick()
+runtime.overlays.mode.timed.scripts.OnClick()
+local timedRuntime = runtime.session
+AssertEqual(timedRuntime.gameMode, addon.Constants.GAME_MODE_TIMED, "runtime Timed mode")
+assert(not runtime.animations:IsPaused(), "runtime Timed session inherited the menu pause")
+assert(runtime.gemPool:GetFrame(1, 1).mouseEnabled, "runtime Timed replacement left gem input disabled")
+AssertEqual(timedRuntime.timeLimit, addon.MainWindow.DEFAULT_TIMED_DURATION, "runtime default Timed duration")
+AssertEqual(runtime.hud.levelPanel.caption.text, "PPS", "runtime Timed HUD mode")
+AssertEqual(sessionStarts[3].timeLimit, addon.MainWindow.DEFAULT_TIMED_DURATION, "runtime Timed callback duration")
+assert(not restoredClassic.active, "runtime Timed start left Classic active")
+timedRuntime:SetElapsed(1)
+timedRuntime:BeginGameOver("runtime-restart-fixture")
+assert(timedRuntime:IsGameOver() and timedRuntime:IsLocked(), "runtime Timed fixture did not reach terminal state")
+timedRuntime = runtime:StartTimed(60)
+assert(runtime.gemPool:GetFrame(1, 1).mouseEnabled, "runtime terminal replacement left gem input disabled")
+AssertEqual(timedRuntime.timeLimit, 60, "runtime custom Timed duration")
+
+runtime:Hide()
+assert(timedRuntime:IsPaused(), "hidden runtime window did not pause play")
+assert(not runtime:IsShown(), "runtime visibility state did not follow Hide")
+runtime:Show()
+assert(not timedRuntime:IsPaused(), "shown runtime window did not resume its owned pause")
+runtime.frame.scripts.OnDragStart(runtime.frame)
+assert(runtime.frame.moving, "unlocked runtime window did not start moving")
+runtime.frame.scripts.OnDragStop(runtime.frame)
+assert(not runtime.frame.moving, "runtime drag stop left the window moving")
+runtimeProfile.settings.lockWindow = true
+runtime.frame.scripts.OnDragStart(runtime.frame)
+assert(not runtime.frame.moving, "locked runtime window started moving")
+
+runtime:ShowMenu()
+runtime.overlays.menu.newGame.scripts.OnClick()
+runtime.overlays.mode.classic.scripts.OnClick()
+AssertEqual(runtime.activeOverlay, "classic", "runtime Classic save chooser was skipped")
+runtime.overlays.classic.newGame.scripts.OnClick()
+local freshClassic = runtime.session
+AssertEqual(freshClassic.scoringState.score, 0, "runtime fresh Classic retained prior score")
+assert(freshClassic ~= restoredClassic, "runtime fresh Classic reused a prior session")
+AssertEqual(#sessionStarts, 5, "runtime session-start callback count")
+AssertEqual(#sessionStops, 4, "runtime session-stop callback count")
+end
+
 TestSessionRestore()
 TestGameOverTransitions()
 addon:TestHUDPresentationForTest()
 addon.TestHUDPresentationForTest = nil
+addon:TestMainWindowForTest()
+addon.TestMainWindowForTest = nil
 
 FillStablePattern(cascadeGrid)
 for x = 2, 5 do
@@ -2015,6 +2161,7 @@ assert(addon.backdrops == addon.Backdrops, "addon initialization did not install
 assert(addon.gemPoolFactory == addon.GemPool, "addon initialization did not install GemPool")
 assert(addon.animationFactory == addon.Animations, "addon initialization did not install Animations")
 assert(addon.hudFactory == addon.HUD, "addon initialization did not install HUD")
+assert(addon.mainWindowFactory == addon.MainWindow, "addon initialization did not install MainWindow")
 assert(addon.inputFactory == addon.Input, "addon initialization did not install Input")
 assert(addon.sessionFactory == addon.Session, "addon initialization did not install Session")
 assert(eventFrame.registeredEvent == nil, "initializer event was not unregistered")
@@ -2033,7 +2180,17 @@ assert(addon.backdrops == initializedBackdrops, "backdrop initialization is not 
 assert(addon.gemPoolFactory == initializedGemPoolFactory, "GemPool initialization is not idempotent")
 assert(addon.animationFactory == initializedAnimationFactory, "Animations initialization is not idempotent")
 assert(addon.hudFactory == initializedHUDFactory, "HUD initialization is not idempotent")
+assert(addon.mainWindowFactory == addon.MainWindow, "MainWindow initialization is not idempotent")
 assert(addon.inputFactory == initializedInputFactory, "Input initialization is not idempotent")
 assert(addon.sessionFactory == initializedSessionFactory, "Session initialization is not idempotent")
+addon.runtimeForTest = addon:StartRuntime({
+	uiParent = gemPoolParent,
+	createFrame = CreateGemPoolFrame,
+	playerName = "Nighthawk",
+	random = MakeRandom(13001),
+})
+assert(addon.runtimeForTest == addon.runtime, "StartRuntime did not retain the playable shell")
+AssertEqual(addon.runtimeForTest.activeOverlay, "menu", "StartRuntime did not open the initial menu")
+assert(addon:StartRuntime() == addon.runtimeForTest, "StartRuntime is not idempotent")
 
-print("Runtime verification passed: Classic/Timed HUD, pause/restore/level/game-over sessions, input, cascade/effect animation, gem projection, UI backdrops, audio, SavedVariables, and deterministic gameplay engine.")
+print("Runtime verification passed: playable Classic/Timed window shell, HUD, pause/restore/level/game-over sessions, input, cascade/effect animation, gem projection, UI backdrops, audio, SavedVariables, and deterministic gameplay engine.")

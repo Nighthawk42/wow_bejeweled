@@ -19,6 +19,7 @@ function addon:Initialize(accountData, profileData)
 	assert(self.GemPool, "GemPool module is not loaded")
 	assert(self.Animations, "Animations module is not loaded")
 	assert(self.HUD, "HUD module is not loaded")
+	assert(self.MainWindow, "MainWindow module is not loaded")
 	assert(self.Input, "Input module is not loaded")
 	assert(self.Session, "Session module is not loaded")
 
@@ -29,11 +30,42 @@ function addon:Initialize(accountData, profileData)
 	self.gemPoolFactory = self.GemPool
 	self.animationFactory = self.Animations
 	self.hudFactory = self.HUD
+	self.mainWindowFactory = self.MainWindow
 	self.inputFactory = self.Input
 	self.sessionFactory = self.Session
 	self.initialized = true
+	if UIParent ~= nil and type(UnitName) == "function" and not self.runtime then
+		self:StartRuntime()
+	end
 
 	return self
+end
+
+function addon:StartRuntime(options)
+	assert(self.initialized, "addon must be initialized before starting the runtime")
+	if self.runtime then
+		return self.runtime
+	end
+	options = options or {}
+	assert(type(options) == "table", "runtime options must be a table")
+	local playerName = options.playerName or function()
+		local name = UnitName("player")
+		assert(type(name) == "string" and name ~= "", "player name is unavailable")
+		return name
+	end
+	self.runtime = self.MainWindow:New(options.uiParent or UIParent, {
+		createFrame = options.createFrame,
+		profile = self.profileData,
+		accountData = self.accountData,
+		audio = self.audio,
+		playerName = playerName,
+		grid = self.grid,
+		random = options.random,
+		timedDuration = options.timedDuration,
+		hintsEnabled = options.hintsEnabled,
+	})
+	self.runtime:Show()
+	return self.runtime
 end
 
 if type(CreateFrame) == "function" then

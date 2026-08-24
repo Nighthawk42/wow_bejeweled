@@ -596,4 +596,27 @@ function Session:CreateGemHandlers()
 	return self.input:CreateGemHandlers()
 end
 
+function Session:Deactivate(reason)
+	reason = reason or "session-replaced"
+	assert(type(reason) == "string" and reason ~= "", "session deactivation reason is required")
+	local changed = self.active or self.input.pendingMove ~= nil or self.levelTransition ~= nil
+	self.active = false
+	self.pendingGameOverCause = nil
+	self.levelTransition = nil
+	self.gameOverTransition = nil
+	self.input:SetSessionLocked(true, reason)
+	self.animations:Cancel(reason)
+	if type(self.animations.ClearTransientEffects) == "function" then
+		self.animations:ClearTransientEffects()
+	end
+	if type(self.animations.SetAmbientLightwaves) == "function" then
+		self.animations:SetAmbientLightwaves(false)
+	end
+	return {
+		status = "inactive",
+		changed = changed and true or false,
+		reason = reason,
+	}
+end
+
 addon.Session = Session
