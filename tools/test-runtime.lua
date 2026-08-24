@@ -49,6 +49,7 @@ LoadAddonFile("Bejeweled/Engine/Cascade.lua", addon)
 LoadAddonFile("Bejeweled/Engine/Scoring.lua", addon)
 LoadAddonFile("Bejeweled/Engine/Input.lua", addon)
 LoadAddonFile("Bejeweled/Engine/Session.lua", addon)
+LoadAddonFile("Bejeweled/UI/Fonts.lua", addon)
 LoadAddonFile("Bejeweled/UI/Backdrops.lua", addon)
 LoadAddonFile("Bejeweled/UI/GemPool.lua", addon)
 LoadAddonFile("Bejeweled/UI/Animations.lua", addon)
@@ -65,6 +66,20 @@ AssertEqual(eventFrame.registeredEvent, "ADDON_LOADED", "initializer event regis
 AssertEqual(addon.Constants.GRID_WIDTH, 8, "grid width")
 AssertEqual(addon.Constants.GRID_HEIGHT, 8, "grid height")
 AssertEqual(addon.Constants.GEM_COLOR_COUNT, 7, "gem color count")
+
+do
+	local fontAttempts = {}
+	local rejectingBundledFont = {}
+	function rejectingBundledFont:SetFont(path, size, flags)
+		fontAttempts[#fontAttempts + 1] = { path, size, flags }
+		return #fontAttempts > 1
+	end
+	local selectedFont, usedFallback = addon.Fonts:Set(rejectingBundledFont, 14, "OUTLINE", "Fonts\\TestFallback.ttf")
+	AssertEqual(fontAttempts[1][1], addon.Fonts.BUNDLED_FONT_PATH, "bundled font was not attempted first")
+	AssertEqual(fontAttempts[2][1], "Fonts\\TestFallback.ttf", "standard font fallback path")
+	AssertEqual(selectedFont, "Fonts\\TestFallback.ttf", "selected fallback font path")
+	assert(usedFallback, "rejected bundled font did not report fallback use")
+end
 
 local windowBackdrop = addon.Backdrops:CreateDescriptor("window")
 AssertEqual(windowBackdrop.bgFile, addon.Constants.IMAGE_ROOT .. "windowBackground", "window backdrop texture")
@@ -2394,6 +2409,7 @@ eventFrame.scripts.OnEvent(eventFrame, "ADDON_LOADED", "Bejeweled", false)
 assert(addon.initialized, "addon initialization did not complete")
 assert(addon.grid, "addon initialization did not create a grid")
 assert(addon.audio, "addon initialization did not create audio")
+assert(addon.fonts == addon.Fonts, "addon initialization did not install Fonts")
 assert(addon.backdrops == addon.Backdrops, "addon initialization did not install backdrops")
 assert(addon.gemPoolFactory == addon.GemPool, "addon initialization did not install GemPool")
 assert(addon.animationFactory == addon.Animations, "addon initialization did not install Animations")
@@ -2419,6 +2435,7 @@ local initializedSessionFactory = addon.sessionFactory
 addon:Initialize({}, {})
 assert(addon.grid == initializedGrid, "addon initialization is not idempotent")
 assert(addon.audio == initializedAudio, "audio initialization is not idempotent")
+assert(addon.fonts == addon.Fonts, "Fonts initialization is not idempotent")
 assert(addon.backdrops == initializedBackdrops, "backdrop initialization is not idempotent")
 assert(addon.gemPoolFactory == initializedGemPoolFactory, "GemPool initialization is not idempotent")
 assert(addon.animationFactory == initializedAnimationFactory, "Animations initialization is not idempotent")

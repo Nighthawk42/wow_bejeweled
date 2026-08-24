@@ -1,6 +1,7 @@
 local _, addon = ...
 
 local Constants = assert(addon.Constants, "Constants module is not loaded")
+local Fonts = assert(addon.Fonts, "Fonts module is not loaded")
 local SavedVariables = assert(addon.SavedVariables, "SavedVariables module is not loaded")
 local Grid = assert(addon.Grid, "Grid module is not loaded")
 local Backdrops = assert(addon.Backdrops, "Backdrops module is not loaded")
@@ -25,8 +26,6 @@ local BOARD_HEIGHT = Constants.GRID_HEIGHT * Constants.GEM_HEIGHT
 local DEFAULT_TIMED_DURATION = 5 * 60
 local MIN_TIMED_MINUTES = 2
 local MAX_TIMED_MINUTES = 10
-local FONT_PATH = Constants.IMAGE_ROOT .. "Contb___.ttf"
-
 local function SetFrameSize(frame, width, height)
 	frame:SetWidth(width)
 	frame:SetHeight(height)
@@ -39,7 +38,7 @@ end
 
 local function CreateFontString(frame, size, text, color)
 	local fontString = frame:CreateFontString(nil, "OVERLAY")
-	assert(fontString:SetFont(FONT_PATH, size, "OUTLINE"), "bundled window font could not be loaded")
+	Fonts:Set(fontString, size, "OUTLINE")
 	fontString:SetText(text or "")
 	fontString:SetTextColor(color[1], color[2], color[3], color[4] or 1)
 	return fontString
@@ -308,7 +307,7 @@ function MainWindow:CreateMenus()
 	timed.flightToggle = self:CreateButton(timed, "[ ] Use flight path time", 160, 28, function()
 		self:SetFlightOptionSelected(not self.flightOptionSelected)
 	end)
-	assert(timed.flightToggle.label:SetFont(FONT_PATH, 11, "OUTLINE"), "bundled window font could not be loaded")
+	Fonts:Set(timed.flightToggle.label, 11, "OUTLINE")
 	timed.flightToggle:SetPoint("TOP", timed.slider, "BOTTOM", 0, -10)
 	timed.flightStatus = CreateFontString(timed, 10, "", { 1, 1, 1, 1 })
 	timed.flightStatus:SetPoint("TOP", timed.flightToggle, "BOTTOM", 0, -6)

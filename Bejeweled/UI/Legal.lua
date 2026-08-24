@@ -1,17 +1,16 @@
 local _, addon = ...
 
-local Constants = assert(addon.Constants, "Constants module is not loaded")
+local Fonts = assert(addon.Fonts, "Fonts module is not loaded")
 local Backdrops = assert(addon.Backdrops, "Backdrops module is not loaded")
 
 local Legal = {}
 Legal.__index = Legal
 
-local FONT_PATH = Constants.IMAGE_ROOT .. "Contb___.ttf"
 local NOTICE = "(c) 2000, 2008 PopCap Games, Inc. All rights reserved. This application is made available free of charge for personal, non-commercial entertainment use and is provided as is, without warranties. PopCap Games, Inc. has no liability to you or anyone else if you choose to use it.\n\nThe community modernization code is distributed under the repository MIT License. Original artwork, audio, names, and acknowledgements retain their respective ownership and attribution."
 
 local function CreateFontString(frame, size, text, color)
 	local fontString = frame:CreateFontString(nil, "OVERLAY")
-	assert(fontString:SetFont(FONT_PATH, size, "OUTLINE"), "bundled legal font could not be loaded")
+	Fonts:Set(fontString, size, "OUTLINE")
 	fontString:SetText(text or "")
 	fontString:SetTextColor(color[1], color[2], color[3], color[4] or 1)
 	return fontString

@@ -34,6 +34,7 @@ try {
         "Engine\Scoring.lua",
         "Engine\Input.lua",
         "Engine\Session.lua",
+        "UI\Fonts.lua",
         "UI\Backdrops.lua",
         "UI\GemPool.lua",
         "UI\Animations.lua",

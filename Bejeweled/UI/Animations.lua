@@ -1,6 +1,7 @@
 local _, addon = ...
 
 local Constants = assert(addon.Constants, "Constants module is not loaded")
+local Fonts = assert(addon.Fonts, "Fonts module is not loaded")
 
 local Animations = {}
 Animations.__index = Animations
@@ -822,7 +823,7 @@ end
 function Animations:CreateFloatingText()
 	assert(type(self.effectFrame.CreateFontString) == "function", "animation effect frame cannot create font strings")
 	local fontString = self.effectFrame:CreateFontString(nil, "OVERLAY")
-	fontString:SetFont(Constants.IMAGE_ROOT .. "Contb___.ttf", 30, "OUTLINE")
+	Fonts:Set(fontString, 30, "OUTLINE")
 	fontString:Hide()
 	return fontString
 end

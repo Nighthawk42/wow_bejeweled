@@ -1,12 +1,11 @@
 local _, addon = ...
 
-local Constants = assert(addon.Constants, "Constants module is not loaded")
+local Fonts = assert(addon.Fonts, "Fonts module is not loaded")
 local Backdrops = assert(addon.Backdrops, "Backdrops module is not loaded")
 
 local Options = {}
 Options.__index = Options
 
-local FONT_PATH = Constants.IMAGE_ROOT .. "Contb___.ttf"
 local PAGE_SIZE = 8
 local ALPHA_STEPS = { 1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3 }
 
@@ -32,7 +31,7 @@ local DEFINITIONS = {
 
 local function CreateFontString(frame, size, text, color)
 	local fontString = frame:CreateFontString(nil, "OVERLAY")
-	assert(fontString:SetFont(FONT_PATH, size, "OUTLINE"), "bundled options font could not be loaded")
+	Fonts:Set(fontString, size, "OUTLINE")
 	fontString:SetText(text or "")
 	fontString:SetTextColor(color[1], color[2], color[3], color[4] or 1)
 	return fontString

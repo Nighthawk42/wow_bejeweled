@@ -1,6 +1,7 @@
 local _, addon = ...
 
 local Constants = assert(addon.Constants, "Constants module is not loaded")
+local Fonts = assert(addon.Fonts, "Fonts module is not loaded")
 local Backdrops = assert(addon.Backdrops, "Backdrops module is not loaded")
 
 local HUD = {}
@@ -9,7 +10,6 @@ HUD.__index = HUD
 local DEFAULT_WIDTH = Constants.GRID_WIDTH * Constants.GEM_WIDTH
 local DEFAULT_STATUS_DURATION = 2.5
 local DEFAULT_ACHIEVEMENT_DURATION = 4
-local FONT_PATH = Constants.IMAGE_ROOT .. "Contb___.ttf"
 
 local SESSION_CALLBACKS = {
 	onPauseChanged = "OnPauseChanged",
@@ -97,7 +97,7 @@ end
 local function CreateFontString(frame, size, text, color, justify)
 	assert(type(frame.CreateFontString) == "function", "HUD frame cannot create font strings")
 	local fontString = frame:CreateFontString(nil, "OVERLAY")
-	assert(fontString:SetFont(FONT_PATH, size, "OUTLINE"), "bundled HUD font could not be loaded")
+	Fonts:Set(fontString, size, "OUTLINE")
 	fontString:SetText(text or "")
 	fontString:SetTextColor(color[1], color[2], color[3], color[4] or 1)
 	if justify and type(fontString.SetJustifyH) == "function" then
