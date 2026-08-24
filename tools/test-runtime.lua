@@ -54,6 +54,7 @@ LoadAddonFile("Bejeweled/UI/GemPool.lua", addon)
 LoadAddonFile("Bejeweled/UI/Animations.lua", addon)
 LoadAddonFile("Bejeweled/UI/HUD.lua", addon)
 LoadAddonFile("Bejeweled/UI/Summary.lua", addon)
+LoadAddonFile("Bejeweled/UI/Skills.lua", addon)
 LoadAddonFile("Bejeweled/UI/MainWindow.lua", addon)
 LoadAddonFile("Bejeweled/UI/Compartment.lua", addon)
 
@@ -1760,11 +1761,45 @@ AssertEqual(runtime.boardSurface.height, 400, "runtime board height")
 AssertEqual(#runtime.gemPool.tiles, 16, "runtime board tile count")
 AssertEqual(runtime.summary.frame.width, 400, "runtime summary width")
 AssertEqual(runtime.summary.frame.height, 400, "runtime summary height")
+AssertEqual(runtime.skills.frame.width, 400, "runtime skill-screen width")
+AssertEqual(runtime.skills.frame.height, 400, "runtime skill-screen height")
 runtime:Show()
 assert(runtime.frame.shown, "runtime window did not show")
 assert(runtime:IsShown(), "runtime visibility state did not follow Show")
 AssertEqual(runtime.activeOverlay, "menu", "runtime initial menu")
 assert(not runtime.overlays.menu.resume.shown, "runtime initial menu exposed Resume")
+
+runtimeProfile.skill.rank = 3
+runtimeProfile.skill.skillPoints = 175
+runtimeProfile.skill.gainFun1 = true
+runtimeProfile.skill.gainAchieve1 = true
+runtime.overlays.menu.skills.scripts.OnClick()
+AssertEqual(runtime.activeOverlay, "skills", "runtime Feats action did not open the skill screen")
+assert(runtime.skills:IsShown(), "runtime skill screen remained hidden")
+AssertEqual(runtime.skills.frame.rank.text, "Bejeweling Skill Rank: Expert", "runtime skill rank caption")
+AssertEqual(runtime.skills.progress.text.text, "175 / 225", "runtime skill progress caption")
+AssertEqual(runtime.skills.progress.ratio, 25 / 75, "runtime skill rank progress")
+local visibleSkills = runtime.skills:GetVisibleRecords()
+AssertEqual(visibleSkills[1].category, "Match Gems", "runtime first skill category")
+AssertEqual(visibleSkills[1].name, "Match 5 Gems (Create a |cFFA335EE[Hyper Cube]|r)", "runtime first skill challenge")
+visibleSkills[1].name = "changed by caller"
+AssertEqual(runtime.skills:GetVisibleRecords()[1].name, "Match 5 Gems (Create a |cFFA335EE[Hyper Cube]|r)", "runtime skill records were not copied")
+runtime.skills.achievementsTab.scripts.OnClick()
+AssertEqual(runtime.skills.activeTab, "achievements", "runtime achievement tab selection")
+AssertEqual(runtime.skills.frame.status.text, "Unlocked 13 / 26   Completed 2", "runtime achievement counts")
+local visibleAchievements = runtime.skills:GetVisibleRecords()
+assert(visibleAchievements[1].completed, "runtime completed achievements were not sorted first")
+AssertEqual(runtime.skills:GetPageCount(), 2, "runtime achievement page count")
+runtime.skills.nextButton.scripts.OnClick()
+AssertEqual(runtime.skills.page, 2, "runtime achievement next-page action")
+assert(runtime.skills.previousButton.shown, "runtime achievement previous-page action remained hidden")
+runtime.skills.backButton.scripts.OnClick()
+AssertEqual(runtime.activeOverlay, "menu", "runtime skill-screen Back action")
+assert(not runtime.skills:IsShown(), "runtime skill-screen Back action retained the screen")
+runtimeProfile.skill.rank = 1
+runtimeProfile.skill.skillPoints = 0
+runtimeProfile.skill.gainFun1 = nil
+runtimeProfile.skill.gainAchieve1 = nil
 
 runtime.overlays.menu.newGame.scripts.OnClick()
 AssertEqual(runtime.activeOverlay, "mode", "runtime New Game did not show mode selection")

@@ -8,6 +8,7 @@ local GemPool = assert(addon.GemPool, "GemPool module is not loaded")
 local Animations = assert(addon.Animations, "Animations module is not loaded")
 local HUD = assert(addon.HUD, "HUD module is not loaded")
 local Summary = assert(addon.Summary, "Summary module is not loaded")
+local Skills = assert(addon.Skills, "Skills module is not loaded")
 
 local MainWindow = {}
 MainWindow.__index = MainWindow
@@ -185,6 +186,13 @@ function MainWindow:CreateBoard()
 			return self:ShowMenu()
 		end,
 	})
+	self.skills = Skills:New(surface, {
+		createFrame = self.createFrame,
+		profile = self.profile,
+		onBack = function()
+			return self:ShowMenu()
+		end,
+	})
 end
 
 function MainWindow:CreateOverlay(title, height)
@@ -197,7 +205,7 @@ function MainWindow:CreateOverlay(title, height)
 end
 
 function MainWindow:CreateMenus()
-	local menu = self:CreateOverlay("Menu", 128)
+	local menu = self:CreateOverlay("Menu", 164)
 	menu.resume = self:CreateButton(menu, "Resume", 160, 28, function()
 		self:ResumeGame()
 	end)
@@ -206,6 +214,10 @@ function MainWindow:CreateMenus()
 		self:ShowModeMenu()
 	end)
 	menu.newGame:SetPoint("TOP", menu.resume, "BOTTOM", 0, -8)
+	menu.skills = self:CreateButton(menu, "Feats of Skill", 160, 28, function()
+		self:ShowSkills()
+	end)
+	menu.skills:SetPoint("TOP", menu.newGame, "BOTTOM", 0, -8)
 
 	local mode = self:CreateOverlay("Game Type", 164)
 	mode.classic = self:CreateButton(mode, "Classic", 160, 28, function()
@@ -335,10 +347,21 @@ function MainWindow:HideOverlays()
 	if self.summary then
 		self.summary:Hide()
 	end
+	if self.skills then
+		self.skills:Hide()
+	end
 	for _, overlay in pairs(self.overlays) do
 		overlay:Hide()
 	end
 	self.activeOverlay = nil
+end
+
+function MainWindow:ShowSkills(tab)
+	self:PauseForMenu()
+	self:HideOverlays()
+	self.skills:Show(tab)
+	self.activeOverlay = "skills"
+	return self.skills
 end
 
 function MainWindow:ShowSummary(result)
