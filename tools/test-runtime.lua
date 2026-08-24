@@ -61,6 +61,7 @@ LoadAddonFile("Bejeweled/UI/About.lua", addon)
 LoadAddonFile("Bejeweled/UI/Legal.lua", addon)
 LoadAddonFile("Bejeweled/UI/MainWindow.lua", addon)
 LoadAddonFile("Bejeweled/UI/Compartment.lua", addon)
+LoadAddonFile("Bejeweled/UI/Minimap.lua", addon)
 
 AssertEqual(eventFrame.registeredEvent, "ADDON_LOADED", "initializer event registration")
 AssertEqual(addon.Constants.GRID_WIDTH, 8, "grid width")
@@ -151,6 +152,9 @@ local function CreateMockTexture(layer)
 	function texture:SetPoint(...)
 		self.points = self.points or {}
 		self.points[#self.points + 1] = { ... }
+	end
+	function texture:ClearAllPoints()
+		self.points = {}
 	end
 	function texture:SetTexture(path)
 		self.path = path
@@ -375,6 +379,18 @@ local function CreateGemPoolFrame(frameType, name, parent, template)
 	function frame:SetFrameLevel(frameLevel)
 		self.frameLevel = frameLevel
 	end
+	function frame:SetFrameStrata(frameStrata)
+		self.frameStrata = frameStrata
+	end
+	function frame:GetWidth()
+		return self.width
+	end
+	function frame:GetHeight()
+		return self.height
+	end
+	function frame:IsShown()
+		return self.shown and true or false
+	end
 	function frame:GetFrameLevel()
 		if self.frameLevel then
 			return self.frameLevel
@@ -418,6 +434,9 @@ end
 local gemPoolParent = {
 	GetFrameLevel = function()
 		return 10
+	end,
+	GetEffectiveScale = function()
+		return 1
 	end,
 }
 local enteredGem
@@ -1782,6 +1801,7 @@ function runtimeAudio:Update(elapsed)
 end
 local sessionStarts = {}
 local sessionStops = {}
+local settingsChanges = {}
 local flightState
 local flightRequests = {}
 local runtime = addon.MainWindow:New(gemPoolParent, {
@@ -1796,6 +1816,9 @@ local runtime = addon.MainWindow:New(gemPoolParent, {
 	end,
 	onSessionStopped = function(result)
 		sessionStops[#sessionStops + 1] = result
+	end,
+	onSettingsChanged = function(key, value)
+		settingsChanges[#settingsChanges + 1] = { key = key, value = value }
 	end,
 	flightOptionProvider = function()
 		return flightState
@@ -1905,6 +1928,11 @@ AssertEqual(runtime.options:GetSoundMode(), "Quiet", "runtime sound-mode setting
 runtime.options.rows[4].scripts.OnClick()
 assert(runtimeProfile.settings.disableHints, "runtime hint setting")
 assert(not runtime.hud:AreHintsEnabled(), "runtime hint setting did not reach the HUD")
+runtime.options.rows[6].scripts.OnClick()
+assert(runtimeProfile.settings.hideMinimap, "runtime minimap visibility setting")
+AssertEqual(settingsChanges[#settingsChanges].key, "hideMinimap", "runtime minimap setting callback")
+runtime.options.rows[6].scripts.OnClick()
+assert(not runtimeProfile.settings.hideMinimap, "runtime minimap visibility setting did not toggle off")
 runtime.options.backButton.scripts.OnClick()
 AssertEqual(runtime.activeOverlay, "menu", "runtime Settings Back action")
 runtimeProfile.settings.gameAlpha = 1
@@ -2095,12 +2123,125 @@ AssertEqual(#sessionStarts, 6, "runtime session-start callback count")
 AssertEqual(#sessionStops, 5, "runtime session-stop callback count")
 end
 
+function addon:TestMinimapButtonForTest()
+	local minimap = {
+		left = 100,
+		bottom = 200,
+		width = 140,
+		height = 140,
+	}
+	function minimap:GetLeft()
+		return self.left
+	end
+	function minimap:GetBottom()
+		return self.bottom
+	end
+	function minimap:GetWidth()
+		return self.width
+	end
+	function minimap:GetHeight()
+		return self.height
+	end
+	local uiParent = {
+		GetEffectiveScale = function()
+			return 2
+		end,
+	}
+	local tooltip = { lines = {} }
+	function tooltip:SetOwner(owner, anchor)
+		self.owner = owner
+		self.anchor = anchor
+	end
+	function tooltip:SetText(value)
+		self.text = value
+	end
+	function tooltip:AddLine(value)
+		self.lines[#self.lines + 1] = value
+	end
+	function tooltip:Show()
+		self.shown = true
+	end
+	function tooltip:Hide()
+		self.shown = false
+	end
+	local runtime = { shown = true }
+	function runtime:Toggle()
+		self.shown = not self.shown
+	end
+	function runtime:IsShown()
+		return self.shown
+	end
+	local cursorX = 340
+	local cursorY = 680
+	local settings = {}
+	local button = self.MinimapButton:New({
+		minimap = minimap,
+		uiParent = uiParent,
+		settings = settings,
+		createFrame = CreateGemPoolFrame,
+		tooltip = tooltip,
+		cursorPosition = function()
+			return cursorX, cursorY
+		end,
+		runtimeProvider = function()
+			return runtime
+		end,
+	})
+	AssertEqual(button.frame.width, self.MinimapButton.BUTTON_SIZE, "minimap button width")
+	AssertEqual(button.frame.height, self.MinimapButton.BUTTON_SIZE, "minimap button height")
+	AssertEqual(button.frame.icon.width, self.MinimapButton.ICON_SIZE, "minimap icon width")
+	AssertEqual(button.frame.icon.path, self.Constants.IMAGE_ROOT .. "windowIcon", "minimap icon texture")
+	assert(button.frame.shown, "default minimap button remained hidden")
+	AssertEqual(button.frame.points[1][2], minimap, "default minimap button parent anchor")
+	AssertEqual(button.frame.points[1][4], -self.MinimapButton.ATTACHED_RADIUS, "default minimap button radius")
+
+	button.frame.scripts.OnMouseDown(button.frame, "LeftButton")
+	button.frame.scripts.OnMouseUp(button.frame, "LeftButton")
+	assert(not runtime.shown, "minimap left-click did not hide the runtime")
+	button.frame.scripts.OnMouseDown(button.frame, "LeftButton")
+	button.frame.scripts.OnMouseUp(button.frame, "LeftButton")
+	assert(runtime.shown, "minimap left-click did not restore the runtime")
+
+	button.frame.scripts.OnEnter(button.frame)
+	assert(button.frame.highlight.shown, "minimap hover highlight remained hidden")
+	AssertEqual(tooltip.owner, button.frame, "minimap tooltip owner")
+	AssertEqual(tooltip.anchor, "ANCHOR_LEFT", "minimap tooltip anchor")
+	AssertEqual(tooltip.lines[1], "Left-click to show or hide the game.", "minimap tooltip click help")
+	button.frame.scripts.OnLeave(button.frame)
+	assert(not button.frame.highlight.shown and not tooltip.shown, "minimap tooltip or highlight remained visible")
+
+	button.frame.scripts.OnMouseDown(button.frame, "RightButton")
+	button.frame.scripts.OnUpdate(button.frame)
+	button.frame.scripts.OnMouseUp(button.frame, "RightButton")
+	assert(not settings.minimapDetached, "near-minimap drag detached the button")
+	assert(math.abs(settings.minimapAngle - 90) < 0.001, "attached minimap angle was not persisted")
+	AssertEqual(button.frame.points[1][2], minimap, "attached minimap drag anchor")
+
+	cursorX = 1000
+	cursorY = 1000
+	button.frame.scripts.OnMouseDown(button.frame, "RightButton")
+	button.frame.scripts.OnUpdate(button.frame)
+	button.frame.scripts.OnMouseUp(button.frame, "RightButton")
+	assert(settings.minimapDetached, "distant minimap drag did not detach the button")
+	AssertEqual(settings.minimapX, 500, "detached minimap X position")
+	AssertEqual(settings.minimapY, 500, "detached minimap Y position")
+	AssertEqual(button.frame.points[1][2], uiParent, "detached minimap parent anchor")
+	AssertEqual(button.frame.points[1][3], "BOTTOMLEFT", "detached minimap relative anchor")
+
+	button:SetHidden(true)
+	assert(not button.frame.shown and settings.hideMinimap, "minimap visibility setting did not hide the button")
+	button:SetHidden(false)
+	assert(button.frame.shown and not settings.hideMinimap, "minimap visibility setting did not restore the button")
+end
+
 TestSessionRestore()
 TestGameOverTransitions()
 addon:TestHUDPresentationForTest()
 addon.TestHUDPresentationForTest = nil
 addon:TestMainWindowForTest()
 addon.TestMainWindowForTest = nil
+addon:TestMinimapButtonForTest()
+addon.TestMinimapButtonForTest = nil
 
 FillStablePattern(cascadeGrid)
 for x = 2, 5 do
@@ -2466,6 +2607,7 @@ assert(addon.aboutFactory == addon.About, "addon initialization did not install 
 assert(addon.legalFactory == addon.Legal, "addon initialization did not install Legal")
 assert(addon.mainWindowFactory == addon.MainWindow, "addon initialization did not install MainWindow")
 assert(addon.compartment == addon.Compartment, "addon initialization did not install Compartment")
+assert(addon.minimapButtonFactory == addon.MinimapButton, "addon initialization did not install MinimapButton")
 assert(addon.inputFactory == addon.Input, "addon initialization did not install Input")
 assert(addon.sessionFactory == addon.Session, "addon initialization did not install Session")
 assert(eventFrame.registeredEvent == nil, "initializer event was not unregistered")
@@ -2492,18 +2634,68 @@ assert(addon.aboutFactory == addon.About, "About initialization is not idempoten
 assert(addon.legalFactory == addon.Legal, "Legal initialization is not idempotent")
 assert(addon.mainWindowFactory == addon.MainWindow, "MainWindow initialization is not idempotent")
 assert(addon.compartment == addon.Compartment, "Compartment initialization is not idempotent")
+assert(addon.minimapButtonFactory == addon.MinimapButton, "MinimapButton initialization is not idempotent")
 assert(addon.inputFactory == initializedInputFactory, "Input initialization is not idempotent")
 assert(addon.sessionFactory == initializedSessionFactory, "Session initialization is not idempotent")
+addon.runtimeMinimapForTest = {
+	left = 100,
+	bottom = 200,
+	width = 140,
+	height = 140,
+}
+function addon.runtimeMinimapForTest:GetLeft()
+	return self.left
+end
+function addon.runtimeMinimapForTest:GetBottom()
+	return self.bottom
+end
+function addon.runtimeMinimapForTest:GetWidth()
+	return self.width
+end
+function addon.runtimeMinimapForTest:GetHeight()
+	return self.height
+end
+addon.runtimeMinimapTooltipForTest = { lines = {} }
+function addon.runtimeMinimapTooltipForTest:SetOwner(owner, anchor)
+	self.owner = owner
+	self.anchor = anchor
+end
+function addon.runtimeMinimapTooltipForTest:SetText(value)
+	self.text = value
+end
+function addon.runtimeMinimapTooltipForTest:AddLine(value)
+	self.lines[#self.lines + 1] = value
+end
+function addon.runtimeMinimapTooltipForTest:Show()
+	self.shown = true
+end
+function addon.runtimeMinimapTooltipForTest:Hide()
+	self.shown = false
+end
 addon.runtimeForTest = addon:StartRuntime({
 	uiParent = gemPoolParent,
 	createFrame = CreateGemPoolFrame,
 	playerName = "Nighthawk",
 	random = MakeRandom(13001),
+	minimap = addon.runtimeMinimapForTest,
+	minimapTooltip = addon.runtimeMinimapTooltipForTest,
+	cursorPosition = function()
+		return 170, 270
+	end,
 })
+addon.runtimeMinimapForTest = nil
+addon.runtimeMinimapTooltipForTest = nil
 assert(addon.runtimeForTest == addon.runtime, "StartRuntime did not retain the playable shell")
+assert(addon.minimapButton and addon.minimapButton.frame.shown, "StartRuntime did not create the minimap launcher")
 AssertEqual(addon.runtimeForTest.activeOverlay, "legal", "StartRuntime did not open the first-run legal notice")
 addon.runtimeForTest.legal.okayButton.scripts.OnClick()
 AssertEqual(addon.runtimeForTest.activeOverlay, "menu", "StartRuntime legal acknowledgement did not open the menu")
+addon.runtimeForTest:ShowOptions()
+addon.runtimeForTest.options.rows[6].scripts.OnClick()
+assert(not addon.minimapButton.frame.shown, "live Hide Minimap setting did not hide the launcher")
+addon.runtimeForTest.options.rows[6].scripts.OnClick()
+assert(addon.minimapButton.frame.shown, "live Hide Minimap setting did not restore the launcher")
+addon.runtimeForTest:ShowMenu()
 assert(addon:StartRuntime() == addon.runtimeForTest, "StartRuntime is not idempotent")
 
 function addon:TestCompartmentForTest()
@@ -2577,4 +2769,4 @@ end
 addon:TestCompartmentForTest()
 addon.TestCompartmentForTest = nil
 
-print("Runtime verification passed: local skill chat, aligned skill/footer presentation, full local summary, Timed setup/flight boundary, addon-compartment access, playable Classic/Timed window shell, HUD, pause/restore/level/game-over sessions, input, cascade/effect animation, gem projection, UI backdrops, audio, SavedVariables, and deterministic gameplay engine.")
+print("Runtime verification passed: minimap/addon-compartment access, local skill chat, aligned skill/footer presentation, full local summary, Timed setup/flight boundary, playable Classic/Timed window shell, HUD, pause/restore/level/game-over sessions, input, cascade/effect animation, gem projection, UI backdrops, audio, SavedVariables, and deterministic gameplay engine.")

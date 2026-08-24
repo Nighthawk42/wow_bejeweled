@@ -15,6 +15,7 @@ local DEFINITIONS = {
 	{ key = "soundMode", label = "Sound", kind = "sound" },
 	{ key = "disableHints", label = "Disable Hints", kind = "toggle" },
 	{ key = "lockWindow", label = "Lock Window", kind = "toggle" },
+	{ key = "hideMinimap", label = "Hide Minimap Icon", kind = "toggle" },
 	{ key = "publishSkillGains", label = "Chat Skill Gains", kind = "toggle" },
 	{ key = "publishRankGains", label = "Guild Rank Gains", kind = "toggle" },
 	{ key = "publishScores", label = "Publish Scores", kind = "toggle" },
@@ -136,7 +137,11 @@ function Options:Activate(definition)
 	elseif definition.kind == "sound" then
 		self:CycleSound()
 	else
-		self.settings[definition.key] = self.settings[definition.key] and nil or 1
+		if self.settings[definition.key] then
+			self.settings[definition.key] = nil
+		else
+			self.settings[definition.key] = 1
+		end
 	end
 	self.onChanged(definition.key, self.settings[definition.key], self)
 	self:Refresh()

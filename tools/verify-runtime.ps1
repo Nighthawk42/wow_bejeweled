@@ -45,7 +45,8 @@ try {
         "UI\About.lua",
         "UI\Legal.lua",
         "UI\MainWindow.lua",
-        "UI\Compartment.lua"
+        "UI\Compartment.lua",
+        "UI\Minimap.lua"
     )
     $actualFiles = @($toc | Where-Object { $_ -match "\.lua$" })
     if (Compare-Object -ReferenceObject $expectedFiles -DifferenceObject $actualFiles -SyncWindow 0) {
@@ -59,7 +60,7 @@ try {
         }
     }
 
-    Write-Output "Verified: Retail TOC order, complete local presentation screens, Timed setup/flight boundary, addon-compartment access, and Lua 5.1-compatible playable window/session runtime."
+    Write-Output "Verified: Retail TOC order, complete local presentation screens, Timed setup/flight boundary, minimap/addon-compartment access, and Lua 5.1-compatible playable window/session runtime."
 }
 finally {
     Pop-Location

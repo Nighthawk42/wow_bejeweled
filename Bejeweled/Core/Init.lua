@@ -27,6 +27,7 @@ function addon:Initialize(accountData, profileData)
 	assert(self.Legal, "Legal module is not loaded")
 	assert(self.MainWindow, "MainWindow module is not loaded")
 	assert(self.Compartment, "Compartment module is not loaded")
+	assert(self.MinimapButton, "MinimapButton module is not loaded")
 	assert(self.Input, "Input module is not loaded")
 	assert(self.Session, "Session module is not loaded")
 
@@ -45,6 +46,7 @@ function addon:Initialize(accountData, profileData)
 	self.legalFactory = self.Legal
 	self.mainWindowFactory = self.MainWindow
 	self.compartment = self.Compartment
+	self.minimapButtonFactory = self.MinimapButton
 	self.inputFactory = self.Input
 	self.sessionFactory = self.Session
 	self.initialized = true
@@ -55,9 +57,34 @@ function addon:Initialize(accountData, profileData)
 	return self
 end
 
+function addon:EnsureMinimapButton(options)
+	if self.minimapButton then
+		return self.minimapButton
+	end
+	options = options or {}
+	local minimap = options.minimap or Minimap
+	local uiParent = options.uiParent or UIParent
+	if not minimap or not uiParent then
+		return nil
+	end
+	self.minimapButton = self.MinimapButton:New({
+		minimap = minimap,
+		uiParent = uiParent,
+		settings = self.profileData.settings,
+		createFrame = options.createFrame,
+		tooltip = options.minimapTooltip,
+		cursorPosition = options.cursorPosition,
+		runtimeProvider = function()
+			return self.runtime
+		end,
+	})
+	return self.minimapButton
+end
+
 function addon:StartRuntime(options)
 	assert(self.initialized, "addon must be initialized before starting the runtime")
 	if self.runtime then
+		self:EnsureMinimapButton(options)
 		return self.runtime
 	end
 	options = options or {}
@@ -79,7 +106,16 @@ function addon:StartRuntime(options)
 		hintsEnabled = options.hintsEnabled,
 		flightOptionProvider = options.flightOptionProvider,
 		onFlightTimedRequested = options.onFlightTimedRequested,
+		onSettingsChanged = function(key, value, window)
+			if key == "hideMinimap" and self.minimapButton then
+				self.minimapButton:RefreshVisibility()
+			end
+			if options.onSettingsChanged then
+				return options.onSettingsChanged(key, value, window)
+			end
+		end,
 	})
+	self:EnsureMinimapButton(options)
 	self.runtime:Show()
 	return self.runtime
 end

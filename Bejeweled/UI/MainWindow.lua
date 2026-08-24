@@ -367,6 +367,7 @@ function MainWindow:New(uiParent, options)
 		onSessionStopped = ValidateCallback(options.onSessionStopped, "onSessionStopped"),
 		flightOptionProvider = ValidateCallback(options.flightOptionProvider, "flightOptionProvider"),
 		onFlightTimedRequested = ValidateCallback(options.onFlightTimedRequested, "onFlightTimedRequested"),
+		onSettingsChanged = ValidateCallback(options.onSettingsChanged, "onSettingsChanged"),
 		grid = options.grid or Grid:New(options.random),
 		session = nil,
 		activeOverlay = nil,
@@ -456,6 +457,9 @@ end
 function MainWindow:ApplySettings(key)
 	if key == nil or key == "gameAlpha" then
 		self.frame:SetAlpha(self.profile.settings.gameAlpha or 1)
+	end
+	if self.onSettingsChanged then
+		self.onSettingsChanged(key, key and self.profile.settings[key] or nil, self)
 	end
 	return key and self.profile.settings[key] or self.profile.settings
 end

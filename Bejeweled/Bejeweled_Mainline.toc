@@ -32,3 +32,4 @@ UI\About.lua
 UI\Legal.lua
 UI\MainWindow.lua
 UI\Compartment.lua
+UI\Minimap.lua
