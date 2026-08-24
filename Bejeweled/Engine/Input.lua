@@ -35,6 +35,33 @@ local function CopyCell(cell)
 	}
 end
 
+local function BuildHyperPlan(firstCell, secondCell)
+	local firstHyper = firstCell.contents == Constants.HYPER_CONTENTS
+	local secondHyper = secondCell.contents == Constants.HYPER_CONTENTS
+	if not firstHyper and not secondHyper then
+		return nil
+	end
+	if firstHyper and secondHyper then
+		return {
+			doubleHyper = true,
+			targetContents = Constants.HYPER_CONTENTS,
+			activations = {
+				{ x = firstCell.gridX, y = firstCell.gridY, consumedX = secondCell.gridX, consumedY = secondCell.gridY },
+				{ x = secondCell.gridX, y = secondCell.gridY, consumedX = firstCell.gridX, consumedY = firstCell.gridY },
+			},
+		}
+	end
+	local hyperCell = firstHyper and firstCell or secondCell
+	local colorCell = firstHyper and secondCell or firstCell
+	return {
+		doubleHyper = false,
+		targetContents = colorCell.contents,
+		activations = {
+			{ x = hyperCell.gridX, y = hyperCell.gridY, consumedX = colorCell.gridX, consumedY = colorCell.gridY },
+		},
+	}
+end
+
 function Input:New(grid, gemPool, animations, options)
 	assert(type(grid) == "table" and type(grid.Get) == "function" and type(grid.Swap) == "function", "input requires a grid")
 	assert(type(gemPool) == "table" and type(gemPool.SetSelection) == "function", "input requires a gem pool")
@@ -134,14 +161,22 @@ function Input:ResolveAcceptedMove(result)
 		return
 	end
 	result.cascadeStarted = true
-	self:PlaySound("GemClick")
-	local cascadeResult = self.cascade:Resolve(self.grid, {
-		initialMatches = result.matchResult,
+	local cascadeOptions = {
 		random = self.random,
 		requireLegalMove = self.requireLegalMove,
 		maximumRefillAttempts = self.maximumRefillAttempts,
 		maximumCascades = self.maximumCascades,
-	})
+	}
+	local cascadeResult
+	if result.hyperPlan then
+		cascadeResult = self.cascade:ResolveHyper(self.grid, result.hyperPlan, cascadeOptions)
+		self:PlaySound("HyperDestroy")
+		self:PlaySound("ElectroExplode")
+	else
+		self:PlaySound("GemClick")
+		cascadeOptions.initialMatches = result.matchResult
+		cascadeResult = self.cascade:Resolve(self.grid, cascadeOptions)
+	end
 	result.cascadeResult = cascadeResult
 	if self.scoringState then
 		result.scoringResult = self.scoring:ApplyCascade(
@@ -167,37 +202,35 @@ function Input:BeginSwap(firstX, firstY, secondX, secondY)
 	local firstCell = self.grid:Get(firstX, firstY)
 	local secondCell = self.grid:Get(secondX, secondY)
 	assert(firstCell and secondCell and self.grid:AreAdjacent(firstX, firstY, secondX, secondY), "input swap requires adjacent cells")
-	if firstCell.contents == Constants.HYPER_CONTENTS or secondCell.contents == Constants.HYPER_CONTENTS then
-		return {
-			status = "hyper-pending",
-			first = CopyCell(firstCell),
-			second = CopyCell(secondCell),
-		}
-	end
-
+	local hyperPlan = BuildHyperPlan(firstCell, secondCell)
 	local result = {
 		status = "animating",
 		first = CopyCell(firstCell),
 		second = CopyCell(secondCell),
 		valid = false,
+		hyperPlan = hyperPlan,
 	}
 	self.locked = true
 	self:ClearSelection("swap")
 	self.grid:Swap(firstX, firstY, secondX, secondY)
-	local preferredCells = {
-		self.grid:Get(firstX, firstY),
-		self.grid:Get(secondX, secondY),
-	}
-	local matchResult = self.matches:Find(self.grid, {
-		preferredCells = preferredCells,
-		random = self.random,
-	})
-	result.matchResult = matchResult
-	result.valid = matchResult.hasMatches
+	if hyperPlan then
+		result.valid = true
+	else
+		local preferredCells = {
+			self.grid:Get(firstX, firstY),
+			self.grid:Get(secondX, secondY),
+		}
+		local matchResult = self.matches:Find(self.grid, {
+			preferredCells = preferredCells,
+			random = self.random,
+		})
+		result.matchResult = matchResult
+		result.valid = matchResult.hasMatches
+	end
 	if not result.valid then
 		self.grid:Swap(firstX, firstY, secondX, secondY)
 		self:PlaySound("Invalid")
-	else
+	elseif not hyperPlan then
 		if self.scoringState then
 			result.moveResult = self.scoring:RecordMove(
 				self.scoringState,
@@ -209,6 +242,12 @@ function Input:BeginSwap(firstX, firstY, secondX, secondY)
 			self.moves = self.moves + 1
 			result.moveResult = { moves = self.moves, skillEvents = {} }
 		end
+	else
+		result.moveResult = {
+			moves = self.moves,
+			skillEvents = {},
+			legacyHyperMove = true,
+		}
 	end
 	self.pendingMove = result
 	result.swapRun = self.animations:PlaySwap(

@@ -153,6 +153,27 @@ local function CreateMockTexture(layer)
 	return texture
 end
 
+local function CreateMockLine(layer)
+	local line = CreateMockTexture(layer)
+	function line:ClearAllPoints()
+		self.startPoint = nil
+		self.endPoint = nil
+	end
+	function line:SetStartPoint(...)
+		self.startPoint = { ... }
+	end
+	function line:SetEndPoint(...)
+		self.endPoint = { ... }
+	end
+	function line:SetThickness(thickness)
+		self.thickness = thickness
+	end
+	function line:SetColorTexture(red, green, blue, alpha)
+		self.color = { red, green, blue, alpha }
+	end
+	return line
+end
+
 local gemPoolCreatedFrames = {}
 local function CreateGemPoolFrame(frameType, name, parent, template)
 	local frame = {
@@ -180,6 +201,12 @@ local function CreateGemPoolFrame(frameType, name, parent, template)
 		self.createdTextures = self.createdTextures or {}
 		self.createdTextures[#self.createdTextures + 1] = texture
 		return texture
+	end
+	function frame:CreateLine(name, layer)
+		local line = CreateMockLine(layer)
+		self.createdLines = self.createdLines or {}
+		self.createdLines[#self.createdLines + 1] = line
+		return line
 	end
 	function frame:CreateAnimationGroup()
 		local group = {
@@ -606,6 +633,8 @@ local simpleCascade = addon.Cascade:Step(cascadeGrid, addon.Matches:Find(cascade
 AssertEqual(simpleCascade.matchedCellCount, 3, "simple cascade match count")
 AssertEqual(simpleCascade.clearCount, 3, "simple cascade clear count")
 AssertEqual(simpleCascade.removedCount, 3, "simple cascade removed count")
+AssertEqual(#simpleCascade.hyperAwards, 0, "normal cascade hyper award count")
+AssertEqual(#simpleCascade.lightningLinks, 0, "normal cascade lightning-link count")
 AssertEqual(#simpleCascade.moves, 21, "simple cascade gravity move count")
 AssertEqual(#simpleCascade.refills, 3, "simple cascade refill count")
 AssertEqual(cascadeGrid:Get(1, 8).contents, 2, "first compacted bottom gem")
@@ -628,6 +657,17 @@ local function FinishAllGemAnimations()
 			end
 		end
 	end
+end
+
+local function FinishAnimationRunner(runner)
+	for pass = 1, 100 do
+		FinishAllGemAnimations()
+		if not runner:IsPlaying() then
+			return true
+		end
+		runner:UpdateEffects(0.025)
+	end
+	error("animation runner did not finish effects", 2)
 end
 
 local animationGrid = addon.Grid:New(MakeRandom(9876))
@@ -721,6 +761,7 @@ local explosionStep = {
 	removedCells = {},
 	spawnedSpecials = {},
 	triggeredPowerRecords = { { x = 2, y = 3, contents = 4 } },
+	lightningLinks = {},
 	moves = {},
 	refills = {},
 }
@@ -875,6 +916,36 @@ assert(not input:IsLocked(), "invalid rollback left input locked")
 AssertEqual(inputScoringState.moves, 1, "invalid move changed move count")
 AssertEqual(inputSounds[#inputSounds], "Invalid", "invalid move sound")
 
+FillStablePattern(inputGrid)
+inputGrid:Set(1, 8, addon.Constants.HYPER_CONTENTS)
+local inputHyperTarget = inputGrid:Get(2, 8).contents
+local inputHyperTargetCount = 0
+for y = 1, addon.Constants.GRID_HEIGHT do
+	for x = 1, addon.Constants.GRID_WIDTH do
+		if inputGrid:Get(x, y).contents == inputHyperTarget then
+			inputHyperTargetCount = inputHyperTargetCount + 1
+		end
+	end
+end
+inputPool:Project(inputGrid, true)
+AssertEqual(input:HandleCell(1, 8).status, "selected", "hyper swap source selection")
+local hyperMove = input:HandleCell(2, 8)
+assert(hyperMove.valid and hyperMove.hyperPlan, "hyper input move was not accepted")
+AssertEqual(inputScoringState.moves, 1, "legacy hyper move changed move count")
+FinishAnimationRunner(inputAnimations)
+AssertEqual(hyperMove.status, "complete", "hyper input move completion status")
+assert(hyperMove.cascadeResult.hyper, "hyper input move used the normal cascade path")
+AssertEqual(#hyperMove.cascadeResult.steps[1].hyperAwards, inputHyperTargetCount + 1, "hyper input award count")
+AssertEqual(#inputAnimations.lightningPool, inputHyperTargetCount - 1, "hyper lightning pool count")
+local pooledLightning = inputAnimations.lightningPool[1]
+AssertEqual(pooledLightning.base.path, addon.Constants.IMAGE_ROOT .. "lightning", "hyper lightning texture")
+AssertEqual(pooledLightning.base.thickness, 10, "hyper lightning thickness")
+AssertEqual(pooledLightning.highlight.color[1], addon.Constants.GEM_EFFECT_COLORS[inputHyperTarget][1], "hyper lightning color")
+assert(not pooledLightning.base.shown and not pooledLightning.highlight.shown, "completed lightning remained visible")
+AssertEqual(inputSounds[#inputSounds - 1], "HyperDestroy", "hyper destruction sound")
+AssertEqual(inputSounds[#inputSounds], "ElectroExplode", "hyper electro sound")
+assert(not input:IsLocked(), "hyper input move left input locked")
+
 FillStablePattern(cascadeGrid)
 for x = 2, 5 do
 	cascadeGrid:Set(x, 8, 7)
@@ -921,6 +992,123 @@ local explosionCascade = addon.Cascade:Step(cascadeGrid, addon.Matches:Find(casc
 AssertEqual(explosionCascade.triggeredPowerCount, 2, "chained power-gem trigger count")
 AssertEqual(explosionCascade.clearCount, 11, "chained power-gem neighborhood clear count")
 AssertEqual(explosionCascade.removedCount, 11, "chained power-gem neighborhood removal count")
+
+FillStablePattern(cascadeGrid)
+cascadeGrid:Set(1, 8, addon.Constants.HYPER_CONTENTS)
+local hyperTargetContents = cascadeGrid:Get(2, 8).contents
+local hyperTargetCount = 0
+for y = 1, addon.Constants.GRID_HEIGHT do
+	for x = 1, addon.Constants.GRID_WIDTH do
+		if cascadeGrid:Get(x, y).contents == hyperTargetContents then
+			hyperTargetCount = hyperTargetCount + 1
+		end
+	end
+end
+cascadeGrid:Swap(1, 8, 2, 8)
+local hyperResolution = addon.Cascade:ResolveHyper(cascadeGrid, {
+	targetContents = hyperTargetContents,
+	doubleHyper = false,
+	activations = {
+		{ x = 1, y = 8, consumedX = 2, consumedY = 8 },
+	},
+}, {
+	random = MakeRandom(4680),
+	requireLegalMove = false,
+})
+local hyperActivationStep = hyperResolution.steps[1]
+assert(hyperResolution.hyper and hyperResolution.stable, "hyper resolution did not stabilize")
+AssertEqual(#hyperActivationStep.hyperActivations, 1, "colored hyper activation count")
+AssertEqual(#hyperActivationStep.hyperAwards, hyperTargetCount + 1, "colored hyper award count")
+AssertEqual(hyperActivationStep.clearCount, hyperTargetCount + 1, "colored hyper clear count")
+AssertEqual(#hyperActivationStep.lightningLinks, hyperTargetCount - 1, "colored hyper lightning-link count")
+AssertEqual(hyperActivationStep.hyperAwards[1].kind, "hyper-destroy", "colored hyper destruction award kind")
+AssertEqual(hyperActivationStep.hyperAwards[2].kind, "hyper-chain", "colored hyper chain award kind")
+
+FillStablePattern(cascadeGrid)
+cascadeGrid:Set(1, 8, addon.Constants.HYPER_CONTENTS)
+local hyperPowerTarget = cascadeGrid:Get(2, 8).contents
+local hyperPowerCell
+for y = 1, addon.Constants.GRID_HEIGHT do
+	for x = 1, addon.Constants.GRID_WIDTH do
+		local cell = cascadeGrid:Get(x, y)
+		if cell.contents == hyperPowerTarget and not (x == 2 and y == 8) then
+			hyperPowerCell = cell
+			break
+		end
+	end
+	if hyperPowerCell then
+		break
+	end
+end
+assert(hyperPowerCell, "hyper power-target test could not find a matching color")
+cascadeGrid:Set(hyperPowerCell.gridX, hyperPowerCell.gridY, hyperPowerTarget, true)
+cascadeGrid:Swap(1, 8, 2, 8)
+local hyperPowerResolution = addon.Cascade:ResolveHyper(cascadeGrid, {
+	targetContents = hyperPowerTarget,
+	doubleHyper = false,
+	activations = {
+		{ x = 1, y = 8, consumedX = 2, consumedY = 8 },
+	},
+}, {
+	random = MakeRandom(4682),
+	requireLegalMove = false,
+})
+local hyperPowerStep = hyperPowerResolution.steps[1]
+AssertEqual(hyperPowerStep.triggeredPowerCount, 1, "hyper-targeted power-gem trigger count")
+assert(hyperPowerStep.clearCount > #hyperPowerStep.hyperAwards, "hyper-targeted power gem did not expand its clear")
+
+FillStablePattern(cascadeGrid)
+cascadeGrid:Set(1, 8, addon.Constants.HYPER_CONTENTS)
+cascadeGrid:Set(2, 8, addon.Constants.HYPER_CONTENTS)
+cascadeGrid:Set(4, 4, addon.Constants.HYPER_CONTENTS)
+cascadeGrid:Swap(1, 8, 2, 8)
+local doubleHyperResolution = addon.Cascade:ResolveHyper(cascadeGrid, {
+	targetContents = addon.Constants.HYPER_CONTENTS,
+	doubleHyper = true,
+	activations = {
+		{ x = 1, y = 8, consumedX = 2, consumedY = 8 },
+		{ x = 2, y = 8, consumedX = 1, consumedY = 8 },
+	},
+}, {
+	random = MakeRandom(4681),
+	requireLegalMove = false,
+})
+local doubleHyperStep = doubleHyperResolution.steps[1]
+AssertEqual(#doubleHyperStep.hyperActivations, 2, "double-hyper activation count")
+AssertEqual(#doubleHyperStep.hyperAwards, 5, "double-hyper award count")
+AssertEqual(doubleHyperStep.clearCount, 3, "double-hyper clear count")
+AssertEqual(#doubleHyperStep.lightningLinks, 1, "double-hyper lightning-link count")
+
+FillStablePattern(cascadeGrid)
+cascadeGrid:Set(1, 8, addon.Constants.HYPER_CONTENTS)
+cascadeGrid:Swap(1, 8, 2, 8)
+local staleHyperBoard = cascadeGrid:ExportLegacyBoard()
+local staleHyperSucceeded = pcall(function()
+	addon.Cascade:ResolveHyper(cascadeGrid, {
+		targetContents = 1,
+		doubleHyper = false,
+		activations = {
+			{ x = 1, y = 8, consumedX = 2, consumedY = 8 },
+		},
+	}, { requireLegalMove = false })
+end)
+assert(not staleHyperSucceeded, "stale hyper plan was accepted")
+for y = 1, addon.Constants.GRID_HEIGHT do
+	for x = 1, addon.Constants.GRID_WIDTH do
+		AssertEqual(
+			cascadeGrid:EncodeLegacyValue(cascadeGrid:Get(x, y)),
+			staleHyperBoard[y][x],
+			"failed hyper resolution was not atomic"
+		)
+	end
+end
+
+local cancelledLightningRun = animations:Play(hyperActivationStep, cascadeGrid)
+AssertEqual(#animations.activeLightning, hyperTargetCount - 1, "active hyper lightning count")
+assert(animations:Cancel("lightning-cancel"), "hyper lightning cancellation failed")
+assert(cancelledLightningRun.cancelled, "cancelled hyper lightning run was not marked")
+AssertEqual(#animations.activeLightning, 0, "cancelled hyper lightning remained active")
+AssertEqual(#animations.lightningPool, hyperTargetCount - 1, "cancelled hyper lightning was not pooled")
 
 FillStablePattern(cascadeGrid)
 for x = 1, 3 do
@@ -1006,6 +1194,29 @@ AssertEqual(explosionScoring.points, 75, "chained power-gem score")
 AssertEqual(#explosionScoring.scoreEvents, 2, "chained power-gem score event count")
 AssertEqual(explosionScoring.scoreEvents[2].kind, "power-trigger", "chained power-gem score event kind")
 AssertEqual(explosionScoring.scoreEvents[2].points, 40, "second power-gem explosion score")
+
+local activationScoringProfile = addon.SavedVariables:CreateDefaultProfile()
+local activationScoringState = addon.Scoring:NewState(addon.Constants.GAME_MODE_CLASSIC)
+local activationScoring = addon.Scoring:ApplyCascade(
+	activationScoringState,
+	{ steps = { hyperActivationStep } },
+	activationScoringProfile,
+	{ random = function() return 1 end }
+)
+AssertEqual(activationScoring.points, 75 + 20 * hyperTargetCount, "colored hyper activation score")
+AssertEqual(activationScoring.scoreEvents[1].kind, "hyper-destroy", "colored hyper first score kind")
+AssertEqual(activationScoring.scoreEvents[2].kind, "hyper-chain", "colored hyper electro score kind")
+
+local doubleHyperScoringProfile = addon.SavedVariables:CreateDefaultProfile()
+local doubleHyperScoringState = addon.Scoring:NewState(addon.Constants.GAME_MODE_CLASSIC)
+local doubleHyperScoring = addon.Scoring:ApplyCascade(
+	doubleHyperScoringState,
+	{ steps = { doubleHyperStep } },
+	doubleHyperScoringProfile,
+	{ random = function() return 1 end }
+)
+AssertEqual(doubleHyperScoring.points, 210, "double-hyper activation score")
+AssertEqual(#doubleHyperScoring.scoreEvents, 5, "double-hyper score event count")
 
 local crossPowerGrid = addon.Grid:New()
 crossPowerGrid:Set(3, 1, 6)

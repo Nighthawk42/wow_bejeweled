@@ -333,6 +333,9 @@ local function RunStep(grid, matchResult, options)
 	return {
 		matches = matchResult,
 		matchAwards = matchAwards,
+		hyperActivations = {},
+		hyperAwards = {},
+		lightningLinks = {},
 		matchedCellCount = matchResult.cellCount,
 		clearCells = clearCells,
 		clearCount = #clearCells,
@@ -343,6 +346,169 @@ local function RunStep(grid, matchResult, options)
 		triggeredPowerCount = #triggeredPowerCells,
 		spawnedSpecials = specials,
 		suppressedSpecials = suppressedSpecials,
+		moves = moves,
+		refills = refills,
+		refillAttempts = refillAttempts,
+		nextMatches = nextMatches,
+		hasNextCascade = nextMatches.hasMatches,
+	}
+end
+
+local function ValidateHyperPlan(grid, plan)
+	assert(type(plan) == "table", "hyper resolution requires an activation plan")
+	assert(type(plan.activations) == "table" and #plan.activations >= 1, "hyper activation plan is incomplete")
+	assert(type(plan.targetContents) == "number", "hyper activation target is missing")
+	if plan.doubleHyper then
+		assert(plan.targetContents == Constants.HYPER_CONTENTS and #plan.activations == 2, "double-hyper plan is inconsistent")
+	else
+		assert(plan.targetContents >= 1 and plan.targetContents <= Constants.GEM_COLOR_COUNT, "hyper target color is invalid")
+		assert(#plan.activations == 1, "colored hyper plan must have one activation")
+	end
+	for index = 1, #plan.activations do
+		local activation = plan.activations[index]
+		assert(type(activation) == "table", "hyper activation is incomplete")
+		assert(grid:IsInBounds(activation.x, activation.y), "hyper activation origin is out of bounds")
+		assert(grid:IsInBounds(activation.consumedX, activation.consumedY), "consumed hyper coordinate is out of bounds")
+		assert(
+			grid:AreAdjacent(activation.x, activation.y, activation.consumedX, activation.consumedY),
+			"hyper activation coordinates are not adjacent"
+		)
+	end
+end
+
+local function AddHyperAward(awards, kind, contents, x, y, powerTriggerCount)
+	awards[#awards + 1] = {
+		kind = kind,
+		contents = contents,
+		matchLength = 1,
+		originX = x,
+		originY = y,
+		powerCells = {},
+		powerTriggerCount = powerTriggerCount,
+		hyperDestroyed = true,
+		hyperSkill = true,
+	}
+end
+
+local function CopyHyperActivation(activation, targetContents, doubleHyper)
+	return {
+		x = activation.x,
+		y = activation.y,
+		consumedX = activation.consumedX,
+		consumedY = activation.consumedY,
+		targetContents = targetContents,
+		doubleHyper = doubleHyper and true or false,
+	}
+end
+
+local function AddLightningLink(links, fromCell, toCell, contents)
+	links[#links + 1] = {
+		fromX = fromCell.gridX,
+		fromY = fromCell.gridY,
+		toX = toCell.gridX,
+		toY = toCell.gridY,
+		contents = contents,
+	}
+end
+
+local function RunHyperStep(grid, plan, options)
+	ValidateHyperPlan(grid, plan)
+	local random = options.random or grid.random or math.random
+	local maximumRefillAttempts = options.maximumRefillAttempts or 200
+	assert(type(maximumRefillAttempts) == "number" and maximumRefillAttempts >= 1, "refill attempt limit must be positive")
+
+	local clearCells = {}
+	local clearSet = {}
+	local hyperActivations = {}
+	local hyperAwards = {}
+	local lightningLinks = {}
+	local activationCells = {}
+	for index = 1, #plan.activations do
+		local activation = plan.activations[index]
+		local origin = grid:Get(activation.x, activation.y)
+		local consumed = grid:Get(activation.consumedX, activation.consumedY)
+		if plan.doubleHyper then
+			assert(origin.contents == Constants.HYPER_CONTENTS, "double-hyper origin is stale")
+			assert(consumed.contents == Constants.HYPER_CONTENTS, "double-hyper partner is stale")
+		else
+			assert(origin.contents == plan.targetContents, "hyper activation origin is stale")
+			assert(consumed.contents == Constants.HYPER_CONTENTS, "consumed hyper gem is stale")
+		end
+		hyperActivations[index] = CopyHyperActivation(activation, plan.targetContents, plan.doubleHyper)
+		activationCells[index] = origin
+		AddClearCell(clearCells, clearSet, consumed)
+		AddHyperAward(hyperAwards, "hyper-destroy", plan.targetContents, consumed.gridX, consumed.gridY, 0)
+	end
+
+	local chainCells = {}
+	local chainSet = {}
+	for index = 1, #activationCells do
+		local cell = activationCells[index]
+		if not chainSet[cell] then
+			chainSet[cell] = true
+			chainCells[#chainCells + 1] = cell
+		end
+	end
+	for y = 1, grid.height do
+		for x = 1, grid.width do
+			local cell = grid.rows[y][x]
+			if cell.contents == plan.targetContents and not chainSet[cell] then
+				chainSet[cell] = true
+				chainCells[#chainCells + 1] = cell
+			end
+		end
+	end
+
+	local previous = activationCells[1]
+	for index = 1, #chainCells do
+		local cell = chainCells[index]
+		AddClearCell(clearCells, clearSet, cell)
+		AddHyperAward(hyperAwards, "hyper-chain", plan.targetContents, cell.gridX, cell.gridY, -1)
+		if index > #activationCells then
+			AddLightningLink(lightningLinks, previous, cell, plan.targetContents)
+			previous = cell
+		end
+	end
+
+	local triggeredPowerCells = ExpandPowerGemClears(grid, clearCells, clearSet)
+	local triggeredPowerRecords = {}
+	for index = 1, #triggeredPowerCells do
+		local cell = triggeredPowerCells[index]
+		triggeredPowerRecords[index] = {
+			cell = cell,
+			x = cell.gridX,
+			y = cell.gridY,
+			contents = cell.contents,
+		}
+	end
+	local removedCells = ApplyClears(grid, clearCells, {})
+	local moves = CompactColumns(grid, {})
+	local refillCells = CollectRefillCells(grid)
+	local refills, refillAttempts = Refill(
+		grid,
+		refillCells,
+		random,
+		options.requireLegalMove ~= false,
+		maximumRefillAttempts
+	)
+	local nextMatches = Matches:Find(grid, { random = random })
+
+	return {
+		matches = nil,
+		matchAwards = {},
+		hyperActivations = hyperActivations,
+		hyperAwards = hyperAwards,
+		lightningLinks = lightningLinks,
+		matchedCellCount = 0,
+		clearCells = clearCells,
+		clearCount = #clearCells,
+		removedCells = removedCells,
+		removedCount = #removedCells,
+		triggeredPowerCells = triggeredPowerCells,
+		triggeredPowerRecords = triggeredPowerRecords,
+		triggeredPowerCount = #triggeredPowerCells,
+		spawnedSpecials = {},
+		suppressedSpecials = {},
 		moves = moves,
 		refills = refills,
 		refillAttempts = refillAttempts,
@@ -404,12 +570,70 @@ local function RunResolve(cascade, grid, options)
 	return result
 end
 
+local function AddResultStep(result, step)
+	result.steps[#result.steps + 1] = step
+	result.cascadeCount = result.cascadeCount + 1
+	result.totalMatched = result.totalMatched + step.matchedCellCount
+	result.totalRemoved = result.totalRemoved + step.removedCount
+	result.totalPowerTriggers = result.totalPowerTriggers + step.triggeredPowerCount
+end
+
+local function RunHyperResolve(grid, plan, options)
+	local random = options.random or grid.random or math.random
+	local maximumCascades = options.maximumCascades or 100
+	assert(type(maximumCascades) == "number" and maximumCascades >= 1, "cascade limit must be positive")
+	local result = {
+		steps = {},
+		cascadeCount = 0,
+		totalMatched = 0,
+		totalRemoved = 0,
+		totalPowerTriggers = 0,
+		hyper = true,
+	}
+	local step = RunHyperStep(grid, plan, {
+		random = random,
+		requireLegalMove = options.requireLegalMove,
+		maximumRefillAttempts = options.maximumRefillAttempts,
+	})
+	AddResultStep(result, step)
+	local matches = step.nextMatches
+	while matches.hasMatches do
+		if result.cascadeCount >= maximumCascades then
+			error("cascade limit exceeded")
+		end
+		step = RunStep(grid, matches, {
+			random = random,
+			requireLegalMove = options.requireLegalMove,
+			maximumRefillAttempts = options.maximumRefillAttempts,
+		})
+		AddResultStep(result, step)
+		matches = step.nextMatches
+	end
+	result.finalMatches = matches
+	result.stable = true
+	return result
+end
+
 function Cascade:Resolve(grid, options)
 	assert(type(grid) == "table" and type(grid.rows) == "table", "cascade resolution requires a grid")
 	options = options or {}
 	local snapshot = SnapshotGrid(grid)
 	local succeeded, result = pcall(function()
 		return RunResolve(self, grid, options)
+	end)
+	if not succeeded then
+		RestoreGrid(grid, snapshot)
+		error(result, 0)
+	end
+	return result
+end
+
+function Cascade:ResolveHyper(grid, plan, options)
+	assert(type(grid) == "table" and type(grid.rows) == "table", "hyper resolution requires a grid")
+	options = options or {}
+	local snapshot = SnapshotGrid(grid)
+	local succeeded, result = pcall(function()
+		return RunHyperResolve(grid, plan, options)
 	end)
 	if not succeeded then
 		RestoreGrid(grid, snapshot)

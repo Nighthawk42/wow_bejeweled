@@ -12,8 +12,10 @@ local DEFAULT_EFFECT_INTERVAL = 0.025
 local DEFAULT_SWAP_DURATION = Constants.GEM_WIDTH / 150
 local HYPER_FRAME_COUNT = 40
 local EXPLOSION_FRAME_COUNT = 16
+local LIGHTNING_FRAME_COUNT = 15
 local POWER_STAR_SIZE = 90
 local EXPLOSION_SIZE = 150
+local LIGHTNING_THICKNESS = 10
 
 local function BuildHyperAtlas()
 	local atlas = {}
@@ -185,6 +187,8 @@ function Animations:New(gemPool, options)
 	instance.effectElapsed = 0
 	instance.activeExplosions = {}
 	instance.explosionPool = {}
+	instance.activeLightning = {}
+	instance.lightningPool = {}
 	instance.createFrame = options.createFrame or gemPool.createFrame or CreateFrame
 	assert(type(instance.createFrame) == "function", "CreateFrame is unavailable for animation effects")
 	instance.effectParent = options.effectParent or gemPool.parent
@@ -206,6 +210,7 @@ function Animations:BuildPlan(cascadeResult)
 		local removedCells = AssertRecordList(source, "removedCells")
 		local spawnedSpecials = AssertRecordList(source, "spawnedSpecials")
 		local triggeredPowerRecords = AssertRecordList(source, "triggeredPowerRecords")
+		local lightningLinks = AssertRecordList(source, "lightningLinks")
 		local moves = AssertRecordList(source, "moves")
 		local refills = AssertRecordList(source, "refills")
 		local step = {
@@ -215,6 +220,7 @@ function Animations:BuildPlan(cascadeResult)
 			moves = {},
 			refills = {},
 			explosions = {},
+			lightning = {},
 		}
 
 		for index = 1, #removedCells do
@@ -253,6 +259,25 @@ function Animations:BuildPlan(cascadeResult)
 			step.explosions[index] = {
 				x = record.x,
 				y = record.y,
+				record = record,
+			}
+		end
+
+		for index = 1, #lightningLinks do
+			local record = lightningLinks[index]
+			assert(type(record) == "table", "lightning-link record must be a table")
+			AssertCoordinate(record.fromX, Constants.GRID_WIDTH, "lightning source column")
+			AssertCoordinate(record.fromY, Constants.GRID_HEIGHT, "lightning source row")
+			AssertCoordinate(record.toX, Constants.GRID_WIDTH, "lightning target column")
+			AssertCoordinate(record.toY, Constants.GRID_HEIGHT, "lightning target row")
+			assert(type(Constants.GEM_EFFECT_COLORS[record.contents]) == "table", "lightning color is unsupported")
+			step.lightning[index] = {
+				fromX = record.fromX,
+				fromY = record.fromY,
+				toX = record.toX,
+				toY = record.toY,
+				contents = record.contents,
+				delayTicks = index - 1,
 				record = record,
 			}
 		end
@@ -428,6 +453,78 @@ function Animations:CreateExplosionFrame()
 	return frame
 end
 
+function Animations:CreateLightningObject()
+	assert(type(self.effectFrame.CreateLine) == "function", "animation effect frame cannot create lines")
+	local base = self.effectFrame:CreateLine(nil, "ARTWORK")
+	local highlight = self.effectFrame:CreateLine(nil, "OVERLAY")
+	base:SetTexture(Constants.IMAGE_ROOT .. "lightning")
+	base:SetBlendMode("ADD")
+	base:SetThickness(LIGHTNING_THICKNESS)
+	highlight:SetBlendMode("ADD")
+	highlight:SetThickness(math.max(1, LIGHTNING_THICKNESS / 3))
+	base:Hide()
+	highlight:Hide()
+	return {
+		base = base,
+		highlight = highlight,
+	}
+end
+
+function Animations:ReleaseLightning(lightning, completed)
+	for index = #self.activeLightning, 1, -1 do
+		if self.activeLightning[index] == lightning then
+			table.remove(self.activeLightning, index)
+			break
+		end
+	end
+	if lightning.run then
+		lightning.run.activeLightning[lightning] = nil
+	end
+	lightning.base:Hide()
+	lightning.highlight:Hide()
+	local onFinished = lightning.onFinished
+	lightning.onFinished = nil
+	lightning.run = nil
+	self.lightningPool[#self.lightningPool + 1] = lightning
+	if completed and onFinished then
+		onFinished()
+	end
+end
+
+function Animations:PlayLightning(record, onFinished, run)
+	local lightning = table.remove(self.lightningPool) or self:CreateLightningObject()
+	local fromX = (record.fromX - 0.5) * Constants.GEM_WIDTH
+	local fromY = -((record.fromY - 0.5) * Constants.GEM_HEIGHT)
+	local toX = (record.toX - 0.5) * Constants.GEM_WIDTH
+	local toY = -((record.toY - 0.5) * Constants.GEM_HEIGHT)
+	local color = Constants.GEM_EFFECT_COLORS[record.contents]
+	lightning.base:ClearAllPoints()
+	lightning.highlight:ClearAllPoints()
+	lightning.base:SetStartPoint("TOPLEFT", self.effectParent, fromX, fromY)
+	lightning.base:SetEndPoint("TOPLEFT", self.effectParent, toX, toY)
+	lightning.highlight:SetStartPoint("TOPLEFT", self.effectParent, fromX, fromY)
+	lightning.highlight:SetEndPoint("TOPLEFT", self.effectParent, toX, toY)
+	lightning.highlight:SetColorTexture(color[1], color[2], color[3], 1)
+	lightning.base:SetAlpha(0.8)
+	lightning.highlight:SetAlpha(0.2)
+	lightning.effectFrame = 1
+	lightning.delayTicks = record.delayTicks or 0
+	lightning.onFinished = onFinished
+	lightning.run = run
+	if lightning.delayTicks == 0 then
+		lightning.base:Show()
+		lightning.highlight:Show()
+	else
+		lightning.base:Hide()
+		lightning.highlight:Hide()
+	end
+	self.activeLightning[#self.activeLightning + 1] = lightning
+	if run then
+		run.activeLightning[lightning] = true
+	end
+	return lightning
+end
+
 function Animations:ReleaseExplosion(explosion, completed)
 	for index = #self.activeExplosions, 1, -1 do
 		if self.activeExplosions[index] == explosion then
@@ -494,6 +591,24 @@ function Animations:UpdateEffects(elapsed)
 			SetTexCoord(explosion.texture, EXPLOSION_ATLAS[nextFrame])
 		end
 	end
+	for index = #self.activeLightning, 1, -1 do
+		local lightning = self.activeLightning[index]
+		if lightning.delayTicks > 0 then
+			lightning.delayTicks = lightning.delayTicks - 1
+			if lightning.delayTicks == 0 then
+				lightning.base:Show()
+				lightning.highlight:Show()
+			end
+		else
+			local nextFrame = lightning.effectFrame + 1
+			if nextFrame > LIGHTNING_FRAME_COUNT then
+				self:ReleaseLightning(lightning, true)
+			else
+				lightning.effectFrame = nextFrame
+				lightning.highlight:SetAlpha(math.fmod(nextFrame, 2) == 1 and 0.2 or 0.6)
+			end
+		end
+	end
 	return true
 end
 
@@ -503,8 +618,8 @@ function Animations:NotifyPhase(run, phase, stepIndex, step)
 	end
 end
 
-function Animations:WaitForPhase(run, groups, explosions, onFinished)
-	local pending = #groups + #explosions
+function Animations:WaitForPhase(run, groups, explosions, lightning, onFinished)
+	local pending = #groups + #explosions + #lightning
 	if pending == 0 then
 		onFinished()
 		return
@@ -519,6 +634,11 @@ function Animations:WaitForPhase(run, groups, explosions, onFinished)
 	for index = 1, #explosions do
 		local explosion = explosions[index]
 		self:PlayExplosion(explosion.x, explosion.y, function()
+			FinishPending(self, run, onFinished)
+		end, run)
+	end
+	for index = 1, #lightning do
+		self:PlayLightning(lightning[index], function()
 			FinishPending(self, run, onFinished)
 		end, run)
 	end
@@ -581,7 +701,7 @@ function Animations:PlaySettle(run, stepIndex, step)
 	end
 	self:SyncPersistentEffects(false)
 
-	self:WaitForPhase(run, groups, {}, function()
+	self:WaitForPhase(run, groups, {}, {}, function()
 		if self.active ~= run or run.cancelled then
 			return
 		end
@@ -620,7 +740,7 @@ function Animations:PlayStep(run, stepIndex)
 		groups[#groups + 1] = animation.group
 	end
 
-	self:WaitForPhase(run, groups, step.explosions, function()
+	self:WaitForPhase(run, groups, step.explosions, step.lightning, function()
 		if self.active ~= run or run.cancelled then
 			return
 		end
@@ -657,6 +777,7 @@ function Animations:PlaySwap(firstX, firstY, secondX, secondY, rollback, finalGr
 		callbacks = CopyCallbacks(self.callbacks, callbacks),
 		activeGroups = {},
 		activeExplosions = {},
+		activeLightning = {},
 		pending = 0,
 		cancelled = false,
 		completed = false,
@@ -692,7 +813,7 @@ function Animations:PlaySwap(firstX, firstY, secondX, secondY, rollback, finalGr
 		groups[#groups + 1] = animation.group
 	end
 
-	self:WaitForPhase(run, groups, {}, function()
+	self:WaitForPhase(run, groups, {}, {}, function()
 		self:CompleteRun(run)
 	end)
 	return run
@@ -711,6 +832,7 @@ function Animations:Play(cascadeResult, finalGrid, callbacks)
 		callbacks = CopyCallbacks(self.callbacks, callbacks),
 		activeGroups = {},
 		activeExplosions = {},
+		activeLightning = {},
 		pending = 0,
 		cancelled = false,
 		completed = false,
@@ -740,8 +862,16 @@ function Animations:Cancel(reason)
 	for index = 1, #explosions do
 		self:ReleaseExplosion(explosions[index], false)
 	end
+	local lightning = {}
+	for effect in pairs(run.activeLightning) do
+		lightning[#lightning + 1] = effect
+	end
+	for index = 1, #lightning do
+		self:ReleaseLightning(lightning[index], false)
+	end
 	run.activeGroups = {}
 	run.activeExplosions = {}
+	run.activeLightning = {}
 	run.pending = 0
 	self.gemPool:ResetPresentation(run.finalGrid)
 	self:SyncPersistentEffects(false)

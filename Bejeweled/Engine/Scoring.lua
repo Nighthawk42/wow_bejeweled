@@ -29,12 +29,18 @@ local function ValidateCascadeResult(cascadeResult)
 	for stepIndex = 1, #cascadeResult.steps do
 		local step = cascadeResult.steps[stepIndex]
 		assert(type(step.matchAwards) == "table", "cascade step lacks immutable match awards")
+		assert(type(step.hyperAwards) == "table", "cascade step lacks immutable hyper awards")
 		assert(type(step.spawnedSpecials) == "table", "cascade step lacks spawned-special records")
 		assert(type(step.triggeredPowerRecords) == "table", "cascade step lacks power-trigger records")
 		assert(type(step.refills) == "table", "cascade step lacks refill records")
 		for awardIndex = 1, #step.matchAwards do
 			local award = step.matchAwards[awardIndex]
 			assert(type(award.matchLength) == "number" and type(award.powerCells) == "table", "match award is incomplete")
+		end
+		for awardIndex = 1, #step.hyperAwards do
+			local award = step.hyperAwards[awardIndex]
+			assert(type(award.matchLength) == "number" and type(award.powerCells) == "table", "hyper award is incomplete")
+			assert(award.hyperDestroyed, "hyper award lacks destruction evidence")
 		end
 	end
 end
@@ -252,6 +258,9 @@ local function ScoreAward(scoring, state, profile, award, skillEvents, options)
 		points = points + 25
 	end
 	if award.hyperDestroyed then
+		if award.hyperSkill then
+			TrySkill(scoring, skillEvents, profile, Constants.SKILL_TYPE_MATCH, Constants.SKILL_MATCH5, options)
+		end
 		if (award.powerTriggerCount or 0) == 0 then
 			points = points + 75
 		else
@@ -363,6 +372,16 @@ function Scoring:ApplyCascade(state, cascadeResult, profile, options)
 
 		local originColors = {}
 		local directPowerCells = {}
+		for awardIndex = 1, #step.hyperAwards do
+			result.scoreEvents[#result.scoreEvents + 1] = ScoreAward(
+				self,
+				state,
+				profile,
+				step.hyperAwards[awardIndex],
+				result.skillEvents,
+				skillOptions
+			)
+		end
 		for awardIndex = 1, #step.matchAwards do
 			local award = step.matchAwards[awardIndex]
 			local spawned = spawnedByStepAndGroup[stepIndex][award.groupIndex]
