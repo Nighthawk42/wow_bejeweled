@@ -31,7 +31,8 @@ try {
         "Engine\Session.lua",
         "UI\Backdrops.lua",
         "UI\GemPool.lua",
-        "UI\Animations.lua"
+        "UI\Animations.lua",
+        "UI\HUD.lua"
     )
     $actualFiles = @($toc | Where-Object { $_ -match "\.lua$" })
     if (Compare-Object -ReferenceObject $expectedFiles -DifferenceObject $actualFiles -SyncWindow 0) {
@@ -45,7 +46,7 @@ try {
         }
     }
 
-    Write-Output "Verified: Retail TOC order and Lua 5.1-compatible session/gameplay engine."
+    Write-Output "Verified: Retail TOC order and Lua 5.1-compatible session/gameplay/HUD runtime."
 }
 finally {
     Pop-Location

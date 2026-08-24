@@ -52,6 +52,7 @@ LoadAddonFile("Bejeweled/Engine/Session.lua", addon)
 LoadAddonFile("Bejeweled/UI/Backdrops.lua", addon)
 LoadAddonFile("Bejeweled/UI/GemPool.lua", addon)
 LoadAddonFile("Bejeweled/UI/Animations.lua", addon)
+LoadAddonFile("Bejeweled/UI/HUD.lua", addon)
 
 AssertEqual(eventFrame.registeredEvent, "ADDON_LOADED", "initializer event registration")
 AssertEqual(addon.Constants.GRID_WIDTH, 8, "grid width")
@@ -171,6 +172,9 @@ local function CreateMockFontString(layer)
 	function fontString:SetFont(path, size, flags)
 		self.font = { path, size, flags }
 		return true
+	end
+	function fontString:SetJustifyH(justify)
+		self.justifyH = justify
 	end
 	return fontString
 end
@@ -301,6 +305,15 @@ local function CreateGemPoolFrame(frameType, name, parent, template)
 	end
 	function frame:SetAlpha(alpha)
 		self.alpha = alpha
+	end
+	function frame:SetBackdrop(descriptor)
+		self.descriptor = descriptor
+	end
+	function frame:SetBackdropColor(red, green, blue, alpha)
+		self.backgroundColor = { red, green, blue, alpha }
+	end
+	function frame:SetBackdropBorderColor(red, green, blue, alpha)
+		self.borderColor = { red, green, blue, alpha }
 	end
 	function frame:SetFrameLevel(frameLevel)
 		self.frameLevel = frameLevel
@@ -1489,8 +1502,162 @@ timedPool:SetInteractive(true)
 timedSession:GetInput():SetSessionLocked(true, "terminal-refresh")
 assert(not timedPool:GetFrame(1, 1).mouseEnabled, "idempotent terminal lock did not reassert interaction state")
 end
+
+function addon:TestHUDPresentationForTest()
+local hudGrid = addon.Grid:New()
+FillStablePattern(hudGrid)
+hudGrid:Set(2, 8, 1)
+hudGrid:Set(3, 8, 1)
+hudGrid:Set(1, 7, 1)
+assert(hudGrid:FindLegalMove(), "HUD fixture has no hintable move")
+local hudPool = addon.GemPool:New(gemPoolParent, {
+	createFrame = CreateGemPoolFrame,
+	createBoardTiles = false,
+})
+hudPool:Project(hudGrid, true)
+local hudAnimations = addon.Animations:New(hudPool, {
+	createFrame = CreateGemPoolFrame,
+	hintDelay = 0.05,
+})
+local hudProfile = addon.SavedVariables:CreateDefaultProfile()
+local hudState = addon.Scoring:NewState(addon.Constants.GAME_MODE_CLASSIC, {
+	score = 12345,
+	level = 3,
+	pointsToLevelUp = 16000,
+	pointMultiplier = 2,
+	largestCascade = 7,
+	largestCombo = 4,
+	moves = 20,
+})
+local userPauseEvents = 0
+local userLevelEvents = 0
+local hud = addon.HUD:New(gemPoolParent, hudAnimations, {
+	createFrame = CreateGemPoolFrame,
+	statusDuration = 0.1,
+	achievementDuration = 0.1,
+})
+local hudSession = hud:CreateSession(hudGrid, hudPool, {
+	profile = hudProfile,
+	playerName = "Nighthawk",
+	scoringState = hudState,
+	autoSave = false,
+	detectGameOver = false,
+	deferLevelTransitions = true,
+	deferGameOverTransitions = true,
+	inputOptions = {
+		random = MakeRandom(9201),
+		requireLegalMove = false,
+	},
+	onPauseChanged = function()
+		userPauseEvents = userPauseEvents + 1
+	end,
+	onLevelTransitionComplete = function()
+		userLevelEvents = userLevelEvents + 1
+	end,
+})
+assert(hud.session == hudSession, "HUD did not attach its created session")
+AssertEqual(hud.levelPanel.caption.text, "LVL", "classic HUD level caption")
+AssertEqual(hud.levelPanel.value.text, "3", "classic HUD level value")
+AssertEqual(hud.dataPanel.value.text, "12,345", "classic HUD formatted score")
+AssertEqual(hud.progress.ratio, 12345 / 16000, "classic HUD progress ratio")
+assert(hudAnimations.hint and hudAnimations.hint.active, "HUD did not schedule an idle hint")
+
+hudSession:Pause("hud-test")
+assert(hud.pausedFrame.shown, "paused HUD overlay remained hidden")
+assert(not hudAnimations.hint.active, "paused HUD retained its hint")
+hudSession:Resume("hud-test")
+assert(not hud.pausedFrame.shown, "resumed HUD retained its pause overlay")
+assert(hudAnimations.hint.active, "resumed HUD did not reschedule its hint")
+AssertEqual(userPauseEvents, 2, "HUD callback wiring replaced user pause callbacks")
+
+local skillEvent = {
+	type = addon.Constants.SKILL_TYPE_ACHIEVEMENT,
+	index = addon.Constants.ACHIEVEMENT_POWER100,
+	gained = 5,
+	completed = true,
+	pointsAfter = 80,
+}
+local floatingBefore = #hudAnimations.activeFloatingText
+hud:OnCascadeResolved({
+	scoringResult = {
+		points = 75,
+		scoreEvents = { { contents = 3 } },
+		skillEvents = { skillEvent },
+	},
+})
+AssertEqual(#hudAnimations.activeFloatingText, floatingBefore + 2, "HUD omitted score or achievement floating text")
+AssertEqual(hud.achievementFrame.text.text, "Achievement unlocked #4", "HUD achievement message")
+AssertEqual(hud:PresentSkillEvents({ skillEvent }), 0, "HUD repeated an already-presented skill event")
+hud:Update(0.11)
+assert(not hud.achievementFrame.shown, "HUD achievement notice did not expire")
+hudAnimations:ClearTransientEffects()
+
+hudState.score = hudState.pointsToLevelUp
+hudState.levelPending = true
+hudSession:HandleMoveComplete({ status = "complete" })
+assert(hudSession:IsLevelTransitionPending(), "HUD level fixture did not defer its transition")
+AssertEqual(hud.statusFrame.text.text, "Level up", "HUD level-start status")
+assert(hud.statusFrame.shown, "HUD level-start status remained hidden")
+local hudLevelResult = hudSession:CompleteLevelTransition()
+AssertEqual(hudLevelResult.level, 4, "HUD level transition result")
+AssertEqual(hud.levelPanel.value.text, "4", "HUD did not refresh the completed level")
+AssertEqual(hud.statusFrame.text.text, "Level 4", "HUD level-complete status")
+AssertEqual(userLevelEvents, 1, "HUD callback wiring replaced user level callbacks")
+hud:Update(0.11)
+assert(not hud.statusFrame.shown, "HUD temporary status did not expire")
+
+local gameOverStarted = hudSession:BeginGameOver("manual-test")
+AssertEqual(gameOverStarted.kind, "no-more-moves", "HUD classic game-over kind")
+AssertEqual(hud.statusFrame.text.text, "No More Moves", "HUD game-over status")
+hud:Update(10)
+assert(hud.statusFrame.shown, "persistent HUD game-over status expired")
+local hudSummary = hudSession:CompleteGameOver()
+assert(hudSummary.personalBest, "HUD game-over fixture omitted personal-best data")
+assert(hud.summaryFrame.shown, "HUD final summary remained hidden")
+assert(string.find(hud.summaryFrame.text.text, "Score: 16,000", 1, true), "HUD summary omitted the formatted score")
+assert(string.find(hud.summaryFrame.text.text, "Largest cascade: 7", 1, true), "HUD summary omitted cascade data")
+assert(not hud.statusFrame.shown, "HUD final summary retained the game-over banner")
+
+local timedGrid = addon.Grid:New()
+FillStablePattern(timedGrid)
+local timedPool = addon.GemPool:New(gemPoolParent, {
+	createFrame = CreateGemPoolFrame,
+	createBoardTiles = false,
+})
+timedPool:Project(timedGrid, true)
+local timedAnimations = addon.Animations:New(timedPool, { createFrame = CreateGemPoolFrame })
+local timedHUD = addon.HUD:New(gemPoolParent, timedAnimations, { createFrame = CreateGemPoolFrame })
+local timedProfile = addon.SavedVariables:CreateDefaultProfile()
+local timedState = addon.Scoring:NewState(addon.Constants.GAME_MODE_TIMED, {
+	score = 300,
+	pointMultiplier = 2.5,
+})
+local timedSession = timedHUD:CreateSession(timedGrid, timedPool, {
+	profile = timedProfile,
+	playerName = "Nighthawk",
+	gameMode = addon.Constants.GAME_MODE_TIMED,
+	scoringState = timedState,
+	timerElapsed = 30,
+	timeLimit = 60,
+	detectGameOver = false,
+	autoSave = false,
+	inputOptions = { requireLegalMove = false },
+})
+AssertEqual(timedHUD.levelPanel.caption.text, "PPS", "timed HUD PPS caption")
+AssertEqual(timedHUD.levelPanel.value.text, "10.00", "timed HUD PPS value")
+AssertEqual(timedHUD.dataPanel.value.text, "2.5x", "timed HUD multiplier")
+AssertEqual(timedHUD.progress.text.text, "0:30", "timed HUD countdown")
+AssertEqual(timedHUD.progress.ratio, 0.5, "timed HUD progress ratio")
+timedSession:SetElapsed(60)
+timedHUD:Update(0)
+AssertEqual(timedHUD.progress.text.text, "0:00", "timed HUD zero countdown")
+AssertEqual(timedHUD.progress.ratio, 0, "timed HUD empty progress")
+end
+
 TestSessionRestore()
 TestGameOverTransitions()
+addon:TestHUDPresentationForTest()
+addon.TestHUDPresentationForTest = nil
 
 FillStablePattern(cascadeGrid)
 for x = 2, 5 do
@@ -1847,6 +2014,7 @@ assert(addon.audio, "addon initialization did not create audio")
 assert(addon.backdrops == addon.Backdrops, "addon initialization did not install backdrops")
 assert(addon.gemPoolFactory == addon.GemPool, "addon initialization did not install GemPool")
 assert(addon.animationFactory == addon.Animations, "addon initialization did not install Animations")
+assert(addon.hudFactory == addon.HUD, "addon initialization did not install HUD")
 assert(addon.inputFactory == addon.Input, "addon initialization did not install Input")
 assert(addon.sessionFactory == addon.Session, "addon initialization did not install Session")
 assert(eventFrame.registeredEvent == nil, "initializer event was not unregistered")
@@ -1855,6 +2023,7 @@ local initializedAudio = addon.audio
 local initializedBackdrops = addon.backdrops
 local initializedGemPoolFactory = addon.gemPoolFactory
 local initializedAnimationFactory = addon.animationFactory
+local initializedHUDFactory = addon.hudFactory
 local initializedInputFactory = addon.inputFactory
 local initializedSessionFactory = addon.sessionFactory
 addon:Initialize({}, {})
@@ -1863,7 +2032,8 @@ assert(addon.audio == initializedAudio, "audio initialization is not idempotent"
 assert(addon.backdrops == initializedBackdrops, "backdrop initialization is not idempotent")
 assert(addon.gemPoolFactory == initializedGemPoolFactory, "GemPool initialization is not idempotent")
 assert(addon.animationFactory == initializedAnimationFactory, "Animations initialization is not idempotent")
+assert(addon.hudFactory == initializedHUDFactory, "HUD initialization is not idempotent")
 assert(addon.inputFactory == initializedInputFactory, "Input initialization is not idempotent")
 assert(addon.sessionFactory == initializedSessionFactory, "Session initialization is not idempotent")
 
-print("Runtime verification passed: pause/restore/level/game-over sessions, input, cascade/effect animation, gem projection, UI backdrops, audio, SavedVariables, and deterministic gameplay engine.")
+print("Runtime verification passed: Classic/Timed HUD, pause/restore/level/game-over sessions, input, cascade/effect animation, gem projection, UI backdrops, audio, SavedVariables, and deterministic gameplay engine.")

@@ -18,6 +18,7 @@ function addon:Initialize(accountData, profileData)
 	assert(self.Backdrops, "Backdrops module is not loaded")
 	assert(self.GemPool, "GemPool module is not loaded")
 	assert(self.Animations, "Animations module is not loaded")
+	assert(self.HUD, "HUD module is not loaded")
 	assert(self.Input, "Input module is not loaded")
 	assert(self.Session, "Session module is not loaded")
 
@@ -27,6 +28,7 @@ function addon:Initialize(accountData, profileData)
 	self.backdrops = self.Backdrops
 	self.gemPoolFactory = self.GemPool
 	self.animationFactory = self.Animations
+	self.hudFactory = self.HUD
 	self.inputFactory = self.Input
 	self.sessionFactory = self.Session
 	self.initialized = true
