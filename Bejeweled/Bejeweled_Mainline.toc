@@ -1,0 +1,13 @@
+## Interface: 120100
+## Title: Bejeweled Modernization
+## Version: 0.1.0-alpha
+## Notes: Mainline modernization of the legacy Bejeweled addon.
+## Author: Bejeweled Modernization Contributors
+## IconTexture: Interface\AddOns\Bejeweled\images\bejeweled_icon.tga
+## SavedVariables: BejeweledData
+## SavedVariablesPerCharacter: BejeweledProfile
+
+Core\Init.lua
+Core\Constants.lua
+Core\SavedVariables.lua
+Engine\Grid.lua

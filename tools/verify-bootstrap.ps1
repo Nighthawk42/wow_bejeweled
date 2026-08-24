@@ -16,7 +16,7 @@ function Assert-True {
 
 function Get-GitOutput {
     param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)
-    $result = & git @Arguments
+    $result = & rtk git @Arguments
     if ($LASTEXITCODE -ne 0) {
         throw "git $($Arguments -join ' ') failed"
     }
@@ -37,7 +37,7 @@ $forbidden = @($relativePaths | Where-Object {
 Assert-True ($forbidden.Count -eq 0) "Forbidden legacy/flavor files found: $($forbidden -join ', ')"
 
 $runtimeTocs = @($relativePaths | Where-Object { $_ -like 'Bejeweled/*.toc' })
-Assert-True ($runtimeTocs.Count -eq 0) "Runtime TOC found during analysis phase: $($runtimeTocs -join ', ')"
+Assert-True ($runtimeTocs.Count -eq 1 -and $runtimeTocs[0] -eq 'Bejeweled/Bejeweled_Mainline.toc') "Unexpected runtime TOC set: $($runtimeTocs -join ', ')"
 
 $legacyMappings = @{
     'Legacy/Bejeweled_Mainline.lua' = 'Bejeweled/Bejeweled_Mainline.lua'

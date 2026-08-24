@@ -1,6 +1,6 @@
 # Target architecture (post-analysis)
 
-This document records intended ownership only. It does not authorize runtime implementation before the analysis phase gate is satisfied.
+The analysis phase gate is satisfied. This ownership map now governs runtime implementation; currently implemented modules are `Core/Init.lua`, `Core/Constants.lua`, `Core/SavedVariables.lua`, and `Engine/Grid.lua`.
 
 ## Load order and ownership
 
