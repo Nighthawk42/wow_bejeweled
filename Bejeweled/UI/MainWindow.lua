@@ -7,6 +7,7 @@ local Backdrops = assert(addon.Backdrops, "Backdrops module is not loaded")
 local GemPool = assert(addon.GemPool, "GemPool module is not loaded")
 local Animations = assert(addon.Animations, "Animations module is not loaded")
 local HUD = assert(addon.HUD, "HUD module is not loaded")
+local Summary = assert(addon.Summary, "Summary module is not loaded")
 
 local MainWindow = {}
 MainWindow.__index = MainWindow
@@ -137,7 +138,7 @@ function MainWindow:CreateWindowFrame()
 	end)
 	frame.closeButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -8, -8)
 	frame.menuButton = self:CreateButton(frame, "Menu", 56, 26, function()
-		if self.activeOverlay then
+		if self.activeOverlay and self.activeOverlay ~= "summary" then
 			self:ResumeGame()
 		else
 			self:ShowMenu()
@@ -174,6 +175,15 @@ function MainWindow:CreateBoard()
 		createFrame = self.createFrame,
 		width = BOARD_WIDTH,
 		hintsEnabled = self.hintsEnabled,
+	})
+	self.summary = Summary:New(surface, {
+		createFrame = self.createFrame,
+		onNewGame = function()
+			return self:ShowModeMenu()
+		end,
+		onMenu = function()
+			return self:ShowMenu()
+		end,
 	})
 end
 
@@ -322,10 +332,22 @@ function MainWindow:New(uiParent, options)
 end
 
 function MainWindow:HideOverlays()
+	if self.summary then
+		self.summary:Hide()
+	end
 	for _, overlay in pairs(self.overlays) do
 		overlay:Hide()
 	end
 	self.activeOverlay = nil
+end
+
+function MainWindow:ShowSummary(result)
+	assert(type(result) == "table", "main window summary requires a result")
+	self:HideOverlays()
+	self.hud.summaryFrame:Hide()
+	self.summary:Show(result)
+	self.activeOverlay = "summary"
+	return self.summary
 end
 
 function MainWindow:ShowOverlay(name)
@@ -508,6 +530,9 @@ function MainWindow:StartGame(gameMode, restore, duration)
 			random = self.random,
 			audio = self.audio,
 		},
+		onGameOverComplete = function(result)
+			self:ShowSummary(result)
+		end,
 	})
 	self.session = session
 	self.gemPool:SetHandlers(session:CreateGemHandlers())

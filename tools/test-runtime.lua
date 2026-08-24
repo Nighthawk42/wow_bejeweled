@@ -53,6 +53,7 @@ LoadAddonFile("Bejeweled/UI/Backdrops.lua", addon)
 LoadAddonFile("Bejeweled/UI/GemPool.lua", addon)
 LoadAddonFile("Bejeweled/UI/Animations.lua", addon)
 LoadAddonFile("Bejeweled/UI/HUD.lua", addon)
+LoadAddonFile("Bejeweled/UI/Summary.lua", addon)
 LoadAddonFile("Bejeweled/UI/MainWindow.lua", addon)
 LoadAddonFile("Bejeweled/UI/Compartment.lua", addon)
 
@@ -1757,6 +1758,8 @@ AssertEqual(runtime.frame.height, addon.MainWindow.WINDOW_HEIGHT, "runtime windo
 AssertEqual(runtime.boardSurface.width, 400, "runtime board width")
 AssertEqual(runtime.boardSurface.height, 400, "runtime board height")
 AssertEqual(#runtime.gemPool.tiles, 16, "runtime board tile count")
+AssertEqual(runtime.summary.frame.width, 400, "runtime summary width")
+AssertEqual(runtime.summary.frame.height, 400, "runtime summary height")
 runtime:Show()
 assert(runtime.frame.shown, "runtime window did not show")
 assert(runtime:IsShown(), "runtime visibility state did not follow Show")
@@ -1825,9 +1828,52 @@ AssertEqual(timedRuntime.timeLimit, addon.MainWindow.DEFAULT_TIMED_DURATION, "ru
 AssertEqual(runtime.hud.levelPanel.caption.text, "PPS", "runtime Timed HUD mode")
 AssertEqual(sessionStarts[3].timeLimit, addon.MainWindow.DEFAULT_TIMED_DURATION, "runtime Timed callback duration")
 assert(not restoredClassic.active, "runtime Timed start left Classic active")
-timedRuntime:SetElapsed(1)
+timedRuntime.scoringState.score = 900
+timedRuntime.scoringState.level = 2
+timedRuntime.scoringState.largestCascade = 8
+timedRuntime.scoringState.largestCombo = 3
+timedRuntime.scoringState.moves = 12
+timedRuntime:SetElapsed(60)
 timedRuntime:BeginGameOver("runtime-restart-fixture")
 assert(timedRuntime:IsGameOver() and timedRuntime:IsLocked(), "runtime Timed fixture did not reach terminal state")
+assert(timedRuntime:GetGameOverSummary(), "runtime Timed summary handoff is unavailable")
+AssertEqual(runtime.activeOverlay, "summary", "completed runtime did not open the summary")
+assert(runtime.summary:IsShown(), "runtime summary frame remained hidden")
+assert(not runtime.hud.summaryFrame.shown, "runtime retained the compact HUD summary")
+AssertEqual(runtime.summary.frame.mode.text, "Timed Mode", "runtime summary mode")
+AssertEqual(runtime.summary.metrics.primary.caption.text, "Points per Second", "runtime summary primary caption")
+AssertEqual(runtime.summary.metrics.primary.value.text, "15.00", "runtime summary primary value")
+AssertEqual(runtime.summary.metrics.time.value.text, "1 min 0 sec", "runtime summary elapsed time")
+AssertEqual(runtime.summary.metrics.level.value.text, "2", "runtime summary level")
+AssertEqual(runtime.summary.metrics.cascade.value.text, "8", "runtime summary largest cascade")
+AssertEqual(runtime.summary.metrics.combo.value.text, "3", "runtime summary largest combo")
+AssertEqual(runtime.summary.metrics.moves.value.text, "12", "runtime summary moves")
+AssertEqual(runtime.summary.metrics.best.value.text, "15.00", "runtime summary personal best")
+runtime.summary.menuButton.scripts.OnClick()
+AssertEqual(runtime.activeOverlay, "menu", "runtime summary Menu action")
+assert(not runtime.summary:IsShown(), "runtime summary Menu action retained the summary")
+assert(not runtime.overlays.menu.resume.shown, "terminal runtime menu exposed Resume")
+local classicSummaryFixture = {
+	gameMode = addon.Constants.GAME_MODE_CLASSIC,
+	metricName = "score",
+	metric = 1234567,
+	elapsed = 75.9,
+	level = 9,
+	largestCascade = 14,
+	largestCombo = 6,
+	moves = 44,
+	personalBest = { best = 1234567 },
+}
+runtime:ShowSummary(classicSummaryFixture)
+AssertEqual(runtime.summary.frame.mode.text, "Classic Mode", "runtime Classic summary mode")
+AssertEqual(runtime.summary.metrics.primary.caption.text, "Final Score", "runtime Classic summary primary caption")
+AssertEqual(runtime.summary.metrics.primary.value.text, "1,234,567", "runtime Classic summary formatted score")
+AssertEqual(runtime.summary.metrics.time.value.text, "1 min 15 sec", "runtime Classic summary floored time")
+classicSummaryFixture.metric = 0
+AssertEqual(runtime.summary:GetResult().metric, 1234567, "runtime summary retained provider-owned result state")
+runtime.summary.newGameButton.scripts.OnClick()
+AssertEqual(runtime.activeOverlay, "mode", "runtime summary New Game action")
+assert(not runtime.summary:IsShown(), "runtime summary New Game action retained the summary")
 timedRuntime = runtime:StartTimed(60)
 assert(runtime.gemPool:GetFrame(1, 1).mouseEnabled, "runtime terminal replacement left gem input disabled")
 AssertEqual(timedRuntime.timeLimit, 60, "runtime custom Timed duration")
@@ -2246,6 +2292,7 @@ assert(addon.backdrops == addon.Backdrops, "addon initialization did not install
 assert(addon.gemPoolFactory == addon.GemPool, "addon initialization did not install GemPool")
 assert(addon.animationFactory == addon.Animations, "addon initialization did not install Animations")
 assert(addon.hudFactory == addon.HUD, "addon initialization did not install HUD")
+assert(addon.summaryFactory == addon.Summary, "addon initialization did not install Summary")
 assert(addon.mainWindowFactory == addon.MainWindow, "addon initialization did not install MainWindow")
 assert(addon.compartment == addon.Compartment, "addon initialization did not install Compartment")
 assert(addon.inputFactory == addon.Input, "addon initialization did not install Input")
@@ -2266,6 +2313,7 @@ assert(addon.backdrops == initializedBackdrops, "backdrop initialization is not 
 assert(addon.gemPoolFactory == initializedGemPoolFactory, "GemPool initialization is not idempotent")
 assert(addon.animationFactory == initializedAnimationFactory, "Animations initialization is not idempotent")
 assert(addon.hudFactory == initializedHUDFactory, "HUD initialization is not idempotent")
+assert(addon.summaryFactory == addon.Summary, "Summary initialization is not idempotent")
 assert(addon.mainWindowFactory == addon.MainWindow, "MainWindow initialization is not idempotent")
 assert(addon.compartment == addon.Compartment, "Compartment initialization is not idempotent")
 assert(addon.inputFactory == initializedInputFactory, "Input initialization is not idempotent")
@@ -2351,4 +2399,4 @@ end
 addon:TestCompartmentForTest()
 addon.TestCompartmentForTest = nil
 
-print("Runtime verification passed: Timed setup/flight boundary, addon-compartment access, playable Classic/Timed window shell, HUD, pause/restore/level/game-over sessions, input, cascade/effect animation, gem projection, UI backdrops, audio, SavedVariables, and deterministic gameplay engine.")
+print("Runtime verification passed: full local summary, Timed setup/flight boundary, addon-compartment access, playable Classic/Timed window shell, HUD, pause/restore/level/game-over sessions, input, cascade/effect animation, gem projection, UI backdrops, audio, SavedVariables, and deterministic gameplay engine.")

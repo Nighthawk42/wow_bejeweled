@@ -24,5 +24,6 @@ UI\Backdrops.lua
 UI\GemPool.lua
 UI\Animations.lua
 UI\HUD.lua
+UI\Summary.lua
 UI\MainWindow.lua
 UI\Compartment.lua
