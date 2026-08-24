@@ -142,6 +142,9 @@ local function CreateMockTexture(layer)
 	function texture:SetAlpha(alpha)
 		self.alpha = alpha
 	end
+	function texture:SetVertexColor(red, green, blue, alpha)
+		self.vertexColor = { red, green, blue, alpha }
+	end
 	function texture:SetRotation(radians)
 		self.rotation = radians
 	end
@@ -152,6 +155,24 @@ local function CreateMockTexture(layer)
 		self.shown = false
 	end
 	return texture
+end
+
+local function CreateMockFontString(layer)
+	local fontString = CreateMockTexture(layer)
+	function fontString:ClearAllPoints()
+		self.points = {}
+	end
+	function fontString:SetText(text)
+		self.text = text
+	end
+	function fontString:SetTextColor(red, green, blue, alpha)
+		self.textColor = { red, green, blue, alpha }
+	end
+	function fontString:SetFont(path, size, flags)
+		self.font = { path, size, flags }
+		return true
+	end
+	return fontString
 end
 
 local function CreateMockLine(layer)
@@ -208,6 +229,12 @@ local function CreateGemPoolFrame(frameType, name, parent, template)
 		self.createdLines = self.createdLines or {}
 		self.createdLines[#self.createdLines + 1] = line
 		return line
+	end
+	function frame:CreateFontString(name, layer)
+		local fontString = CreateMockFontString(layer)
+		self.createdFontStrings = self.createdFontStrings or {}
+		self.createdFontStrings[#self.createdFontStrings + 1] = fontString
+		return fontString
 	end
 	function frame:CreateAnimationGroup()
 		local group = {
@@ -827,6 +854,87 @@ assert(cancelledExplosionRun.cancelled, "cancelled explosion run was not marked"
 assert(not cancelledExplosionFrame.shown, "cancelled explosion remained visible")
 AssertEqual(#animations.activeExplosions, 0, "cancelled explosion remained active")
 AssertEqual(#animations.explosionPool, 1, "cancelled explosion was not pooled")
+
+animations:ClearTransientEffects()
+assert(#animations.shardPool >= 30, "cascade clears did not emit pooled ten-shard bursts")
+animations.random = MakeRandom(7007)
+animations.hintDelay = 0.05
+local hint = animations:ShowHint(2, 3)
+assert(not hint.shown, "new hint bypassed its delay")
+AssertEqual(hint.texture.path, addon.Constants.IMAGE_ROOT .. "hintArrow", "hint texture")
+animations:UpdateEffects(0.025)
+animations:UpdateEffects(0.025)
+assert(not hint.shown, "hint appeared at rather than after its delay")
+animations:UpdateEffects(0.025)
+assert(hint.shown, "hint did not appear after its delay")
+AssertEqual(hint.bounceY, 1, "hint initial bounce step")
+local pausedHintBounce = hint.bounceY
+animations:Pause()
+assert(not animations:UpdateEffects(1), "paused effects clock advanced")
+AssertEqual(hint.bounceY, pausedHintBounce, "paused hint continued bouncing")
+animations:Resume()
+assert(animations:HideHint(), "active hint was not hidden")
+assert(not hint.shown, "hidden hint remained visible")
+
+local shard = animations:PlayShard(2, 3, 4, {
+	xVelocity = 1,
+	yVelocity = 11,
+	effectFrame = 12,
+})
+AssertEqual(shard.texture.path, addon.Constants.IMAGE_ROOT .. "gemshards", "shard texture")
+AssertEqual(shard.texture.vertexColor[1], addon.Constants.GEM_EFFECT_COLORS[4][1], "shard color")
+local shardX = shard.x
+animations:UpdateEffects(0.025)
+AssertEqual(shard.effectFrame, 1, "shard atlas wrap")
+AssertEqual(shard.x, shardX + 1, "shard horizontal integration")
+AssertEqual(shard.yVelocity, 11.5, "shard gravity integration")
+AssertEqual(shard.alpha, 0.85, "shard fade threshold")
+for _ = 1, 20 do
+	animations:UpdateEffects(0.025)
+end
+AssertEqual(#animations.activeShards, 0, "finished shard remained active")
+local pooledShard = animations.shardPool[#animations.shardPool]
+local reusedShard = animations:PlayShard(1, 1, 3, { effectFrame = 1 })
+assert(reusedShard == pooledShard, "shard pool did not reuse its frame")
+animations:ClearTransientEffects()
+
+local scoreText = animations:PlayFloatingText(100, 100, 30, 3, false)
+AssertEqual(scoreText.text, "30", "floating score text")
+AssertEqual(scoreText.font[1], addon.Constants.IMAGE_ROOT .. "Contb___.ttf", "floating text font")
+AssertEqual(scoreText.textColor[3], addon.Constants.GEM_EFFECT_COLORS[3][3], "floating score color")
+animations:UpdateEffects(0.025)
+AssertEqual(scoreText.y, 99.75, "floating score upward motion")
+for _ = 1, 80 do
+	animations:UpdateEffects(0.025)
+end
+AssertEqual(#animations.activeFloatingText, 0, "finished floating score remained active")
+AssertEqual(#animations.floatingTextPool, 1, "floating score was not pooled")
+local skillText = animations:PlayFloatingText(120, 80, "+1 Skill", 3, true)
+assert(skillText == scoreText, "floating text pool did not reuse its font string")
+AssertEqual(skillText.textColor[1], 1, "nonscore floating text red channel")
+AssertEqual(skillText.textColor[2], 0.4, "nonscore floating text green channel")
+animations:UpdateEffects(0.025)
+AssertEqual(skillText.y, 80.25, "nonscore floating text downward motion")
+animations:ClearTransientEffects()
+
+local lightwave = animations:PlayLightwave(1, 1, 0)
+AssertEqual(lightwave.effectFrame, -1, "lightwave initial delay frame")
+AssertEqual(lightwave.texture.texCoord[1], 0.33, "lightwave atlas cell")
+animations:UpdateEffects(0.025)
+animations:UpdateEffects(0.025)
+AssertEqual(lightwave.effectFrame, 1, "lightwave activation frame")
+AssertEqual(lightwave.alpha, 0.9, "lightwave activation alpha")
+AssertEqual(#animations.activeLightwaves, 2, "lightwave did not propagate right")
+AssertEqual(animations.activeLightwaves[2].column, 2, "propagated lightwave column")
+animations:ClearTransientEffects()
+animations.lightwavePeriod = 0.05
+assert(animations:SetAmbientLightwaves(true), "ambient lightwaves were not enabled")
+animations:UpdateEffects(0.025)
+animations:UpdateEffects(0.025)
+animations:UpdateEffects(0.025)
+AssertEqual(#animations.activeLightwaves, addon.Constants.GRID_HEIGHT, "ambient lightwave row count")
+assert(animations:SetAmbientLightwaves(false), "ambient lightwaves were not disabled")
+AssertEqual(#animations.activeLightwaves, 0, "disabled ambient lightwaves remained active")
 
 local inputGrid = addon.Grid:New()
 FillStablePattern(inputGrid)
@@ -1758,4 +1866,4 @@ assert(addon.animationFactory == initializedAnimationFactory, "Animations initia
 assert(addon.inputFactory == initializedInputFactory, "Input initialization is not idempotent")
 assert(addon.sessionFactory == initializedSessionFactory, "Session initialization is not idempotent")
 
-print("Runtime verification passed: pause/restore/level/game-over sessions, input, cascade animation, gem projection, UI backdrops, audio, SavedVariables, and deterministic gameplay engine.")
+print("Runtime verification passed: pause/restore/level/game-over sessions, input, cascade/effect animation, gem projection, UI backdrops, audio, SavedVariables, and deterministic gameplay engine.")

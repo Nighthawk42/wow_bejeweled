@@ -10,12 +10,22 @@ local DEFAULT_FALL_PER_CELL = 0.05
 local DEFAULT_MINIMUM_FALL_DURATION = 0.1
 local DEFAULT_EFFECT_INTERVAL = 0.025
 local DEFAULT_SWAP_DURATION = Constants.GEM_WIDTH / 150
+local DEFAULT_HINT_DELAY = 25
+local DEFAULT_LIGHTWAVE_PERIOD = 25
 local HYPER_FRAME_COUNT = 40
 local EXPLOSION_FRAME_COUNT = 16
 local LIGHTNING_FRAME_COUNT = 15
+local SHARD_ATLAS_FRAME_COUNT = 16
+local SHARD_MOTION_FRAME_COUNT = 12
+local LIGHTWAVE_FRAME_COUNT = 10
+local FLOATING_TEXT_HOLD_FRAME = 10
+local FLOATING_TEXT_END_FRAME = 20
+local SHARDS_PER_BURST = 10
 local POWER_STAR_SIZE = 90
 local EXPLOSION_SIZE = 150
 local LIGHTNING_THICKNESS = 10
+local SHARD_SIZE = 24
+local HINT_SIZE = 64
 
 local function BuildHyperAtlas()
 	local atlas = {}
@@ -48,8 +58,35 @@ local function BuildExplosionAtlas()
 	return atlas
 end
 
+local function BuildShardAtlas()
+	local atlas = {}
+	for row = 0, 3 do
+		for column = 0, 3 do
+			atlas[#atlas + 1] = {
+				column * 0.25,
+				(column + 1) * 0.25,
+				row * 0.25,
+				(row + 1) * 0.25,
+			}
+		end
+	end
+	return atlas
+end
+
+local function BuildLightwaveAtlas()
+	local atlas = {}
+	for row = 0, 2 do
+		atlas[#atlas + 1] = { 0, 42.66 / 128, row * 0.33, (row + 1) * 0.33 }
+		atlas[#atlas + 1] = { 0.33, 85.33 / 128, row * 0.33, (row + 1) * 0.33 }
+		atlas[#atlas + 1] = { 0.66, 1, row * 0.33, (row + 1) * 0.33 }
+	end
+	return atlas
+end
+
 local HYPER_ATLAS = BuildHyperAtlas()
 local EXPLOSION_ATLAS = BuildExplosionAtlas()
+local SHARD_ATLAS = BuildShardAtlas()
+local LIGHTWAVE_ATLAS = BuildLightwaveAtlas()
 
 local function SetTexCoord(texture, coordinates)
 	texture:SetTexCoord(coordinates[1], coordinates[2], coordinates[3], coordinates[4])
@@ -176,11 +213,15 @@ function Animations:New(gemPool, options)
 	instance.minimumFallDuration = options.minimumFallDuration or DEFAULT_MINIMUM_FALL_DURATION
 	instance.effectInterval = options.effectInterval or DEFAULT_EFFECT_INTERVAL
 	instance.swapDuration = options.swapDuration or DEFAULT_SWAP_DURATION
+	instance.hintDelay = options.hintDelay or DEFAULT_HINT_DELAY
+	instance.lightwavePeriod = options.lightwavePeriod or DEFAULT_LIGHTWAVE_PERIOD
 	assert(type(instance.clearDuration) == "number" and instance.clearDuration > 0, "clear duration must be positive")
 	assert(type(instance.fallPerCell) == "number" and instance.fallPerCell > 0, "fall duration per cell must be positive")
 	assert(type(instance.minimumFallDuration) == "number" and instance.minimumFallDuration > 0, "minimum fall duration must be positive")
 	assert(type(instance.effectInterval) == "number" and instance.effectInterval > 0, "effect interval must be positive")
 	assert(type(instance.swapDuration) == "number" and instance.swapDuration > 0, "swap duration must be positive")
+	assert(type(instance.hintDelay) == "number" and instance.hintDelay >= 0, "hint delay must be nonnegative")
+	assert(type(instance.lightwavePeriod) == "number" and instance.lightwavePeriod > 0, "lightwave period must be positive")
 	instance.callbacks = CopyCallbacks({}, options)
 	instance.generation = 0
 	instance.active = nil
@@ -190,6 +231,17 @@ function Animations:New(gemPool, options)
 	instance.explosionPool = {}
 	instance.activeLightning = {}
 	instance.lightningPool = {}
+	instance.activeShards = {}
+	instance.shardPool = {}
+	instance.activeLightwaves = {}
+	instance.lightwavePool = {}
+	instance.activeFloatingText = {}
+	instance.floatingTextPool = {}
+	instance.hint = nil
+	instance.ambientLightwaves = false
+	instance.lightwaveElapsed = 0
+	instance.random = options.random or math.random
+	assert(type(instance.random) == "function", "animation random provider must be a function")
 	instance.createFrame = options.createFrame or gemPool.createFrame or CreateFrame
 	assert(type(instance.createFrame) == "function", "CreateFrame is unavailable for animation effects")
 	instance.effectParent = options.effectParent or gemPool.parent
@@ -222,6 +274,7 @@ function Animations:BuildPlan(cascadeResult)
 			refills = {},
 			explosions = {},
 			lightning = {},
+			shards = {},
 		}
 
 		for index = 1, #removedCells do
@@ -233,6 +286,12 @@ function Animations:BuildPlan(cascadeResult)
 				x = record.x,
 				y = record.y,
 				duration = self.clearDuration,
+				record = record,
+			}
+			step.shards[index] = {
+				x = record.x,
+				y = record.y,
+				contents = record.contents,
 				record = record,
 			}
 		end
@@ -611,6 +670,254 @@ function Animations:PlayExplosion(column, row, onFinished, run)
 	return explosion
 end
 
+function Animations:CreateShardFrame()
+	local frame = self.createFrame("Frame", nil, self.effectParent)
+	frame:SetWidth(SHARD_SIZE)
+	frame:SetHeight(SHARD_SIZE)
+	if self.effectParent and type(self.effectParent.GetFrameLevel) == "function" then
+		frame:SetFrameLevel(self.effectParent:GetFrameLevel() + 5)
+	end
+	frame.texture = frame:CreateTexture(nil, "OVERLAY")
+	SetTextureSize(frame.texture, SHARD_SIZE, SHARD_SIZE)
+	frame.texture:SetPoint("CENTER")
+	frame.texture:SetTexture(Constants.IMAGE_ROOT .. "gemshards")
+	frame:Hide()
+	return frame
+end
+
+function Animations:ReleaseShard(shard)
+	for index = #self.activeShards, 1, -1 do
+		if self.activeShards[index] == shard then
+			table.remove(self.activeShards, index)
+			break
+		end
+	end
+	if shard.run then
+		shard.run.activeShards[shard] = nil
+	end
+	shard.run = nil
+	shard:Hide()
+	self.shardPool[#self.shardPool + 1] = shard
+end
+
+function Animations:PlayShard(column, row, contents, options, run)
+	AssertCoordinate(column, Constants.GRID_WIDTH, "shard column")
+	AssertCoordinate(row, Constants.GRID_HEIGHT, "shard row")
+	options = options or {}
+	assert(type(options) == "table", "shard options must be a table")
+	local color = Constants.GEM_EFFECT_COLORS[contents] or Constants.GEM_EFFECT_COLORS[Constants.HYPER_CONTENTS]
+	local shard = table.remove(self.shardPool) or self:CreateShardFrame()
+	local x = (column - 1) * Constants.GEM_WIDTH + Constants.GEM_WIDTH / 2 - self.random(1, SHARD_SIZE)
+	local y = (row - 1) * Constants.GEM_HEIGHT + Constants.GEM_HEIGHT / 2 - self.random(1, SHARD_SIZE)
+	shard.x = x
+	shard.y = y
+	shard.xVelocity = options.xVelocity or 0
+	shard.yVelocity = options.yVelocity or 0
+	shard.effectFrame = options.effectFrame or self.random(1, SHARD_MOTION_FRAME_COUNT)
+	assert(
+		type(shard.effectFrame) == "number"
+			and shard.effectFrame == math.floor(shard.effectFrame)
+			and shard.effectFrame >= 1
+			and shard.effectFrame <= SHARD_ATLAS_FRAME_COUNT,
+		"shard atlas frame is invalid"
+	)
+	shard.run = run
+	shard:ClearAllPoints()
+	shard:SetPoint("TOPLEFT", self.effectParent, "TOPLEFT", x, -y)
+	shard.texture:SetVertexColor(color[1], color[2], color[3], 1)
+	SetTexCoord(shard.texture, SHARD_ATLAS[shard.effectFrame])
+	shard:SetAlpha(1)
+	shard:Show()
+	self.activeShards[#self.activeShards + 1] = shard
+	if run then
+		run.activeShards[shard] = true
+	end
+	return shard
+end
+
+function Animations:PlayShardBurst(column, row, contents, run)
+	local shards = {}
+	for index = 1, SHARDS_PER_BURST do
+		local direction = index <= SHARDS_PER_BURST / 2 and -1 or 1
+		local speed = self.random(4, 7)
+		shards[index] = self:PlayShard(column, row, contents, {
+			xVelocity = direction * (speed + self.random(1, speed)),
+			yVelocity = -self.random(1, 5),
+		}, run)
+	end
+	return shards
+end
+
+function Animations:CreateLightwaveFrame()
+	local frame = self.createFrame("Frame", nil, self.effectParent)
+	frame:SetWidth(Constants.GEM_WIDTH)
+	frame:SetHeight(Constants.GEM_HEIGHT)
+	if self.effectParent and type(self.effectParent.GetFrameLevel) == "function" then
+		frame:SetFrameLevel(self.effectParent:GetFrameLevel() + 3)
+	end
+	frame.texture = frame:CreateTexture(nil, "OVERLAY")
+	SetTextureSize(frame.texture, Constants.GEM_WIDTH, Constants.GEM_HEIGHT)
+	frame.texture:SetPoint("CENTER")
+	frame:Hide()
+	return frame
+end
+
+function Animations:ReleaseLightwave(lightwave)
+	for index = #self.activeLightwaves, 1, -1 do
+		if self.activeLightwaves[index] == lightwave then
+			table.remove(self.activeLightwaves, index)
+			break
+		end
+	end
+	lightwave:Hide()
+	self.lightwavePool[#self.lightwavePool + 1] = lightwave
+end
+
+function Animations:PlayLightwave(column, row, delayRows)
+	AssertCoordinate(column, Constants.GRID_WIDTH, "lightwave column")
+	AssertCoordinate(row, Constants.GRID_HEIGHT, "lightwave row")
+	delayRows = delayRows or 0
+	assert(type(delayRows) == "number" and delayRows >= 0, "lightwave delay must be nonnegative")
+	local source = self.gemPool:GetFrame(column, row)
+	local contents = source.projectedContents
+	local textureName = Constants.GEM_COLOR_TEXTURE_NAMES[contents]
+	local lightwave = table.remove(self.lightwavePool) or self:CreateLightwaveFrame()
+	lightwave.column = column
+	lightwave.row = row
+	lightwave.effectFrame = -(delayRows * 2) - 1
+	lightwave:ClearAllPoints()
+	lightwave:SetPoint(
+		"TOPLEFT",
+		self.effectParent,
+		"TOPLEFT",
+		(column - 1) * Constants.GEM_WIDTH,
+		-((row - 1) * Constants.GEM_HEIGHT)
+	)
+	lightwave.texture:SetTexture(
+		textureName and (Constants.IMAGE_ROOT .. "highlight_" .. textureName)
+			or (Constants.IMAGE_ROOT .. "highlight_white")
+	)
+	SetTexCoord(lightwave.texture, LIGHTWAVE_ATLAS[2])
+	lightwave:SetAlpha(0)
+	lightwave:Show()
+	self.activeLightwaves[#self.activeLightwaves + 1] = lightwave
+	return lightwave
+end
+
+function Animations:SetAmbientLightwaves(enabled)
+	assert(type(enabled) == "boolean", "ambient lightwave state must be Boolean")
+	if self.ambientLightwaves == enabled then
+		return false
+	end
+	self.ambientLightwaves = enabled
+	self.lightwaveElapsed = 0
+	if not enabled then
+		for index = #self.activeLightwaves, 1, -1 do
+			self:ReleaseLightwave(self.activeLightwaves[index])
+		end
+	end
+	return true
+end
+
+function Animations:CreateFloatingText()
+	assert(type(self.effectFrame.CreateFontString) == "function", "animation effect frame cannot create font strings")
+	local fontString = self.effectFrame:CreateFontString(nil, "OVERLAY")
+	fontString:SetFont(Constants.IMAGE_ROOT .. "Contb___.ttf", 30, "OUTLINE")
+	fontString:Hide()
+	return fontString
+end
+
+function Animations:ReleaseFloatingText(floatingText)
+	for index = #self.activeFloatingText, 1, -1 do
+		if self.activeFloatingText[index] == floatingText then
+			table.remove(self.activeFloatingText, index)
+			break
+		end
+	end
+	floatingText:Hide()
+	self.floatingTextPool[#self.floatingTextPool + 1] = floatingText
+end
+
+function Animations:PlayFloatingText(x, y, text, contents, notScore)
+	assert(type(x) == "number" and type(y) == "number", "floating text coordinates must be numeric")
+	assert(type(text) == "string" or type(text) == "number", "floating text requires text")
+	local floatingText = table.remove(self.floatingTextPool) or self:CreateFloatingText()
+	local color = Constants.GEM_EFFECT_COLORS[contents] or Constants.GEM_EFFECT_COLORS[Constants.HYPER_CONTENTS]
+	floatingText:SetText(tostring(text))
+	if notScore then
+		floatingText:SetTextColor(1, 0.4, 1, 1)
+	else
+		floatingText:SetTextColor(color[1], color[2], color[3], 1)
+	end
+	floatingText.x = x
+	floatingText.y = y
+	floatingText.notScore = notScore and true or false
+	floatingText.effectFrame = 0
+	floatingText:ClearAllPoints()
+	floatingText:SetPoint("TOPLEFT", self.effectParent, "TOPLEFT", x, -y)
+	floatingText:SetAlpha(1)
+	floatingText:Show()
+	self.activeFloatingText[#self.activeFloatingText + 1] = floatingText
+	return floatingText
+end
+
+function Animations:CreateHintFrame()
+	local frame = self.createFrame("Frame", nil, self.effectParent)
+	frame:SetWidth(HINT_SIZE)
+	frame:SetHeight(HINT_SIZE)
+	if self.effectParent and type(self.effectParent.GetFrameLevel) == "function" then
+		frame:SetFrameLevel(self.effectParent:GetFrameLevel() + 6)
+	end
+	frame.texture = frame:CreateTexture(nil, "OVERLAY")
+	SetTextureSize(frame.texture, HINT_SIZE, HINT_SIZE)
+	frame.texture:SetPoint("CENTER")
+	frame.texture:SetTexture(Constants.IMAGE_ROOT .. "hintArrow")
+	frame:Hide()
+	return frame
+end
+
+function Animations:ShowHint(column, row)
+	AssertCoordinate(column, Constants.GRID_WIDTH, "hint column")
+	AssertCoordinate(row, Constants.GRID_HEIGHT, "hint row")
+	local hint = self.hint or self:CreateHintFrame()
+	self.hint = hint
+	hint.column = column
+	hint.row = row
+	hint.x = (column - 1) * Constants.GEM_WIDTH + 2
+	hint.y = (row - 1) * Constants.GEM_HEIGHT - Constants.GEM_HEIGHT / 2
+	hint.elapsed = 0
+	hint.bounceY = 0
+	hint.bounceDirection = 1
+	hint.active = true
+	hint:SetAlpha(1)
+	hint:ClearAllPoints()
+	hint:SetPoint("TOPLEFT", self.effectParent, "TOPLEFT", hint.x, -hint.y)
+	hint:Hide()
+	return hint
+end
+
+function Animations:HideHint()
+	if not self.hint or not self.hint.active then
+		return false
+	end
+	self.hint.active = false
+	self.hint:Hide()
+	return true
+end
+
+function Animations:ClearTransientEffects()
+	self:HideHint()
+	for index = #self.activeShards, 1, -1 do
+		self:ReleaseShard(self.activeShards[index])
+	end
+	for index = #self.activeLightwaves, 1, -1 do
+		self:ReleaseLightwave(self.activeLightwaves[index])
+	end
+	for index = #self.activeFloatingText, 1, -1 do
+		self:ReleaseFloatingText(self.activeFloatingText[index])
+	end
+end
+
 function Animations:UpdateEffects(elapsed)
 	assert(type(elapsed) == "number" and elapsed >= 0, "animation elapsed time must be nonnegative")
 	if self.paused then
@@ -620,6 +927,7 @@ function Animations:UpdateEffects(elapsed)
 	if self.effectElapsed < self.effectInterval then
 		return false
 	end
+	local tickElapsed = self.effectElapsed
 	self.effectElapsed = 0
 	self:SyncPersistentEffects(true)
 	for index = #self.activeExplosions, 1, -1 do
@@ -648,6 +956,93 @@ function Animations:UpdateEffects(elapsed)
 				lightning.effectFrame = nextFrame
 				lightning.highlight:SetAlpha(math.fmod(nextFrame, 2) == 1 and 0.2 or 0.6)
 			end
+		end
+	end
+	for index = #self.activeShards, 1, -1 do
+		local shard = self.activeShards[index]
+		local nextFrame = shard.effectFrame + 1
+		if nextFrame > SHARD_MOTION_FRAME_COUNT then
+			nextFrame = 1
+		end
+		shard.effectFrame = nextFrame
+		shard.x = shard.x + shard.xVelocity
+		shard.y = shard.y + shard.yVelocity
+		shard:ClearAllPoints()
+		shard:SetPoint("TOPLEFT", self.effectParent, "TOPLEFT", shard.x, -shard.y)
+		shard.yVelocity = shard.yVelocity + 20 * tickElapsed
+		if shard.xVelocity > 0 and shard.xVelocity < 8 then
+			shard.xVelocity = shard.xVelocity + 0.1
+		elseif shard.xVelocity < 0 and shard.xVelocity > -8 then
+			shard.xVelocity = shard.xVelocity - 0.1
+		end
+		if shard.yVelocity >= 20 then
+			self:ReleaseShard(shard)
+		else
+			if shard.yVelocity > 10 then
+				shard:SetAlpha(1 - ((shard.yVelocity - 10) / 10))
+			end
+			SetTexCoord(shard.texture, SHARD_ATLAS[nextFrame])
+		end
+	end
+	if self.ambientLightwaves then
+		self.lightwaveElapsed = self.lightwaveElapsed + tickElapsed
+		if self.lightwaveElapsed > self.lightwavePeriod then
+			self.lightwaveElapsed = 0
+			for row = 1, Constants.GRID_HEIGHT do
+				self:PlayLightwave(1, row, row)
+			end
+		end
+	end
+	for index = #self.activeLightwaves, 1, -1 do
+		local lightwave = self.activeLightwaves[index]
+		local nextFrame = lightwave.effectFrame + 1
+		lightwave.effectFrame = nextFrame
+		if nextFrame == 1 and lightwave.column < Constants.GRID_WIDTH then
+			self:PlayLightwave(lightwave.column + 1, lightwave.row, 0)
+		end
+		if nextFrame >= LIGHTWAVE_FRAME_COUNT then
+			self:ReleaseLightwave(lightwave)
+		elseif nextFrame > 0 then
+			lightwave:SetAlpha((LIGHTWAVE_FRAME_COUNT - nextFrame) / LIGHTWAVE_FRAME_COUNT)
+		else
+			lightwave:SetAlpha(0)
+		end
+	end
+	for index = #self.activeFloatingText, 1, -1 do
+		local floatingText = self.activeFloatingText[index]
+		local step = 10 * tickElapsed
+		local nextFrame = floatingText.effectFrame + step
+		if nextFrame > FLOATING_TEXT_END_FRAME then
+			self:ReleaseFloatingText(floatingText)
+		else
+			if nextFrame > FLOATING_TEXT_HOLD_FRAME then
+				floatingText:SetAlpha(1 - ((nextFrame - FLOATING_TEXT_HOLD_FRAME) / FLOATING_TEXT_HOLD_FRAME))
+			end
+			if floatingText.notScore then
+				floatingText.y = floatingText.y + step
+			else
+				floatingText.y = floatingText.y - step
+			end
+			floatingText:ClearAllPoints()
+			floatingText:SetPoint("TOPLEFT", self.effectParent, "TOPLEFT", floatingText.x, -floatingText.y)
+			floatingText.effectFrame = nextFrame
+		end
+	end
+	local hint = self.hint
+	if hint and hint.active then
+		hint.elapsed = hint.elapsed + tickElapsed
+		if hint.elapsed > self.hintDelay then
+			hint:Show()
+			hint.bounceY = hint.bounceY + hint.bounceDirection
+			if hint.bounceY >= 10 then
+				hint.bounceY = 10
+				hint.bounceDirection = -1
+			elseif hint.bounceY <= 0 then
+				hint.bounceY = 0
+				hint.bounceDirection = 1
+			end
+			hint:ClearAllPoints()
+			hint:SetPoint("TOPLEFT", self.effectParent, "TOPLEFT", hint.x, -hint.y + hint.bounceY)
 		end
 	end
 	return true
@@ -696,6 +1091,10 @@ function Animations:CompleteRun(run)
 	self:SyncPersistentEffects(false)
 	self.gemPool:SetInteractive(not self.paused)
 	self.active = nil
+	for shard in pairs(run.activeShards) do
+		shard.run = nil
+	end
+	run.activeShards = {}
 	run.completed = true
 	if run.callbacks.onComplete then
 		run.callbacks.onComplete(run)
@@ -773,6 +1172,10 @@ function Animations:PlayStep(run, stepIndex)
 		return
 	end
 	local groups = {}
+	for index = 1, #step.shards do
+		local shard = step.shards[index]
+		self:PlayShardBurst(shard.x, shard.y, shard.contents, run)
+	end
 	for index = 1, #step.clear do
 		local clear = step.clear[index]
 		local frame = self.gemPool:GetFrame(clear.x, clear.y)
@@ -822,6 +1225,7 @@ function Animations:PlaySwap(firstX, firstY, secondX, secondY, rollback, finalGr
 		activeGroups = {},
 		activeExplosions = {},
 		activeLightning = {},
+		activeShards = {},
 		pending = 0,
 		cancelled = false,
 		completed = false,
@@ -878,6 +1282,7 @@ function Animations:Play(cascadeResult, finalGrid, callbacks)
 		activeGroups = {},
 		activeExplosions = {},
 		activeLightning = {},
+		activeShards = {},
 		pending = 0,
 		cancelled = false,
 		completed = false,
@@ -915,9 +1320,17 @@ function Animations:Cancel(reason)
 	for index = 1, #lightning do
 		self:ReleaseLightning(lightning[index], false)
 	end
+	local shards = {}
+	for shard in pairs(run.activeShards) do
+		shards[#shards + 1] = shard
+	end
+	for index = 1, #shards do
+		self:ReleaseShard(shards[index])
+	end
 	run.activeGroups = {}
 	run.activeExplosions = {}
 	run.activeLightning = {}
+	run.activeShards = {}
 	run.pending = 0
 	self.gemPool:ResetPresentation(run.finalGrid)
 	self:SyncPersistentEffects(false)

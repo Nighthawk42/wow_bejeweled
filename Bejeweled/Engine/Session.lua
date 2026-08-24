@@ -180,6 +180,9 @@ function Session:New(grid, gemPool, animations, options)
 		end
 	end
 	instance.input = Input:New(grid, gemPool, animations, inputOptions)
+	if type(animations.SetAmbientLightwaves) == "function" then
+		animations:SetAmbientLightwaves(instance.active)
+	end
 	return instance
 end
 
@@ -329,6 +332,9 @@ function Session:BeginLevelTransition(sourceMove)
 	assert(self.scoringState.levelPending, "scoring state has no pending level")
 
 	self.input:SetSessionLocked(true, "level-transition")
+	if type(self.animations.HideHint) == "function" then
+		self.animations:HideHint()
+	end
 	self.levelTransitionSequence = self.levelTransitionSequence + 1
 	local record = {
 		status = "started",
@@ -413,6 +419,12 @@ function Session:BeginGameOver(cause, sourceMove)
 	self.active = false
 	self.gameOver = true
 	self.input:SetSessionLocked(true, "game-over")
+	if type(self.animations.HideHint) == "function" then
+		self.animations:HideHint()
+	end
+	if type(self.animations.SetAmbientLightwaves) == "function" then
+		self.animations:SetAmbientLightwaves(false)
+	end
 
 	local playerName = self:ResolvePlayerName()
 	local gameCounts = self.savedVariables:RecordCompletedGame(self.accountData, self.profile, playerName)
@@ -551,6 +563,11 @@ function Session:RestoreClassicGame(options)
 	self.gameMode = Constants.GAME_MODE_CLASSIC
 	self.timerElapsed = restored.elapsed
 	self.active = true
+	self.gameOver = false
+	self.gameOverSummary = nil
+	if type(self.animations.SetAmbientLightwaves) == "function" then
+		self.animations:SetAmbientLightwaves(true)
+	end
 	self.input.moves = restored.moves
 	self.input:ClearSelection("restore")
 	self.gemPool:Project(self.grid, true)
