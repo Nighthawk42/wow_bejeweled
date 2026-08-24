@@ -6,7 +6,7 @@ This branch is an analysis-only bootstrap for a Mainline-first modernization of 
 
 The preserved 8,401-line Mainline source must be analyzed sequentially, in evidence-backed batches, before runtime work begins. All behavior-critical shortened symbols must be resolved and all batches must be complete before any public Lua API, runtime module, modern TOC, packaging, or release work is added.
 
-All 17 batches (lines 1–8,401) are documented. Runtime work remains gated on a cross-batch audit that resolves or classifies the remaining behavior-critical `working`/`unresolved` ledger entries and verifies every retained Retail API contract.
+All 17 batches (lines 1–8,401) are documented, the cross-batch identifier audit has no remaining `working` or `unresolved` declarations, and the retained Retail API contracts are pinned in `docs/api-baseline.md`. The analysis phase gate is closed; runtime work may begin in a separate implementation phase while preserving the documented compatibility constraints.
 
 ## Goal
 

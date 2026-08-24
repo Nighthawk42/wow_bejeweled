@@ -1,6 +1,6 @@
 # Retail API baseline
 
-The modernization baseline is the authoritative WoW API source snapshot for live build `12.1.0.69404`, Interface `120100`. These constraints apply to future runtime work; this branch contains no runtime implementation.
+The modernization baseline is the authoritative WoW UI/API source snapshot for live build `12.1.0.69404`, Interface `120100`, pinned at Gethe/wow-ui-source commit [`81d15e42f16f3473131880500e7a8c8eb88fa5e6`](https://github.com/Gethe/wow-ui-source/commit/81d15e42f16f3473131880500e7a8c8eb88fa5e6). These constraints apply to future runtime work; this branch contains no runtime implementation.
 
 | Area | Verified constraint | Future use |
 | --- | --- | --- |
@@ -10,5 +10,18 @@ The modernization baseline is the authoritative WoW API source snapshot for live
 | Metadata | Addon metadata access is provided by `C_AddOns`. | Route future metadata queries through `C_AddOns`. |
 | Animation | Frames expose `CreateAnimationGroup`, and groups expose `CreateAnimation`. | Prefer animation objects where their timing and cancellation behavior matches the legacy contract. |
 | Addon compartment | Click uses `func(addonName, buttonName, menuButtonFrame)`; hover uses `funcOnEnter(addonName, menuButtonFrame)` and `funcOnLeave(addonName, menuButtonFrame)`. | `UI/Compartment.lua` will implement those distinct current contracts without assuming one shared parameter list. |
+| Friends | `C_FriendList.GetFriendInfoByIndex(index)` may return nothing; otherwise it returns one `FriendInfo` table with `name` and Boolean `connected` fields. | Replace all legacy positional `GetFriendInfo(index)` reads with a nil-checked table read and whisper only when `info.connected`. |
+| Battlefield queues | Current Blizzard Mainline code still reads `local status = GetBattlefieldStatus(index)` and compares the first return with queue states. | Keep the queue scan local and preserve the legacy `status == "queued"` behavior. |
+| Ready checks | `C_PartyInfo.ConfirmReadyCheck(isReady)` takes one non-nilable Boolean and is restricted; the global `ConfirmReadyCheck` is a deprecation fallback. | Preserve the `isReady` Boolean as the semantic input, do not require deprecated globals, and verify the supported observation mechanism before implementation. |
+| Combat log | `COMBAT_LOG_EVENT_UNFILTERED` remains in the all-environment combat-log system, is marked restricted, and has no documented payload fields. The snapshot exposes all-environment `C_CombatLogInternal.GetCurrentEventInfo()` and secure-only `C_CombatLogSecure.GetCurrentEventInfo()` with undocumented variadic returns; the old global accessor exists only behind deprecation fallbacks. | Isolate all combat-log-dependent skills behind one compatibility adapter. Do not copy legacy tuple offsets or claim runtime compatibility until the adapter is verified in build `12.1.0.69404`. |
+| Rated PvP | `C_PvP.GetTeamInfo(factionIndex)` returns a nilable `PVPTeamInfo` table (`name`, `rating`, `ratingNew`, `ratingMMR`). Blizzard's current result UI obtains the local player's result from `C_PvP.GetScoreInfoByPlayerGuid(GetPlayerGuid())` and reads `ratingChange`. Persistent `GetArenaTeam` membership is absent from the snapshot. | Restore the legacy “rating increased” skill from local-player `PVPScoreInfo.ratingChange > 0`, not obsolete arena-team names. |
 
 API existence alone does not prove behavioral equivalence. Each future substitution must cite the legacy call site, arguments, return values, timing assumptions, and the authoritative current API contract before implementation.
+
+## Phase-gate evidence
+
+- Friend contract: [`FriendListDocumentation.lua`](https://github.com/Gethe/wow-ui-source/blob/81d15e42f16f3473131880500e7a8c8eb88fa5e6/Interface/AddOns/Blizzard_APIDocumentationGenerated/FriendListDocumentation.lua)
+- Combat-log event/access environments: [`CombatLogDocumentation.lua`](https://github.com/Gethe/wow-ui-source/blob/81d15e42f16f3473131880500e7a8c8eb88fa5e6/Interface/AddOns/Blizzard_APIDocumentationGenerated/CombatLogDocumentation.lua), [`CombatLogInternalDocumentation.lua`](https://github.com/Gethe/wow-ui-source/blob/81d15e42f16f3473131880500e7a8c8eb88fa5e6/Interface/AddOns/Blizzard_APIDocumentationGenerated/CombatLogInternalDocumentation.lua), and [`CombatLogSecureDocumentation.lua`](https://github.com/Gethe/wow-ui-source/blob/81d15e42f16f3473131880500e7a8c8eb88fa5e6/Interface/AddOns/Blizzard_APIDocumentationGenerated/CombatLogSecureDocumentation.lua)
+- Ready-check contract: [`PartyInfoDocumentation.lua`](https://github.com/Gethe/wow-ui-source/blob/81d15e42f16f3473131880500e7a8c8eb88fa5e6/Interface/AddOns/Blizzard_APIDocumentationGenerated/PartyInfoDocumentation.lua)
+- Queue usage: [`PVPUtil.lua`](https://github.com/Gethe/wow-ui-source/blob/81d15e42f16f3473131880500e7a8c8eb88fa5e6/Interface/AddOns/Blizzard_FrameXMLUtil/PVPUtil.lua)
+- Rated-PvP contracts and current local-player result flow: [`PvpInfoDocumentation.lua`](https://github.com/Gethe/wow-ui-source/blob/81d15e42f16f3473131880500e7a8c8eb88fa5e6/Interface/AddOns/Blizzard_APIDocumentationGenerated/PvpInfoDocumentation.lua) and [`PVPMatchResults.lua`](https://github.com/Gethe/wow-ui-source/blob/81d15e42f16f3473131880500e7a8c8eb88fa5e6/Interface/AddOns/Blizzard_PVPMatch/PVPMatchResults.lua)
