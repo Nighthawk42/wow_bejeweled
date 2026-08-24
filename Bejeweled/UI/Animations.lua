@@ -9,6 +9,7 @@ local DEFAULT_CLEAR_DURATION = 0.1
 local DEFAULT_FALL_PER_CELL = 0.05
 local DEFAULT_MINIMUM_FALL_DURATION = 0.1
 local DEFAULT_EFFECT_INTERVAL = 0.025
+local DEFAULT_SWAP_DURATION = Constants.GEM_WIDTH / 150
 local HYPER_FRAME_COUNT = 40
 local EXPLOSION_FRAME_COUNT = 16
 local POWER_STAR_SIZE = 90
@@ -122,6 +123,24 @@ local function CreateMoveAnimation(frame)
 	return frame.bejeweledMoveAnimation
 end
 
+local function CreateSwapAnimation(frame, rollback)
+	local group = frame:CreateAnimationGroup()
+	local outbound = group:CreateAnimation("Translation")
+	outbound:SetOrder(1)
+	local animation = {
+		group = group,
+		outbound = outbound,
+	}
+	if rollback then
+		animation.returnTranslation = group:CreateAnimation("Translation")
+		animation.returnTranslation:SetOrder(2)
+		frame.bejeweledSwapRollbackAnimation = animation
+	else
+		frame.bejeweledSwapForwardAnimation = animation
+	end
+	return animation
+end
+
 local function FinishPending(runner, run, onFinished)
 	if runner.active ~= run or run.cancelled then
 		return
@@ -154,10 +173,12 @@ function Animations:New(gemPool, options)
 	instance.fallPerCell = options.fallPerCell or DEFAULT_FALL_PER_CELL
 	instance.minimumFallDuration = options.minimumFallDuration or DEFAULT_MINIMUM_FALL_DURATION
 	instance.effectInterval = options.effectInterval or DEFAULT_EFFECT_INTERVAL
+	instance.swapDuration = options.swapDuration or DEFAULT_SWAP_DURATION
 	assert(type(instance.clearDuration) == "number" and instance.clearDuration > 0, "clear duration must be positive")
 	assert(type(instance.fallPerCell) == "number" and instance.fallPerCell > 0, "fall duration per cell must be positive")
 	assert(type(instance.minimumFallDuration) == "number" and instance.minimumFallDuration > 0, "minimum fall duration must be positive")
 	assert(type(instance.effectInterval) == "number" and instance.effectInterval > 0, "effect interval must be positive")
+	assert(type(instance.swapDuration) == "number" and instance.swapDuration > 0, "swap duration must be positive")
 	instance.callbacks = CopyCallbacks({}, options)
 	instance.generation = 0
 	instance.active = nil
@@ -615,6 +636,66 @@ function Animations:PlayStep(run, stepIndex)
 		self:SyncPersistentEffects(false)
 		self:PlaySettle(run, stepIndex, step)
 	end)
+end
+
+function Animations:PlaySwap(firstX, firstY, secondX, secondY, rollback, finalGrid, callbacks)
+	AssertCoordinate(firstX, Constants.GRID_WIDTH, "first swap column")
+	AssertCoordinate(firstY, Constants.GRID_HEIGHT, "first swap row")
+	AssertCoordinate(secondX, Constants.GRID_WIDTH, "second swap column")
+	AssertCoordinate(secondY, Constants.GRID_HEIGHT, "second swap row")
+	assert(math.abs(firstX - secondX) + math.abs(firstY - secondY) == 1, "swap animation requires adjacent cells")
+	assert(type(finalGrid) == "table" and type(finalGrid.Get) == "function", "swap animation requires the final grid")
+	if self.active then
+		self:Cancel("superseded")
+	end
+
+	self.generation = self.generation + 1
+	local run = {
+		kind = "swap",
+		generation = self.generation,
+		finalGrid = finalGrid,
+		callbacks = CopyCallbacks(self.callbacks, callbacks),
+		activeGroups = {},
+		activeExplosions = {},
+		pending = 0,
+		cancelled = false,
+		completed = false,
+		rollback = rollback and true or false,
+	}
+	self.active = run
+	self.gemPool:SetInteractive(false)
+	self.gemPool:SetSelection(nil)
+	if run.callbacks.onPhase then
+		run.callbacks.onPhase(run.rollback and "swap-rollback" or "swap", 1, nil, run)
+	end
+	if self.active ~= run or run.cancelled then
+		return run
+	end
+
+	local groups = {}
+	local movements = {
+		{ frame = self.gemPool:GetFrame(firstX, firstY), offsetX = (secondX - firstX) * Constants.GEM_WIDTH, offsetY = -(secondY - firstY) * Constants.GEM_HEIGHT },
+		{ frame = self.gemPool:GetFrame(secondX, secondY), offsetX = (firstX - secondX) * Constants.GEM_WIDTH, offsetY = -(firstY - secondY) * Constants.GEM_HEIGHT },
+	}
+	for index = 1, #movements do
+		local movement = movements[index]
+		local animation
+		if run.rollback then
+			animation = movement.frame.bejeweledSwapRollbackAnimation or CreateSwapAnimation(movement.frame, true)
+			animation.returnTranslation:SetDuration(self.swapDuration)
+			animation.returnTranslation:SetOffset(-movement.offsetX, -movement.offsetY)
+		else
+			animation = movement.frame.bejeweledSwapForwardAnimation or CreateSwapAnimation(movement.frame, false)
+		end
+		animation.outbound:SetDuration(self.swapDuration)
+		animation.outbound:SetOffset(movement.offsetX, movement.offsetY)
+		groups[#groups + 1] = animation.group
+	end
+
+	self:WaitForPhase(run, groups, {}, function()
+		self:CompleteRun(run)
+	end)
+	return run
 end
 
 function Animations:Play(cascadeResult, finalGrid, callbacks)

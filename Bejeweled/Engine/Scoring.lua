@@ -304,6 +304,33 @@ local function UpdateLargestCascade(state, stats, awards)
 	return largest
 end
 
+function Scoring:RecordMove(state, profile, options)
+	assert(type(state) == "table", "move recording requires game state")
+	ValidateMode(state.gameMode)
+	ValidateProfile(profile)
+	options = options or {}
+	state.moves = (state.moves or 0) + 1
+	if state.gameMode == Constants.GAME_MODE_TIMED then
+		profile.stats.timed.mostMoves = math.max(profile.stats.timed.mostMoves or 0, state.moves)
+	end
+	local result = {
+		moves = state.moves,
+		skillEvents = {},
+	}
+	local skillOptions = {
+		random = options.random or math.random,
+		skillLimit = options.skillLimit,
+	}
+	if state.gameMode == Constants.GAME_MODE_CLASSIC then
+		if state.moves == 100 then
+			TrySkill(self, result.skillEvents, profile, Constants.SKILL_TYPE_CLASSIC, Constants.SKILL_MOVE100, skillOptions)
+		elseif state.moves == 250 then
+			TrySkill(self, result.skillEvents, profile, Constants.SKILL_TYPE_CLASSIC, Constants.SKILL_MOVE250, skillOptions)
+		end
+	end
+	return result
+end
+
 function Scoring:ApplyCascade(state, cascadeResult, profile, options)
 	assert(type(state) == "table", "cascade scoring requires game state")
 	ValidateMode(state.gameMode)

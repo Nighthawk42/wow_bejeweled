@@ -216,6 +216,7 @@ function GemPool:RenderCell(column, row, cell, force)
 end
 
 function GemPool:ResetPresentation(grid)
+	self.selectedFrame = nil
 	for row = 1, Constants.GRID_HEIGHT do
 		for column = 1, Constants.GRID_WIDTH do
 			local frame = self.frames[row][column]
@@ -245,6 +246,21 @@ function GemPool:ResetPresentation(grid)
 		return self:Project(grid, true)
 	end
 	return { changedCount = 0, changes = {} }
+end
+
+function GemPool:SetSelection(column, row)
+	if self.selectedFrame then
+		self.selectedFrame.selector:Hide()
+		self.selectedFrame = nil
+	end
+	if column == nil and row == nil then
+		return nil
+	end
+	assert(column ~= nil and row ~= nil, "gem selection requires both coordinates")
+	local frame = self:GetFrame(column, row)
+	frame.selector:Show()
+	self.selectedFrame = frame
+	return frame
 end
 
 function GemPool:Project(grid, force)

@@ -27,6 +27,7 @@ try {
         "Engine\Matches.lua",
         "Engine\Cascade.lua",
         "Engine\Scoring.lua",
+        "Engine\Input.lua",
         "UI\Backdrops.lua",
         "UI\GemPool.lua",
         "UI\Animations.lua"

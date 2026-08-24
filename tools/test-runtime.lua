@@ -47,6 +47,7 @@ LoadAddonFile("Bejeweled/Engine/Grid.lua", addon)
 LoadAddonFile("Bejeweled/Engine/Matches.lua", addon)
 LoadAddonFile("Bejeweled/Engine/Cascade.lua", addon)
 LoadAddonFile("Bejeweled/Engine/Scoring.lua", addon)
+LoadAddonFile("Bejeweled/Engine/Input.lua", addon)
 LoadAddonFile("Bejeweled/UI/Backdrops.lua", addon)
 LoadAddonFile("Bejeweled/UI/GemPool.lua", addon)
 LoadAddonFile("Bejeweled/UI/Animations.lua", addon)
@@ -191,6 +192,9 @@ local function CreateGemPoolFrame(frameType, name, parent, template)
 			function animation:SetDuration(duration)
 				self.duration = duration
 			end
+			function animation:SetOrder(order)
+				self.order = order
+			end
 			function animation:SetOffset(offsetX, offsetY)
 				self.offsetX = offsetX
 				self.offsetY = offsetY
@@ -321,6 +325,12 @@ AssertEqual(redGemFrame.glow.alpha, 0, "presentation reset left gem glow visible
 AssertEqual(redGemFrame.points[1][1], "TOPLEFT", "presentation reset gem anchor")
 AssertEqual(redGemFrame.points[1][2], 50, "presentation reset gem x position")
 AssertEqual(redGemFrame.points[1][3], -100, "presentation reset gem y position")
+gemPool:SetSelection(2, 3)
+assert(gemPool.selectedFrame == redGemFrame, "gem selection frame was not retained")
+assert(redGemFrame.selector.shown, "selected gem selector was not shown")
+gemPool:SetSelection(nil)
+assert(gemPool.selectedFrame == nil, "cleared gem selection was retained")
+assert(not redGemFrame.selector.shown, "cleared gem selector remained visible")
 
 local playedFiles = {}
 local playedSoundKits = {}
@@ -757,6 +767,114 @@ assert(not cancelledExplosionFrame.shown, "cancelled explosion remained visible"
 AssertEqual(#animations.activeExplosions, 0, "cancelled explosion remained active")
 AssertEqual(#animations.explosionPool, 1, "cancelled explosion was not pooled")
 
+local inputGrid = addon.Grid:New()
+FillStablePattern(inputGrid)
+inputGrid:Set(2, 8, 1)
+inputGrid:Set(3, 8, 1)
+inputGrid:Set(1, 7, 1)
+assert(not inputGrid:HasAnyMatch(), "input test board started with a match")
+assert(inputGrid:IsLegalSwap(1, 7, 1, 8), "input test swap was not legal")
+local inputPool = addon.GemPool:New(gemPoolParent, {
+	createFrame = CreateGemPoolFrame,
+	createBoardTiles = false,
+})
+inputPool:Project(inputGrid, true)
+local inputAnimations = addon.Animations:New(inputPool, {
+	createFrame = CreateGemPoolFrame,
+	swapDuration = 0.2,
+})
+local inputProfile = addon.SavedVariables:CreateDefaultProfile()
+local inputScoringState = addon.Scoring:NewState(addon.Constants.GAME_MODE_CLASSIC)
+local inputRandomValues = { 2, 3, 4 }
+local inputRandomIndex = 0
+local function InputRandom(minimum, maximum)
+	inputRandomIndex = inputRandomIndex + 1
+	local value = inputRandomValues[((inputRandomIndex - 1) % #inputRandomValues) + 1]
+	return math.max(minimum, math.min(maximum, value))
+end
+local inputSounds = {}
+local inputAudio = {
+	Play = function(_, soundName)
+		inputSounds[#inputSounds + 1] = soundName
+		return true
+	end,
+}
+local inputCompletions = {}
+local inputCascades = {}
+local input = addon.Input:New(inputGrid, inputPool, inputAnimations, {
+	audio = inputAudio,
+	scoringState = inputScoringState,
+	profile = inputProfile,
+	random = InputRandom,
+	requireLegalMove = false,
+	onMoveComplete = function(result)
+		inputCompletions[#inputCompletions + 1] = result
+	end,
+	onCascadeResolved = function(result)
+		inputCascades[#inputCascades + 1] = result.cascadeResult
+	end,
+})
+local inputHandlers = input:CreateGemHandlers()
+assert(type(inputHandlers.onMouseDown) == "function", "input gem handler was not created")
+local firstSelection = inputHandlers.onMouseDown(inputPool:GetFrame(8, 1), "LeftButton")
+AssertEqual(firstSelection.status, "selected", "input first selection status")
+assert(inputPool:GetFrame(8, 1).selector.shown, "input selection did not show selector")
+local clearedSelection = input:HandleCell(1, 7)
+AssertEqual(clearedSelection.reason, "nonadjacent", "nonadjacent selection clear reason")
+assert(input:GetSelection() == nil, "nonadjacent click retained selection")
+
+AssertEqual(input:HandleCell(1, 7).status, "selected", "legal swap source selection")
+local acceptedMove = input:HandleCell(1, 8)
+assert(acceptedMove.valid, "legal input move was rejected")
+AssertEqual(acceptedMove.status, "animating", "accepted input move status")
+assert(input:IsLocked(), "accepted input move did not lock input")
+AssertEqual(input:HandleCell(4, 4).status, "locked", "locked input accepted another cell")
+AssertEqual(inputScoringState.moves, 1, "accepted move count")
+assert(inputGrid:HasAnyMatch(), "accepted swap was not applied before presentation")
+AssertEqual(acceptedMove.swapRun.kind, "swap", "accepted swap animation kind")
+AssertEqual(inputPool:GetFrame(1, 7).bejeweledSwapForwardAnimation.outbound.duration, 0.2, "accepted swap duration")
+FinishAllGemAnimations()
+assert(not input:IsLocked(), "cascade completion left input locked")
+AssertEqual(acceptedMove.status, "complete", "accepted move completion status")
+AssertEqual(#inputCascades, 1, "accepted move cascade callback count")
+AssertEqual(#inputCompletions, 1, "accepted move completion callback count")
+assert(inputCascades[1].stable, "accepted move cascade did not stabilize")
+assert(not inputGrid:HasAnyMatch(), "accepted move cascade left a match")
+assert(inputPool:GetFrame(1, 1).mouseEnabled, "accepted move completion left gem input disabled")
+
+local invalidFirstX, invalidFirstY, invalidSecondX, invalidSecondY
+for y = 1, addon.Constants.GRID_HEIGHT do
+	for x = 1, addon.Constants.GRID_WIDTH - 1 do
+		if not inputGrid:IsLegalSwap(x, y, x + 1, y) then
+			invalidFirstX, invalidFirstY = x, y
+			invalidSecondX, invalidSecondY = x + 1, y
+			break
+		end
+	end
+	if invalidFirstX then
+		break
+	end
+end
+assert(invalidFirstX, "input test could not find an invalid adjacent swap")
+local invalidBefore = inputGrid:ExportLegacyBoard()
+input:HandleCell(invalidFirstX, invalidFirstY)
+local rejectedMove = input:HandleCell(invalidSecondX, invalidSecondY)
+assert(not rejectedMove.valid, "invalid input move was accepted")
+assert(input:IsLocked(), "invalid rollback did not lock input")
+for y = 1, addon.Constants.GRID_HEIGHT do
+	for x = 1, addon.Constants.GRID_WIDTH do
+		AssertEqual(inputGrid:EncodeLegacyValue(inputGrid:Get(x, y)), invalidBefore[y][x], "invalid swap changed authoritative grid")
+	end
+end
+local rollbackAnimation = inputPool:GetFrame(invalidFirstX, invalidFirstY).bejeweledSwapRollbackAnimation
+AssertEqual(rollbackAnimation.outbound.order, 1, "rollback outbound animation order")
+AssertEqual(rollbackAnimation.returnTranslation.order, 2, "rollback return animation order")
+FinishAllGemAnimations()
+AssertEqual(rejectedMove.status, "rejected", "invalid move completion status")
+assert(not input:IsLocked(), "invalid rollback left input locked")
+AssertEqual(inputScoringState.moves, 1, "invalid move changed move count")
+AssertEqual(inputSounds[#inputSounds], "Invalid", "invalid move sound")
+
 FillStablePattern(cascadeGrid)
 for x = 2, 5 do
 	cascadeGrid:Set(x, 8, 7)
@@ -849,6 +967,16 @@ AssertEqual(scoringState.largestCascade, 3, "largest cascade state")
 AssertEqual(scoringProfile.stats.totalGemsMatched, 3, "legacy refill-backed gem statistic")
 AssertEqual(scoringProfile.stats.gemMatch[1], 1, "per-color match statistic")
 AssertEqual(scoringProfile.skill.skillPoints, 1, "match-three skill gain")
+
+local moveProfile = addon.SavedVariables:CreateDefaultProfile()
+local moveState = addon.Scoring:NewState(addon.Constants.GAME_MODE_CLASSIC, { moves = 99 })
+local recordedMove = addon.Scoring:RecordMove(moveState, moveProfile, { random = function() return 1 end })
+AssertEqual(recordedMove.moves, 100, "classic recorded move count")
+AssertEqual(recordedMove.skillEvents[1].index, addon.Constants.SKILL_MOVE100, "classic move-100 skill index")
+local timedMoveProfile = addon.SavedVariables:CreateDefaultProfile()
+local timedMoveState = addon.Scoring:NewState(addon.Constants.GAME_MODE_TIMED, { moves = 4 })
+addon.Scoring:RecordMove(timedMoveState, timedMoveProfile)
+AssertEqual(timedMoveProfile.stats.timed.mostMoves, 5, "timed most-moves statistic")
 
 local powerScoringProfile = addon.SavedVariables:CreateDefaultProfile()
 local powerScoringState = addon.Scoring:NewState(addon.Constants.GAME_MODE_CLASSIC)
@@ -962,17 +1090,20 @@ assert(addon.audio, "addon initialization did not create audio")
 assert(addon.backdrops == addon.Backdrops, "addon initialization did not install backdrops")
 assert(addon.gemPoolFactory == addon.GemPool, "addon initialization did not install GemPool")
 assert(addon.animationFactory == addon.Animations, "addon initialization did not install Animations")
+assert(addon.inputFactory == addon.Input, "addon initialization did not install Input")
 assert(eventFrame.registeredEvent == nil, "initializer event was not unregistered")
 local initializedGrid = addon.grid
 local initializedAudio = addon.audio
 local initializedBackdrops = addon.backdrops
 local initializedGemPoolFactory = addon.gemPoolFactory
 local initializedAnimationFactory = addon.animationFactory
+local initializedInputFactory = addon.inputFactory
 addon:Initialize({}, {})
 assert(addon.grid == initializedGrid, "addon initialization is not idempotent")
 assert(addon.audio == initializedAudio, "audio initialization is not idempotent")
 assert(addon.backdrops == initializedBackdrops, "backdrop initialization is not idempotent")
 assert(addon.gemPoolFactory == initializedGemPoolFactory, "GemPool initialization is not idempotent")
 assert(addon.animationFactory == initializedAnimationFactory, "Animations initialization is not idempotent")
+assert(addon.inputFactory == initializedInputFactory, "Input initialization is not idempotent")
 
-print("Runtime verification passed: cascade animation, gem projection, UI backdrops, audio, SavedVariables, and deterministic gameplay engine.")
+print("Runtime verification passed: input sessions, cascade animation, gem projection, UI backdrops, audio, SavedVariables, and deterministic gameplay engine.")
