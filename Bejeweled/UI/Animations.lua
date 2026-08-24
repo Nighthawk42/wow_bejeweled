@@ -8,6 +8,54 @@ Animations.__index = Animations
 local DEFAULT_CLEAR_DURATION = 0.1
 local DEFAULT_FALL_PER_CELL = 0.05
 local DEFAULT_MINIMUM_FALL_DURATION = 0.1
+local DEFAULT_EFFECT_INTERVAL = 0.025
+local HYPER_FRAME_COUNT = 40
+local EXPLOSION_FRAME_COUNT = 16
+local POWER_STAR_SIZE = 90
+local EXPLOSION_SIZE = 150
+
+local function BuildHyperAtlas()
+	local atlas = {}
+	for row = 0, 3 do
+		for column = 0, 9 do
+			atlas[#atlas + 1] = {
+				column * 0.1,
+				(column + 1) * 0.1,
+				row * 0.19999,
+				(row + 1) * 0.19999,
+			}
+		end
+	end
+	return atlas
+end
+
+local function BuildExplosionAtlas()
+	local atlas = {}
+	for row = 0, 4 do
+		for column = 0, 4 do
+			local left = column == 0 and 0 or (column * 50 - 1) / 255
+			atlas[#atlas + 1] = {
+				left,
+				((column + 1) * 50 - 1) / 255,
+				(row * 50) / 255,
+				((row + 1) * 50 - 1) / 255,
+			}
+		end
+	end
+	return atlas
+end
+
+local HYPER_ATLAS = BuildHyperAtlas()
+local EXPLOSION_ATLAS = BuildExplosionAtlas()
+
+local function SetTexCoord(texture, coordinates)
+	texture:SetTexCoord(coordinates[1], coordinates[2], coordinates[3], coordinates[4])
+end
+
+local function SetTextureSize(texture, width, height)
+	texture:SetWidth(width)
+	texture:SetHeight(height)
+end
 
 local function AssertCoordinate(value, maximum, label)
 	assert(type(value) == "number" and value == math.floor(value) and value >= 1 and value <= maximum, label .. " is out of bounds")
@@ -74,6 +122,16 @@ local function CreateMoveAnimation(frame)
 	return frame.bejeweledMoveAnimation
 end
 
+local function FinishPending(runner, run, onFinished)
+	if runner.active ~= run or run.cancelled then
+		return
+	end
+	run.pending = run.pending - 1
+	if run.pending == 0 then
+		onFinished()
+	end
+end
+
 local function MakeFinishedCallback(runner, run, group, onFinished)
 	return function()
 		if runner.active ~= run or run.cancelled or not run.activeGroups[group] then
@@ -81,10 +139,7 @@ local function MakeFinishedCallback(runner, run, group, onFinished)
 		end
 		run.activeGroups[group] = nil
 		group:SetScript("OnFinished", nil)
-		run.pending = run.pending - 1
-		if run.pending == 0 then
-			onFinished()
-		end
+		FinishPending(runner, run, onFinished)
 	end
 end
 
@@ -98,12 +153,26 @@ function Animations:New(gemPool, options)
 	instance.clearDuration = options.clearDuration or DEFAULT_CLEAR_DURATION
 	instance.fallPerCell = options.fallPerCell or DEFAULT_FALL_PER_CELL
 	instance.minimumFallDuration = options.minimumFallDuration or DEFAULT_MINIMUM_FALL_DURATION
+	instance.effectInterval = options.effectInterval or DEFAULT_EFFECT_INTERVAL
 	assert(type(instance.clearDuration) == "number" and instance.clearDuration > 0, "clear duration must be positive")
 	assert(type(instance.fallPerCell) == "number" and instance.fallPerCell > 0, "fall duration per cell must be positive")
 	assert(type(instance.minimumFallDuration) == "number" and instance.minimumFallDuration > 0, "minimum fall duration must be positive")
+	assert(type(instance.effectInterval) == "number" and instance.effectInterval > 0, "effect interval must be positive")
 	instance.callbacks = CopyCallbacks({}, options)
 	instance.generation = 0
 	instance.active = nil
+	instance.effectElapsed = 0
+	instance.activeExplosions = {}
+	instance.explosionPool = {}
+	instance.createFrame = options.createFrame or gemPool.createFrame or CreateFrame
+	assert(type(instance.createFrame) == "function", "CreateFrame is unavailable for animation effects")
+	instance.effectParent = options.effectParent or gemPool.parent
+	instance.effectFrame = instance.createFrame("Frame", nil, instance.effectParent)
+	assert(type(instance.effectFrame.SetScript) == "function", "animation effect driver does not support scripts")
+	instance.effectFrame:SetScript("OnUpdate", function(_, elapsed)
+		instance:UpdateEffects(elapsed)
+	end)
+	instance.effectFrame:Show()
 	return instance
 end
 
@@ -115,6 +184,7 @@ function Animations:BuildPlan(cascadeResult)
 		assert(type(source) == "table", "cascade step must be a table")
 		local removedCells = AssertRecordList(source, "removedCells")
 		local spawnedSpecials = AssertRecordList(source, "spawnedSpecials")
+		local triggeredPowerRecords = AssertRecordList(source, "triggeredPowerRecords")
 		local moves = AssertRecordList(source, "moves")
 		local refills = AssertRecordList(source, "refills")
 		local step = {
@@ -123,6 +193,7 @@ function Animations:BuildPlan(cascadeResult)
 			specials = {},
 			moves = {},
 			refills = {},
+			explosions = {},
 		}
 
 		for index = 1, #removedCells do
@@ -149,6 +220,18 @@ function Animations:BuildPlan(cascadeResult)
 				y = record.createdY,
 				contents = record.kind == "hyper" and Constants.HYPER_CONTENTS or record.contents,
 				bigStar = record.kind == "power",
+				record = record,
+			}
+		end
+
+		for index = 1, #triggeredPowerRecords do
+			local record = triggeredPowerRecords[index]
+			assert(type(record) == "table", "triggered-power record must be a table")
+			AssertCoordinate(record.x, Constants.GRID_WIDTH, "triggered-power column")
+			AssertCoordinate(record.y, Constants.GRID_HEIGHT, "triggered-power row")
+			step.explosions[index] = {
+				x = record.x,
+				y = record.y,
 				record = record,
 			}
 		end
@@ -213,23 +296,210 @@ function Animations:IsPlaying()
 	return self.active ~= nil
 end
 
+function Animations:CreatePowerLayers(frame)
+	local texture = frame:CreateTexture(nil, "OVERLAY")
+	SetTextureSize(texture, POWER_STAR_SIZE, POWER_STAR_SIZE)
+	texture:SetPoint("CENTER", frame.texture)
+	texture:SetTexture(Constants.IMAGE_ROOT .. "bigstar")
+	texture:SetTexCoord(0, 1, 0, 1)
+
+	local highlight = frame:CreateTexture(nil, "OVERLAY")
+	SetTextureSize(highlight, POWER_STAR_SIZE, POWER_STAR_SIZE)
+	highlight:SetPoint("CENTER", frame.texture)
+	highlight:SetTexture(Constants.IMAGE_ROOT .. "bigstar")
+	highlight:SetTexCoord(0, 1, 0, 1)
+	highlight:SetBlendMode("ADD")
+
+	frame.bejeweledPowerEffect = {
+		texture = texture,
+		highlight = highlight,
+		angle = 1,
+		highlightAngle = 1,
+		alpha = 100,
+		alphaStep = -3,
+	}
+	return frame.bejeweledPowerEffect
+end
+
+function Animations:SyncFrameEffect(frame, advance)
+	local contents = frame.projectedContents
+	local bigStar = frame.projectedBigStar and true or false
+	if frame.bejeweledEffectContents ~= contents or frame.bejeweledEffectBigStar ~= bigStar then
+		frame.bejeweledEffectContents = contents
+		frame.bejeweledEffectBigStar = bigStar
+		frame.bejeweledHyperFrame = 1
+		local power = frame.bejeweledPowerEffect
+		if power then
+			power.angle = 1
+			power.highlightAngle = 1
+			power.alpha = 100
+			power.alphaStep = -3
+		end
+	end
+
+	if contents == Constants.HYPER_CONTENTS then
+		local hyperFrame = frame.bejeweledHyperFrame or 1
+		if advance then
+			hyperFrame = hyperFrame + 1
+			if hyperFrame > HYPER_FRAME_COUNT then
+				hyperFrame = 1
+			end
+			frame.bejeweledHyperFrame = hyperFrame
+		end
+		SetTexCoord(frame.texture, HYPER_ATLAS[hyperFrame])
+	end
+
+	local power = frame.bejeweledPowerEffect
+	if bigStar then
+		power = power or self:CreatePowerLayers(frame)
+		if advance then
+			power.angle = power.angle + 0.5
+			if power.angle > 360 then
+				power.angle = 360 - power.angle
+			end
+			power.highlightAngle = power.highlightAngle - 2.5
+			if power.highlightAngle <= 0 then
+				power.highlightAngle = power.highlightAngle + 360
+			end
+			local alpha = power.alpha + power.alphaStep
+			if alpha > 100 then
+				power.alphaStep = -power.alphaStep
+				alpha = 100
+			elseif alpha < 0 then
+				power.alphaStep = -power.alphaStep
+				alpha = 0
+			end
+			power.alpha = alpha
+		end
+		local visibleAngle = power.angle <= 0 and 360 + power.angle or power.angle
+		power.texture:SetRotation(visibleAngle * math.pi / 180)
+		power.highlight:SetRotation(power.highlightAngle * math.pi / 180)
+		power.texture:SetAlpha(power.alpha / 100)
+		power.highlight:SetAlpha((100 - power.alpha) / 100)
+		power.texture:Show()
+		power.highlight:Show()
+	elseif power then
+		power.texture:Hide()
+		power.highlight:Hide()
+	end
+end
+
+function Animations:SyncPersistentEffects(advance)
+	for row = 1, Constants.GRID_HEIGHT do
+		for column = 1, Constants.GRID_WIDTH do
+			self:SyncFrameEffect(self.gemPool:GetFrame(column, row), advance and true or false)
+		end
+	end
+end
+
+function Animations:CreateExplosionFrame()
+	local frame = self.createFrame("Frame", nil, self.effectParent)
+	frame:SetWidth(Constants.GEM_WIDTH)
+	frame:SetHeight(Constants.GEM_HEIGHT)
+	if self.effectParent and type(self.effectParent.GetFrameLevel) == "function" then
+		frame:SetFrameLevel(self.effectParent:GetFrameLevel() + 4)
+	end
+	frame.texture = frame:CreateTexture(nil, "OVERLAY")
+	SetTextureSize(frame.texture, EXPLOSION_SIZE, EXPLOSION_SIZE)
+	frame.texture:SetPoint("CENTER")
+	frame.texture:SetTexture(Constants.IMAGE_ROOT .. "explosion")
+	frame:Hide()
+	return frame
+end
+
+function Animations:ReleaseExplosion(explosion, completed)
+	for index = #self.activeExplosions, 1, -1 do
+		if self.activeExplosions[index] == explosion then
+			table.remove(self.activeExplosions, index)
+			break
+		end
+	end
+	if explosion.run then
+		explosion.run.activeExplosions[explosion] = nil
+	end
+	explosion:Hide()
+	local onFinished = explosion.onFinished
+	explosion.onFinished = nil
+	explosion.run = nil
+	self.explosionPool[#self.explosionPool + 1] = explosion
+	if completed and onFinished then
+		onFinished()
+	end
+end
+
+function Animations:PlayExplosion(column, row, onFinished, run)
+	AssertCoordinate(column, Constants.GRID_WIDTH, "explosion column")
+	AssertCoordinate(row, Constants.GRID_HEIGHT, "explosion row")
+	assert(onFinished == nil or type(onFinished) == "function", "explosion completion callback must be a function")
+	local explosion = table.remove(self.explosionPool) or self:CreateExplosionFrame()
+	explosion:ClearAllPoints()
+	explosion:SetPoint(
+		"TOPLEFT",
+		self.effectParent,
+		"TOPLEFT",
+		(column - 1) * Constants.GEM_WIDTH,
+		-((row - 1) * Constants.GEM_HEIGHT)
+	)
+	explosion.column = column
+	explosion.row = row
+	explosion.effectFrame = 1
+	explosion.onFinished = onFinished
+	explosion.run = run
+	SetTexCoord(explosion.texture, EXPLOSION_ATLAS[1])
+	explosion:SetAlpha(1)
+	explosion:Show()
+	self.activeExplosions[#self.activeExplosions + 1] = explosion
+	if run then
+		run.activeExplosions[explosion] = true
+	end
+	return explosion
+end
+
+function Animations:UpdateEffects(elapsed)
+	assert(type(elapsed) == "number" and elapsed >= 0, "animation elapsed time must be nonnegative")
+	self.effectElapsed = self.effectElapsed + elapsed
+	if self.effectElapsed < self.effectInterval then
+		return false
+	end
+	self.effectElapsed = 0
+	self:SyncPersistentEffects(true)
+	for index = #self.activeExplosions, 1, -1 do
+		local explosion = self.activeExplosions[index]
+		local nextFrame = explosion.effectFrame + 1
+		if nextFrame > EXPLOSION_FRAME_COUNT then
+			self:ReleaseExplosion(explosion, true)
+		else
+			explosion.effectFrame = nextFrame
+			SetTexCoord(explosion.texture, EXPLOSION_ATLAS[nextFrame])
+		end
+	end
+	return true
+end
+
 function Animations:NotifyPhase(run, phase, stepIndex, step)
 	if run.callbacks.onPhase then
 		run.callbacks.onPhase(phase, stepIndex, step, run)
 	end
 end
 
-function Animations:WaitForGroups(run, groups, onFinished)
-	if #groups == 0 then
+function Animations:WaitForPhase(run, groups, explosions, onFinished)
+	local pending = #groups + #explosions
+	if pending == 0 then
 		onFinished()
 		return
 	end
-	run.pending = #groups
+	run.pending = pending
 	for index = 1, #groups do
 		local group = groups[index]
 		run.activeGroups[group] = true
 		group:SetScript("OnFinished", MakeFinishedCallback(self, run, group, onFinished))
 		group:Play()
+	end
+	for index = 1, #explosions do
+		local explosion = explosions[index]
+		self:PlayExplosion(explosion.x, explosion.y, function()
+			FinishPending(self, run, onFinished)
+		end, run)
 	end
 end
 
@@ -238,6 +508,7 @@ function Animations:CompleteRun(run)
 		return
 	end
 	self.gemPool:ResetPresentation(run.finalGrid)
+	self:SyncPersistentEffects(false)
 	self.gemPool:SetInteractive(true)
 	self.active = nil
 	run.completed = true
@@ -287,8 +558,9 @@ function Animations:PlaySettle(run, stepIndex, step)
 	for index = 1, #step.refills do
 		PrepareMovement(step.refills[index], true)
 	end
+	self:SyncPersistentEffects(false)
 
-	self:WaitForGroups(run, groups, function()
+	self:WaitForPhase(run, groups, {}, function()
 		if self.active ~= run or run.cancelled then
 			return
 		end
@@ -327,7 +599,7 @@ function Animations:PlayStep(run, stepIndex)
 		groups[#groups + 1] = animation.group
 	end
 
-	self:WaitForGroups(run, groups, function()
+	self:WaitForPhase(run, groups, step.explosions, function()
 		if self.active ~= run or run.cancelled then
 			return
 		end
@@ -340,6 +612,7 @@ function Animations:PlayStep(run, stepIndex)
 			local special = step.specials[index]
 			self.gemPool:RenderCell(special.x, special.y, special, true)
 		end
+		self:SyncPersistentEffects(false)
 		self:PlaySettle(run, stepIndex, step)
 	end)
 end
@@ -356,12 +629,14 @@ function Animations:Play(cascadeResult, finalGrid, callbacks)
 		finalGrid = finalGrid,
 		callbacks = CopyCallbacks(self.callbacks, callbacks),
 		activeGroups = {},
+		activeExplosions = {},
 		pending = 0,
 		cancelled = false,
 		completed = false,
 	}
 	self.active = run
 	self.gemPool:SetInteractive(false)
+	self:SyncPersistentEffects(false)
 	self:PlayStep(run, 1)
 	return run
 end
@@ -377,9 +652,18 @@ function Animations:Cancel(reason)
 		group:SetScript("OnFinished", nil)
 		group:Stop()
 	end
+	local explosions = {}
+	for explosion in pairs(run.activeExplosions) do
+		explosions[#explosions + 1] = explosion
+	end
+	for index = 1, #explosions do
+		self:ReleaseExplosion(explosions[index], false)
+	end
 	run.activeGroups = {}
+	run.activeExplosions = {}
 	run.pending = 0
 	self.gemPool:ResetPresentation(run.finalGrid)
+	self:SyncPersistentEffects(false)
 	self.gemPool:SetInteractive(true)
 	self.active = nil
 	if run.callbacks.onCancel then

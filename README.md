@@ -6,7 +6,7 @@ This branch contains the analysis-complete, Mainline-first modernization of the 
 
 The preserved 8,401-line Mainline source must be analyzed sequentially, in evidence-backed batches, before runtime work begins. All behavior-critical shortened symbols must be resolved and all batches must be complete before any public Lua API, runtime module, modern TOC, packaging, or release work is added.
 
-All 17 batches (lines 1–8,401) are documented, the cross-batch identifier audit has no remaining `working` or `unresolved` declarations, and the retained Retail API contracts are pinned in `docs/api-baseline.md`. The analysis phase gate is closed. Runtime implementation now includes wire-compatible SavedVariables initialization, deterministic grid/match/cascade/scoring transitions, skills, levels, legacy-compatible audio cue scheduling, BackdropTemplate-safe UI chrome, persistent grid-to-gem texture projection, and cancellable clear/gravity/refill animation sequencing.
+All 17 batches (lines 1–8,401) are documented, the cross-batch identifier audit has no remaining `working` or `unresolved` declarations, and the retained Retail API contracts are pinned in `docs/api-baseline.md`. The analysis phase gate is closed. Runtime implementation now includes wire-compatible SavedVariables initialization, deterministic grid/match/cascade/scoring transitions, skills, levels, legacy-compatible audio cue scheduling, BackdropTemplate-safe UI chrome, persistent grid-to-gem texture projection, cancellable cascade sequencing, power/hyper presentation, and pooled explosion playback.
 
 ## Goal
 
@@ -23,6 +23,7 @@ The eventual addon will target current Retail/Mainline World of Warcraft while p
 - `docs/analysis/` — sequential batch reports, identifier ledger, and exact coverage schedule.
 - `docs/architecture.md` — module ownership and authoritative runtime data flow.
 - `docs/api-baseline.md` — verified Retail API constraints for implementation.
+- `docs/mainline-integration.md` — safe migration gate for the dedicated-client repository restructure.
 - `tools/test-runtime.lua` and `tools/verify-runtime.ps1` — Lua 5.1-compatible engine tests and TOC verification.
 - `plan.md` — the bootstrap specification executed by the root commit.
 - `todo.md` — the running implementation roadmap and completed runtime slices.

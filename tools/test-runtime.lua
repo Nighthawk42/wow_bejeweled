@@ -140,6 +140,9 @@ local function CreateMockTexture(layer)
 	function texture:SetAlpha(alpha)
 		self.alpha = alpha
 	end
+	function texture:SetRotation(radians)
+		self.rotation = radians
+	end
 	function texture:Show()
 		self.shown = true
 	end
@@ -638,6 +641,7 @@ local animations = addon.Animations:New(animationPool, {
 	fallPerCell = 0.04,
 	minimumFallDuration = 0.08,
 })
+assert(type(animations.effectFrame.scripts.OnUpdate) == "function", "persistent effect driver was not installed")
 local animationPlan = animations:BuildPlan(animationStep)
 AssertEqual(#animationPlan.steps, 1, "single-step animation plan count")
 AssertEqual(#animationPlan.steps[1].clear, 3, "animation clear plan count")
@@ -681,6 +685,77 @@ AssertEqual(cancelledReason, "test-cancel", "animation cancellation reason")
 assert(not animations:IsPlaying(), "cancelled animation runner stayed active")
 assert(animationPool:GetFrame(1, 1).mouseEnabled, "animation cancellation left gem interaction disabled")
 assert(not animations:Cancel(), "inactive animation cancellation succeeded")
+
+animationPool:RenderCell(4, 4, { contents = addon.Constants.HYPER_CONTENTS }, true)
+animationPool:RenderCell(5, 5, { contents = 6, bigStar = true }, true)
+animations:SyncPersistentEffects(false)
+local persistentHyper = animationPool:GetFrame(4, 4)
+local persistentPower = animationPool:GetFrame(5, 5)
+AssertEqual(persistentHyper.texture.texCoord[2], 0.1, "hyper atlas initial frame")
+assert(persistentPower.bejeweledPowerEffect.texture.shown, "power effect texture was not shown")
+assert(persistentPower.bejeweledPowerEffect.highlight.shown, "power effect highlight was not shown")
+AssertEqual(persistentPower.bejeweledPowerEffect.texture.width, 90, "power effect width")
+AssertEqual(persistentPower.bejeweledPowerEffect.highlight.blendMode, "ADD", "power effect blend mode")
+animations.effectFrame.scripts.OnUpdate(animations.effectFrame, 0.025)
+AssertEqual(persistentHyper.bejeweledHyperFrame, 2, "hyper atlas frame advance")
+AssertEqual(persistentHyper.texture.texCoord[1], 0.1, "hyper atlas second-frame coordinate")
+AssertEqual(persistentPower.bejeweledPowerEffect.alpha, 97, "power effect cross-fade advance")
+assert(persistentPower.bejeweledPowerEffect.texture.rotation > 0, "power effect rotation did not advance")
+animationPool:RenderCell(5, 5, { contents = 6 }, true)
+animations:SyncPersistentEffects(false)
+assert(not persistentPower.bejeweledPowerEffect.texture.shown, "removed power effect texture remained visible")
+assert(not persistentPower.bejeweledPowerEffect.highlight.shown, "removed power effect highlight remained visible")
+
+local explosionCompleted = false
+local explosionStep = {
+	removedCells = {},
+	spawnedSpecials = {},
+	triggeredPowerRecords = { { x = 2, y = 3, contents = 4 } },
+	moves = {},
+	refills = {},
+}
+local explosionPlan = animations:BuildPlan(explosionStep)
+AssertEqual(#explosionPlan.steps[1].explosions, 1, "triggered explosion plan count")
+local explosionRun = animations:Play(explosionStep, animationGrid, {
+	onComplete = function()
+		explosionCompleted = true
+	end,
+})
+assert(animations:IsPlaying(), "explosion barrier did not hold animation playback")
+AssertEqual(#animations.activeExplosions, 1, "active explosion count")
+local explosionFrame = animations.activeExplosions[1]
+AssertEqual(explosionFrame.texture.path, addon.Constants.IMAGE_ROOT .. "explosion", "explosion texture")
+AssertEqual(explosionFrame.texture.width, 150, "explosion texture width")
+AssertEqual(explosionFrame.points[1][4], 50, "explosion x anchor")
+AssertEqual(explosionFrame.points[1][5], -100, "explosion y anchor")
+animations:UpdateEffects(0.025)
+AssertEqual(explosionFrame.effectFrame, 2, "explosion atlas frame advance")
+AssertEqual(explosionFrame.texture.texCoord[1], 49 / 255, "explosion atlas overlap coordinate")
+for index = 2, 15 do
+	animations:UpdateEffects(0.025)
+end
+assert(not explosionCompleted, "explosion barrier completed before the final atlas frame")
+AssertEqual(explosionFrame.effectFrame, 16, "explosion final atlas frame")
+animations:UpdateEffects(0.025)
+assert(explosionCompleted, "explosion barrier did not complete")
+assert(explosionRun.completed, "explosion animation run was not marked complete")
+assert(not explosionFrame.shown, "completed explosion remained visible")
+AssertEqual(#animations.explosionPool, 1, "completed explosion was not pooled")
+
+local pooledExplosion = animations:PlayExplosion(1, 1)
+assert(pooledExplosion == explosionFrame, "explosion pool did not reuse its frame")
+for index = 1, 16 do
+	animations:UpdateEffects(0.025)
+end
+AssertEqual(#animations.explosionPool, 1, "standalone explosion was not returned to its pool")
+
+local cancelledExplosionRun = animations:Play(explosionStep, animationGrid)
+local cancelledExplosionFrame = animations.activeExplosions[1]
+assert(animations:Cancel("effect-cancel"), "explosion animation cancellation failed")
+assert(cancelledExplosionRun.cancelled, "cancelled explosion run was not marked")
+assert(not cancelledExplosionFrame.shown, "cancelled explosion remained visible")
+AssertEqual(#animations.activeExplosions, 0, "cancelled explosion remained active")
+AssertEqual(#animations.explosionPool, 1, "cancelled explosion was not pooled")
 
 FillStablePattern(cascadeGrid)
 for x = 2, 5 do
