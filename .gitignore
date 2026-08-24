@@ -39,4 +39,17 @@ luac.out
 *.x86_64
 *.hex
 
-Bejeweled/.vscode/settings.json
+# IDE & Editor files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS generated files
+.DS_Store
+.DS_Store?
+ehthumbs.db
+Thumbs.db
