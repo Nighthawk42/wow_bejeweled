@@ -65,7 +65,7 @@ end
 function Input:New(grid, gemPool, animations, options)
 	assert(type(grid) == "table" and type(grid.Get) == "function" and type(grid.Swap) == "function", "input requires a grid")
 	assert(type(gemPool) == "table" and type(gemPool.SetSelection) == "function", "input requires a gem pool")
-	assert(type(animations) == "table" and type(animations.PlaySwap) == "function" and type(animations.Play) == "function" and type(animations.IsPlaying) == "function", "input requires animations")
+	assert(type(animations) == "table" and type(animations.PlaySwap) == "function" and type(animations.Play) == "function" and type(animations.IsPlaying) == "function" and type(animations.Pause) == "function" and type(animations.Resume) == "function", "input requires animations")
 	options = options or {}
 	assert(type(options) == "table", "input options must be a table")
 	assert((options.scoringState == nil) == (options.profile == nil), "scoring state and profile must be supplied together")
@@ -90,6 +90,7 @@ function Input:New(grid, gemPool, animations, options)
 	instance.selectedX = nil
 	instance.selectedY = nil
 	instance.locked = false
+	instance.paused = false
 	instance.pendingMove = nil
 	instance.lastMove = nil
 	instance.moves = instance.scoringState and (instance.scoringState.moves or 0) or (options.moves or 0)
@@ -97,7 +98,30 @@ function Input:New(grid, gemPool, animations, options)
 end
 
 function Input:IsLocked()
-	return self.locked or self.animations:IsPlaying()
+	return self.paused or self.locked or self.animations:IsPlaying()
+end
+
+function Input:IsPaused()
+	return self.paused
+end
+
+function Input:SetPaused(paused)
+	assert(type(paused) == "boolean", "input pause state must be Boolean")
+	if self.paused == paused then
+		return false
+	end
+	self.paused = paused
+	if paused then
+		self:ClearSelection("paused")
+		self.animations:Pause()
+		self.gemPool:SetInteractive(false)
+	else
+		self.animations:Resume()
+		if not self.locked and not self.animations:IsPlaying() then
+			self.gemPool:SetInteractive(true)
+		end
+	end
+	return true
 end
 
 function Input:GetSelection()
@@ -280,6 +304,9 @@ function Input:BeginSwap(firstX, firstY, secondX, secondY)
 end
 
 function Input:HandleCell(column, row)
+	if self.paused then
+		return { status = "paused" }
+	end
 	if self:IsLocked() then
 		return { status = "locked" }
 	end

@@ -48,6 +48,7 @@ LoadAddonFile("Bejeweled/Engine/Matches.lua", addon)
 LoadAddonFile("Bejeweled/Engine/Cascade.lua", addon)
 LoadAddonFile("Bejeweled/Engine/Scoring.lua", addon)
 LoadAddonFile("Bejeweled/Engine/Input.lua", addon)
+LoadAddonFile("Bejeweled/Engine/Session.lua", addon)
 LoadAddonFile("Bejeweled/UI/Backdrops.lua", addon)
 LoadAddonFile("Bejeweled/UI/GemPool.lua", addon)
 LoadAddonFile("Bejeweled/UI/Animations.lua", addon)
@@ -240,9 +241,20 @@ local function CreateGemPoolFrame(frameType, name, parent, template)
 		end
 		function group:Play()
 			self.playing = true
+			self.paused = false
+		end
+		function group:Pause()
+			if self.playing then
+				self.playing = false
+				self.paused = true
+			end
+		end
+		function group:IsPaused()
+			return self.paused and true or false
 		end
 		function group:Stop()
 			self.playing = false
+			self.paused = false
 			self.stopped = true
 		end
 		function group:FinishForTest()
@@ -445,6 +457,14 @@ AssertEqual(initializedProfile.scoreList.guild.timed[10][4], "8H4`a3", "timed si
 assert(initializedProfile.scoreList.friends.classic ~= initializedProfile.scoreList.guild.classic, "leaderboard defaults share mutable tables")
 assert(BejeweledData == account, "account SavedVariable was not installed")
 assert(BejeweledProfile == profile, "profile SavedVariable was not installed")
+do
+	local popCapSeed = addon.SavedVariables:ByteSum("PopCap Games")
+	local signedFallbackPayload = addon.SavedVariables:VerifyAuthenticatedPayload("9VW``nt", popCapSeed)
+	AssertEqual(signedFallbackPayload, "``nt", "legacy signed fallback payload")
+	AssertEqual(addon.SavedVariables:DecodeBase70(signedFallbackPayload), 1000, "legacy signed fallback score")
+	AssertEqual(addon.SavedVariables:EncodeBase70(1000, 4), "``nt", "legacy base-70 score encoding")
+	assert(addon.SavedVariables:VerifyAuthenticatedPayload("9VX``nt", popCapSeed) == nil, "tampered fallback signature was accepted")
+end
 
 local firstGrid = addon.Grid:New(MakeRandom(8675309))
 local secondGrid = addon.Grid:New(MakeRandom(8675309))
@@ -946,6 +966,146 @@ AssertEqual(inputSounds[#inputSounds - 1], "HyperDestroy", "hyper destruction so
 AssertEqual(inputSounds[#inputSounds], "ElectroExplode", "hyper electro sound")
 assert(not input:IsLocked(), "hyper input move left input locked")
 
+local function TestSessionRestore()
+local sessionGrid = addon.Grid:New()
+FillStablePattern(sessionGrid)
+sessionGrid:Set(4, 4, addon.Constants.HYPER_CONTENTS)
+local savedPowerContents = sessionGrid:Get(5, 5).contents
+sessionGrid:Set(5, 5, savedPowerContents, true)
+local sessionPool = addon.GemPool:New(gemPoolParent, {
+	createFrame = CreateGemPoolFrame,
+	createBoardTiles = false,
+})
+sessionPool:Project(sessionGrid, true)
+local sessionAnimations = addon.Animations:New(sessionPool, {
+	createFrame = CreateGemPoolFrame,
+	swapDuration = 0.2,
+})
+local sessionProfile = addon.SavedVariables:CreateDefaultProfile()
+local sessionState = addon.Scoring:NewState(addon.Constants.GAME_MODE_CLASSIC, {
+	score = 12345,
+	pointsToLevelUp = 16000,
+	level = 4,
+	pointMultiplier = 2.5,
+	largestCascade = 9,
+	largestCombo = 4,
+	moves = 37,
+})
+local sessionPauseEvents = {}
+local sessionSaveEvents = {}
+local sessionRestoreEvents = {}
+local session = addon.Session:New(sessionGrid, sessionPool, sessionAnimations, {
+	profile = sessionProfile,
+	playerName = "Nighthawk",
+	scoringState = sessionState,
+	timerElapsed = 42.75,
+	inputOptions = {
+		random = MakeRandom(4810),
+		requireLegalMove = false,
+	},
+	onPauseChanged = function(result)
+		sessionPauseEvents[#sessionPauseEvents + 1] = result
+	end,
+	onSaved = function(result)
+		sessionSaveEvents[#sessionSaveEvents + 1] = result
+	end,
+	onRestored = function(result)
+		sessionRestoreEvents[#sessionRestoreEvents + 1] = result
+	end,
+})
+local manualSessionSave = session:SaveClassicGame("test-save")
+local savedSessionState = manualSessionSave.savedState
+assert(session:HasClassicGame(), "saved classic session was not discoverable")
+assert(sessionProfile.settings.classicInProgress, "classic in-progress wire flag was not set")
+AssertEqual(savedSessionState[4][4], addon.Constants.HYPER_CONTENTS, "saved hyper wire value")
+AssertEqual(savedSessionState[5][5], savedPowerContents + addon.Constants.BIG_STAR_WIRE_OFFSET, "saved power wire value")
+AssertEqual(savedSessionState[9][1], 12345, "saved score metadata")
+AssertEqual(savedSessionState[9][7], 42.75, "saved elapsed metadata")
+local savedScorePayload = addon.SavedVariables:VerifyAuthenticatedPayload(
+	savedSessionState[9][9],
+	addon.SavedVariables:ByteSum("Nighthawk")
+)
+AssertEqual(addon.SavedVariables:DecodeBase70(savedScorePayload), 12345, "saved authenticated score")
+
+sessionGrid:Reset()
+sessionState.score = 1
+sessionState.moves = 0
+session:SetElapsed(0)
+AssertEqual(session:Pause("pre-restore").status, "paused", "session pause status")
+assert(session:IsPaused() and sessionAnimations:IsPaused(), "session pause did not freeze animations")
+assert(not sessionPool:GetFrame(1, 1).mouseEnabled, "session pause left input interactive")
+AssertEqual(session:HandleCell(1, 1).status, "paused", "paused session accepted input")
+local restoredSession = session:RestoreClassicGame()
+assert(restoredSession.state.signatureValid, "restored score signature was rejected")
+assert(restoredSession.paused, "restore did not preserve the prior pause state")
+AssertEqual(sessionGrid:Get(4, 4).contents, addon.Constants.HYPER_CONTENTS, "restored hyper contents")
+assert(sessionGrid:Get(5, 5).bigStar, "restored power marker")
+AssertEqual(sessionState.score, 12345, "restored authenticated score")
+AssertEqual(sessionState.moves, 37, "restored move count")
+AssertEqual(session.timerElapsed, 42.75, "restored elapsed time")
+local pausedHyperFrame = sessionPool:GetFrame(4, 4)
+local pausedHyperAtlasFrame = pausedHyperFrame.bejeweledHyperFrame
+assert(not sessionAnimations:UpdateEffects(0.025), "paused session advanced effect timing")
+AssertEqual(pausedHyperFrame.bejeweledHyperFrame, pausedHyperAtlasFrame, "paused hyper atlas advanced")
+AssertEqual(session:AdvanceElapsed(5), 42.75, "paused session advanced elapsed time")
+session:Resume("test-resume")
+assert(not session:IsPaused() and not sessionAnimations:IsPaused(), "session resume left animations paused")
+assert(sessionPool:GetFrame(1, 1).mouseEnabled, "session resume left input disabled")
+sessionAnimations:UpdateEffects(0.025)
+AssertEqual(pausedHyperFrame.bejeweledHyperFrame, pausedHyperAtlasFrame + 1, "resumed hyper atlas did not advance")
+AssertEqual(session:AdvanceElapsed(1.25), 44, "running session elapsed time")
+AssertEqual(#sessionPauseEvents, 2, "session pause callback count")
+AssertEqual(#sessionRestoreEvents, 1, "session restore callback count")
+
+local validSessionSignature = savedSessionState[9][9]
+savedSessionState[9][9] = "000" .. string.sub(validSessionSignature, 4)
+sessionGrid:Reset()
+local invalidSignatureRestore = session:RestoreClassicGame({ paused = false })
+assert(not invalidSignatureRestore.state.signatureValid, "tampered saved score signature was accepted")
+AssertEqual(sessionState.score, 0, "tampered saved score did not restore as zero")
+AssertEqual(invalidSignatureRestore.state.savedScore, 12345, "raw saved score evidence changed")
+savedSessionState[9][9] = validSessionSignature
+
+local invalidSavedCell = savedSessionState[1][1]
+savedSessionState[1][1] = 99
+local beforeFailedRestore = sessionGrid:ExportLegacyBoard()
+local malformedRestoreSucceeded = pcall(function()
+	session:RestoreClassicGame()
+end)
+assert(not malformedRestoreSucceeded, "malformed saved board was accepted")
+for y = 1, addon.Constants.GRID_HEIGHT do
+	for x = 1, addon.Constants.GRID_WIDTH do
+		AssertEqual(
+			sessionGrid:EncodeLegacyValue(sessionGrid:Get(x, y)),
+			beforeFailedRestore[y][x],
+			"failed session restore changed the grid"
+		)
+	end
+end
+savedSessionState[1][1] = invalidSavedCell
+
+FillStablePattern(sessionGrid)
+sessionGrid:Set(2, 8, 1)
+sessionGrid:Set(3, 8, 1)
+sessionGrid:Set(1, 7, 1)
+sessionPool:Project(sessionGrid, true)
+AssertEqual(session:HandleCell(1, 7).status, "selected", "session move source selection")
+local sessionMove = session:HandleCell(1, 8)
+assert(sessionMove.valid, "session legal move was rejected")
+session:Pause("mid-swap")
+local pausedSwapGroup = sessionPool:GetFrame(1, 7).bejeweledSwapForwardAnimation.group
+assert(pausedSwapGroup:IsPaused(), "session pause did not pause the active swap group")
+FinishAllGemAnimations()
+assert(sessionAnimations:IsPlaying(), "paused swap completed while frozen")
+session:Resume("mid-swap")
+FinishAnimationRunner(sessionAnimations)
+AssertEqual(sessionMove.status, "complete", "resumed session move completion status")
+assert(sessionMove.saveResult and sessionMove.saveResult.status == "saved", "stable session move was not auto-saved")
+AssertEqual(#sessionSaveEvents, 2, "session save callback count")
+AssertEqual(sessionProfile.settings.savedState[9][4], sessionState.moves, "auto-saved move count")
+end
+TestSessionRestore()
+
 FillStablePattern(cascadeGrid)
 for x = 2, 5 do
 	cascadeGrid:Set(x, 8, 7)
@@ -1302,6 +1462,7 @@ assert(addon.backdrops == addon.Backdrops, "addon initialization did not install
 assert(addon.gemPoolFactory == addon.GemPool, "addon initialization did not install GemPool")
 assert(addon.animationFactory == addon.Animations, "addon initialization did not install Animations")
 assert(addon.inputFactory == addon.Input, "addon initialization did not install Input")
+assert(addon.sessionFactory == addon.Session, "addon initialization did not install Session")
 assert(eventFrame.registeredEvent == nil, "initializer event was not unregistered")
 local initializedGrid = addon.grid
 local initializedAudio = addon.audio
@@ -1309,6 +1470,7 @@ local initializedBackdrops = addon.backdrops
 local initializedGemPoolFactory = addon.gemPoolFactory
 local initializedAnimationFactory = addon.animationFactory
 local initializedInputFactory = addon.inputFactory
+local initializedSessionFactory = addon.sessionFactory
 addon:Initialize({}, {})
 assert(addon.grid == initializedGrid, "addon initialization is not idempotent")
 assert(addon.audio == initializedAudio, "audio initialization is not idempotent")
@@ -1316,5 +1478,6 @@ assert(addon.backdrops == initializedBackdrops, "backdrop initialization is not 
 assert(addon.gemPoolFactory == initializedGemPoolFactory, "GemPool initialization is not idempotent")
 assert(addon.animationFactory == initializedAnimationFactory, "Animations initialization is not idempotent")
 assert(addon.inputFactory == initializedInputFactory, "Input initialization is not idempotent")
+assert(addon.sessionFactory == initializedSessionFactory, "Session initialization is not idempotent")
 
-print("Runtime verification passed: input sessions, cascade animation, gem projection, UI backdrops, audio, SavedVariables, and deterministic gameplay engine.")
+print("Runtime verification passed: pause/restore sessions, input, cascade animation, gem projection, UI backdrops, audio, SavedVariables, and deterministic gameplay engine.")

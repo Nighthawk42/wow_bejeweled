@@ -19,6 +19,7 @@ function addon:Initialize(accountData, profileData)
 	assert(self.GemPool, "GemPool module is not loaded")
 	assert(self.Animations, "Animations module is not loaded")
 	assert(self.Input, "Input module is not loaded")
+	assert(self.Session, "Session module is not loaded")
 
 	self.accountData, self.profileData = self.SavedVariables:Initialize(accountData, profileData)
 	self.grid = self.Grid:New()
@@ -27,6 +28,7 @@ function addon:Initialize(accountData, profileData)
 	self.gemPoolFactory = self.GemPool
 	self.animationFactory = self.Animations
 	self.inputFactory = self.Input
+	self.sessionFactory = self.Session
 	self.initialized = true
 
 	return self

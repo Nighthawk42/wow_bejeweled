@@ -184,6 +184,7 @@ function Animations:New(gemPool, options)
 	instance.callbacks = CopyCallbacks({}, options)
 	instance.generation = 0
 	instance.active = nil
+	instance.paused = false
 	instance.effectElapsed = 0
 	instance.activeExplosions = {}
 	instance.explosionPool = {}
@@ -340,6 +341,43 @@ end
 
 function Animations:IsPlaying()
 	return self.active ~= nil
+end
+
+function Animations:IsPaused()
+	return self.paused
+end
+
+function Animations:Pause()
+	if self.paused then
+		return false
+	end
+	self.paused = true
+	local run = self.active
+	if run then
+		run.paused = true
+		for group in pairs(run.activeGroups) do
+			group:Pause()
+		end
+	end
+	self.gemPool:SetInteractive(false)
+	return true
+end
+
+function Animations:Resume()
+	if not self.paused then
+		return false
+	end
+	self.paused = false
+	local run = self.active
+	if run then
+		run.paused = false
+		for group in pairs(run.activeGroups) do
+			group:Play()
+		end
+	else
+		self.gemPool:SetInteractive(true)
+	end
+	return true
 end
 
 function Animations:CreatePowerLayers(frame)
@@ -575,6 +613,9 @@ end
 
 function Animations:UpdateEffects(elapsed)
 	assert(type(elapsed) == "number" and elapsed >= 0, "animation elapsed time must be nonnegative")
+	if self.paused then
+		return false
+	end
 	self.effectElapsed = self.effectElapsed + elapsed
 	if self.effectElapsed < self.effectInterval then
 		return false
@@ -630,6 +671,9 @@ function Animations:WaitForPhase(run, groups, explosions, lightning, onFinished)
 		run.activeGroups[group] = true
 		group:SetScript("OnFinished", MakeFinishedCallback(self, run, group, onFinished))
 		group:Play()
+		if self.paused then
+			group:Pause()
+		end
 	end
 	for index = 1, #explosions do
 		local explosion = explosions[index]
@@ -650,7 +694,7 @@ function Animations:CompleteRun(run)
 	end
 	self.gemPool:ResetPresentation(run.finalGrid)
 	self:SyncPersistentEffects(false)
-	self.gemPool:SetInteractive(true)
+	self.gemPool:SetInteractive(not self.paused)
 	self.active = nil
 	run.completed = true
 	if run.callbacks.onComplete then
@@ -781,6 +825,7 @@ function Animations:PlaySwap(firstX, firstY, secondX, secondY, rollback, finalGr
 		pending = 0,
 		cancelled = false,
 		completed = false,
+		paused = self.paused,
 		rollback = rollback and true or false,
 	}
 	self.active = run
@@ -836,6 +881,7 @@ function Animations:Play(cascadeResult, finalGrid, callbacks)
 		pending = 0,
 		cancelled = false,
 		completed = false,
+		paused = self.paused,
 	}
 	self.active = run
 	self.gemPool:SetInteractive(false)
@@ -875,7 +921,7 @@ function Animations:Cancel(reason)
 	run.pending = 0
 	self.gemPool:ResetPresentation(run.finalGrid)
 	self:SyncPersistentEffects(false)
-	self.gemPool:SetInteractive(true)
+	self.gemPool:SetInteractive(not self.paused)
 	self.active = nil
 	if run.callbacks.onCancel then
 		run.callbacks.onCancel(run.cancelReason, run)

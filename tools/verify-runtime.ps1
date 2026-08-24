@@ -28,6 +28,7 @@ try {
         "Engine\Cascade.lua",
         "Engine\Scoring.lua",
         "Engine\Input.lua",
+        "Engine\Session.lua",
         "UI\Backdrops.lua",
         "UI\GemPool.lua",
         "UI\Animations.lua"
@@ -44,7 +45,7 @@ try {
         }
     }
 
-    Write-Output "Verified: Retail TOC order and Lua 5.1-compatible gameplay engine."
+    Write-Output "Verified: Retail TOC order and Lua 5.1-compatible session/gameplay engine."
 }
 finally {
     Pop-Location
