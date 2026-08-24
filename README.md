@@ -1,12 +1,12 @@
 # Bejeweled modernization
 
-This branch contains the analysis-complete, Mainline-first modernization of the legacy World of Warcraft Bejeweled addon. Its Retail TOC and headless runtime foundation are installable for development, but the addon is not yet playable because UI, scoring, animation, and input slices remain to be restored.
+This branch contains the analysis-complete, Mainline-first modernization of the legacy World of Warcraft Bejeweled addon. Its Retail TOC and headless runtime foundation are installable for development, but the addon is not yet playable because UI, animation, and input slices remain to be restored.
 
 ## Status and phase gate
 
 The preserved 8,401-line Mainline source must be analyzed sequentially, in evidence-backed batches, before runtime work begins. All behavior-critical shortened symbols must be resolved and all batches must be complete before any public Lua API, runtime module, modern TOC, packaging, or release work is added.
 
-All 17 batches (lines 1–8,401) are documented, the cross-batch identifier audit has no remaining `working` or `unresolved` declarations, and the retained Retail API contracts are pinned in `docs/api-baseline.md`. The analysis phase gate is closed. Runtime implementation now includes wire-compatible SavedVariables initialization and deterministic grid, match, and cascade engines.
+All 17 batches (lines 1–8,401) are documented, the cross-batch identifier audit has no remaining `working` or `unresolved` declarations, and the retained Retail API contracts are pinned in `docs/api-baseline.md`. The analysis phase gate is closed. Runtime implementation now includes wire-compatible SavedVariables initialization and deterministic grid, match, cascade, scoring, skill, and level transitions.
 
 ## Goal
 
@@ -18,7 +18,7 @@ The eventual addon will target current Retail/Mainline World of Warcraft while p
 - `Bejeweled/images/` — immutable legacy images and bundled font.
 - `Bejeweled/sounds/` — immutable legacy sounds.
 - `Bejeweled/Core/` — private addon initialization, constants, and non-destructive SavedVariables defaulting.
-- `Bejeweled/Engine/` — deterministic gameplay state; currently the 8×8 grid, swaps, legal moves, legacy cell encoding, match/special discovery, power-gem clear expansion, gravity, refill, and stable cascade resolution.
+- `Bejeweled/Engine/` — deterministic gameplay state; currently the 8×8 grid, swaps, legal moves, legacy cell encoding, stable cascade resolution, legacy score formulas, statistics, skill gains, achievements, and level thresholds.
 - `docs/analysis/` — sequential batch reports, identifier ledger, and exact coverage schedule.
 - `docs/architecture.md` — module ownership and authoritative runtime data flow.
 - `docs/api-baseline.md` — verified Retail API constraints for implementation.

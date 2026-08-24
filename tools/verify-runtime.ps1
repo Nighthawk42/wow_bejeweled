@@ -24,7 +24,8 @@ try {
         "Core\SavedVariables.lua",
         "Engine\Grid.lua",
         "Engine\Matches.lua",
-        "Engine\Cascade.lua"
+        "Engine\Cascade.lua",
+        "Engine\Scoring.lua"
     )
     $actualFiles = @($toc | Where-Object { $_ -match "\.lua$" })
     if (Compare-Object -ReferenceObject $expectedFiles -DifferenceObject $actualFiles -SyncWindow 0) {
@@ -38,7 +39,7 @@ try {
         }
     }
 
-    Write-Output "Verified: Retail TOC order and Lua 5.1-compatible grid, match, and cascade engine."
+    Write-Output "Verified: Retail TOC order and Lua 5.1-compatible gameplay engine."
 }
 finally {
     Pop-Location

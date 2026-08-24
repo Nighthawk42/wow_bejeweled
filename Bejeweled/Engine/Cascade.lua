@@ -66,6 +66,41 @@ local function AddClearCell(clearCells, clearSet, cell)
 	return false
 end
 
+local function SummarizeMatchAwards(matchResult)
+	local awards = {}
+	for groupIndex = 1, #matchResult.groups do
+		local group = matchResult.groups[groupIndex]
+		local powerCells = {}
+		for cellIndex = 1, #group.primaryCells do
+			local cell = group.primaryCells[cellIndex]
+			if cell.bigStar then
+				powerCells[#powerCells + 1] = cell
+			end
+		end
+		if group.crossCells then
+			for cellIndex = 1, #group.crossCells do
+				local cell = group.crossCells[cellIndex]
+				if cell.bigStar then
+					powerCells[#powerCells + 1] = cell
+				end
+			end
+		end
+		local origin = group.primaryCells[1]
+		awards[groupIndex] = {
+			groupIndex = groupIndex,
+			contents = group.contents,
+			matchLength = group.clearCount,
+			hasIntersection = group.crossCells ~= nil,
+			specialKind = group.special and group.special.kind or nil,
+			originX = origin.gridX,
+			originY = origin.gridY,
+			powerCells = powerCells,
+			powerTriggerCount = #powerCells,
+		}
+	end
+	return awards
+end
+
 local function PlanSpecials(matchResult)
 	local plans = {}
 	local byCell = {}
@@ -76,6 +111,7 @@ local function PlanSpecials(matchResult)
 		if special then
 			local cell = special.cell
 			local plan = {
+				groupIndex = groupIndex,
 				kind = special.kind,
 				contents = group.contents,
 				cell = cell,
@@ -265,11 +301,22 @@ local function RunStep(grid, matchResult, options)
 
 	local clearCells = {}
 	local clearSet = {}
+	local matchAwards = SummarizeMatchAwards(matchResult)
 	for index = 1, #matchResult.cells do
 		AddClearCell(clearCells, clearSet, matchResult.cells[index])
 	end
 	local specials, specialByCell, suppressedSpecials = PlanSpecials(matchResult)
 	local triggeredPowerCells = ExpandPowerGemClears(grid, clearCells, clearSet)
+	local triggeredPowerRecords = {}
+	for index = 1, #triggeredPowerCells do
+		local cell = triggeredPowerCells[index]
+		triggeredPowerRecords[index] = {
+			cell = cell,
+			x = cell.gridX,
+			y = cell.gridY,
+			contents = cell.contents,
+		}
+	end
 	local removedCells = ApplyClears(grid, clearCells, specialByCell)
 	local specialOccupants = ApplySpecials(grid, specials)
 	local moves = CompactColumns(grid, specialOccupants)
@@ -285,12 +332,14 @@ local function RunStep(grid, matchResult, options)
 
 	return {
 		matches = matchResult,
+		matchAwards = matchAwards,
 		matchedCellCount = matchResult.cellCount,
 		clearCells = clearCells,
 		clearCount = #clearCells,
 		removedCells = removedCells,
 		removedCount = #removedCells,
 		triggeredPowerCells = triggeredPowerCells,
+		triggeredPowerRecords = triggeredPowerRecords,
 		triggeredPowerCount = #triggeredPowerCells,
 		spawnedSpecials = specials,
 		suppressedSpecials = suppressedSpecials,

@@ -1,6 +1,6 @@
 # Target architecture (post-analysis)
 
-The analysis phase gate is satisfied. This ownership map now governs runtime implementation; currently implemented modules are `Core/Init.lua`, `Core/Constants.lua`, `Core/SavedVariables.lua`, `Engine/Grid.lua`, `Engine/Matches.lua`, and `Engine/Cascade.lua`.
+The analysis phase gate is satisfied. This ownership map now governs runtime implementation; currently implemented modules are `Core/Init.lua`, `Core/Constants.lua`, `Core/SavedVariables.lua`, `Engine/Grid.lua`, `Engine/Matches.lua`, `Engine/Cascade.lua`, and `Engine/Scoring.lua`.
 
 ## Load order and ownership
 
@@ -11,7 +11,7 @@ The analysis phase gate is satisfied. This ownership map now governs runtime imp
 5. `Engine/Grid.lua` — deterministic grid representation, coordinates, swaps, and legal-move state.
 6. `Engine/Matches.lua` — pure legacy-order match detection, axis-overlap reporting, and power/hyper-gem classification; clearing and scoring remain downstream responsibilities.
 7. `Engine/Cascade.lua` — transactional clears, matched power-gem expansion, spawned-special preservation, fixed-cell gravity, bounded refill, and repeated transitions to a stable board. It emits logical movement/refill records but owns no animation or scoring.
-8. `Engine/Scoring.lua` — score, level, multiplier, skill, and achievement transitions.
+8. `Engine/Scoring.lua` — legacy score arithmetic, combo/mode/level multipliers, wire-compatible statistics, probabilistic skill gains, one-time achievements, rank advancement, and pending/explicit level transitions. It emits presentation events and owns no frames, text, sound, or chat publishing.
 9. `UI/Backdrops.lua` — backdrop-compatible frame construction and shared chrome.
 10. `UI/GemPool.lua` — gem-frame allocation, reuse, and grid-to-frame projection.
 11. `UI/Animations.lua` — animation groups, transition timing, and visual effect orchestration.

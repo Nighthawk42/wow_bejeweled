@@ -13,3 +13,4 @@ Core\SavedVariables.lua
 Engine\Grid.lua
 Engine\Matches.lua
 Engine\Cascade.lua
+Engine\Scoring.lua

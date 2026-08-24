@@ -45,6 +45,7 @@ LoadAddonFile("Bejeweled/Core/SavedVariables.lua", addon)
 LoadAddonFile("Bejeweled/Engine/Grid.lua", addon)
 LoadAddonFile("Bejeweled/Engine/Matches.lua", addon)
 LoadAddonFile("Bejeweled/Engine/Cascade.lua", addon)
+LoadAddonFile("Bejeweled/Engine/Scoring.lua", addon)
 
 AssertEqual(eventFrame.registeredEvent, "ADDON_LOADED", "initializer event registration")
 AssertEqual(addon.Constants.GRID_WIDTH, 8, "grid width")
@@ -340,6 +341,124 @@ for y = 1, addon.Constants.GRID_HEIGHT do
 	end
 end
 
+local scoringProfile = addon.SavedVariables:CreateDefaultProfile()
+local scoringState = addon.Scoring:NewState(addon.Constants.GAME_MODE_CLASSIC)
+local simpleScoring = addon.Scoring:ApplyCascade(scoringState, { steps = { simpleCascade } }, scoringProfile, {
+	random = function() return 1 end,
+})
+AssertEqual(simpleScoring.points, 10, "classic three-match score")
+AssertEqual(scoringState.score, 10, "classic score state")
+AssertEqual(simpleScoring.combo, 1, "classic three-match combo")
+AssertEqual(scoringState.combo, 0, "combo was not reset after a stable move")
+AssertEqual(scoringState.largestCombo, 1, "largest combo state")
+AssertEqual(scoringState.largestCascade, 3, "largest cascade state")
+AssertEqual(scoringProfile.stats.totalGemsMatched, 3, "legacy refill-backed gem statistic")
+AssertEqual(scoringProfile.stats.gemMatch[1], 1, "per-color match statistic")
+AssertEqual(scoringProfile.skill.skillPoints, 1, "match-three skill gain")
+
+local powerScoringProfile = addon.SavedVariables:CreateDefaultProfile()
+local powerScoringState = addon.Scoring:NewState(addon.Constants.GAME_MODE_CLASSIC)
+local powerScoring = addon.Scoring:ApplyCascade(powerScoringState, { steps = { powerCascade } }, powerScoringProfile, {
+	random = function() return 1 end,
+})
+AssertEqual(powerScoring.points, 45, "four-match power-gem score")
+AssertEqual(powerScoringProfile.stats.totalPowerGems, 1, "power-gem creation statistic")
+
+local hyperScoringProfile = addon.SavedVariables:CreateDefaultProfile()
+local hyperScoringState = addon.Scoring:NewState(addon.Constants.GAME_MODE_CLASSIC)
+local hyperScoring = addon.Scoring:ApplyCascade(hyperScoringState, { steps = { hyperCascade } }, hyperScoringProfile, {
+	random = function() return 1 end,
+})
+AssertEqual(hyperScoring.points, 30, "five-match hyper-gem score")
+AssertEqual(hyperScoringProfile.stats.totalHyperGems, 1, "hyper-gem creation statistic")
+
+local explosionScoringProfile = addon.SavedVariables:CreateDefaultProfile()
+local explosionScoringState = addon.Scoring:NewState(addon.Constants.GAME_MODE_CLASSIC)
+local explosionScoring = addon.Scoring:ApplyCascade(
+	explosionScoringState,
+	{ steps = { explosionCascade } },
+	explosionScoringProfile,
+	{ random = function() return 1 end }
+)
+AssertEqual(explosionScoring.points, 75, "chained power-gem score")
+AssertEqual(#explosionScoring.scoreEvents, 2, "chained power-gem score event count")
+AssertEqual(explosionScoring.scoreEvents[2].kind, "power-trigger", "chained power-gem score event kind")
+AssertEqual(explosionScoring.scoreEvents[2].points, 40, "second power-gem explosion score")
+
+local crossPowerGrid = addon.Grid:New()
+crossPowerGrid:Set(3, 1, 6)
+crossPowerGrid:Set(3, 2, 6)
+crossPowerGrid:Set(3, 3, 6, true)
+crossPowerGrid:Set(2, 3, 6)
+crossPowerGrid:Set(4, 3, 6)
+local crossPowerCascade = addon.Cascade:Step(crossPowerGrid, addon.Matches:Find(crossPowerGrid), {
+	random = MakeRandom(6789),
+	requireLegalMove = false,
+})
+AssertEqual(crossPowerCascade.matchAwards[1].powerTriggerCount, 2, "cross intersection power mark count")
+local crossPowerProfile = addon.SavedVariables:CreateDefaultProfile()
+local crossPowerState = addon.Scoring:NewState(addon.Constants.GAME_MODE_CLASSIC)
+local crossPowerScoring = addon.Scoring:ApplyCascade(
+	crossPowerState,
+	{ steps = { crossPowerCascade } },
+	crossPowerProfile,
+	{ random = function() return 1 end }
+)
+AssertEqual(crossPowerScoring.points, 95, "cross-intersection power-gem score")
+
+local timedScoringProfile = addon.SavedVariables:CreateDefaultProfile()
+local timedScoringState = addon.Scoring:NewState(addon.Constants.GAME_MODE_TIMED)
+local timedScoring = addon.Scoring:ApplyCascade(timedScoringState, { steps = { simpleCascade } }, timedScoringProfile, {
+	random = function() return 1 end,
+})
+AssertEqual(timedScoring.points, 150, "timed three-match score")
+AssertEqual(timedScoringState.pointsToLevelUp, 7500, "timed initial level threshold")
+
+local tieredSkillProfile = addon.SavedVariables:CreateDefaultProfile()
+tieredSkillProfile.skill.skillPoints = 10
+local failedTieredSkill = addon.Scoring:AttemptSkill(
+	tieredSkillProfile,
+	addon.Constants.SKILL_TYPE_MATCH,
+	addon.Constants.SKILL_MATCH3,
+	{ random = function() return 100 end }
+)
+AssertEqual(failedTieredSkill.gained, 0, "tier-one skill failure")
+AssertEqual(tieredSkillProfile.skill.skillPoints, 10, "failed skill changed points")
+local gainedTieredSkill = addon.Scoring:AttemptSkill(
+	tieredSkillProfile,
+	addon.Constants.SKILL_TYPE_MATCH,
+	addon.Constants.SKILL_MATCH3,
+	{ random = function() return 1 end }
+)
+AssertEqual(gainedTieredSkill.gained, 1, "tier-one skill gain")
+AssertEqual(tieredSkillProfile.skill.skillPoints, 11, "successful skill points")
+
+local achievementProfile = addon.SavedVariables:CreateDefaultProfile()
+achievementProfile.skill.skillPoints = 150
+local achievement = addon.Scoring:AttemptSkill(
+	achievementProfile,
+	addon.Constants.SKILL_TYPE_ACHIEVEMENT,
+	addon.Constants.ACHIEVEMENT_POWER100,
+	{ random = function() return 1 end }
+)
+assert(achievement.completed, "achievement was not completed")
+AssertEqual(achievement.awardAmount, 5, "achievement award amount")
+assert(achievementProfile.skill.gainAchieve4, "achievement wire flag was not set")
+
+local levelingProfile = addon.SavedVariables:CreateDefaultProfile()
+local levelingState = addon.Scoring:NewState(addon.Constants.GAME_MODE_CLASSIC, { score = 490 })
+local thresholdScoring = addon.Scoring:ApplyCascade(levelingState, { steps = { simpleCascade } }, levelingProfile, {
+	random = function() return 1 end,
+})
+assert(thresholdScoring.levelPending, "level threshold was not detected")
+local levelAdvance = addon.Scoring:AdvanceLevel(levelingState, levelingProfile, {
+	random = function() return 1 end,
+})
+AssertEqual(levelAdvance.level, 2, "advanced level")
+AssertEqual(levelAdvance.pointMultiplier, 1.5, "advanced level point multiplier")
+AssertEqual(levelAdvance.pointsToLevelUp, 1975, "advanced level threshold")
+AssertEqual(levelingProfile.stats.classic.highestLevel, 2, "classic highest-level statistic")
+
 eventFrame.scripts.OnEvent(eventFrame, "ADDON_LOADED", "AnotherAddon", false)
 assert(not addon.initialized, "foreign ADDON_LOADED initialized the addon")
 eventFrame.scripts.OnEvent(eventFrame, "ADDON_LOADED", "Bejeweled", false)
@@ -350,4 +469,4 @@ local initializedGrid = addon.grid
 addon:Initialize({}, {})
 assert(addon.grid == initializedGrid, "addon initialization is not idempotent")
 
-print("Runtime verification passed: SavedVariables and deterministic grid, match, and cascade engines.")
+print("Runtime verification passed: SavedVariables and deterministic gameplay engine.")
