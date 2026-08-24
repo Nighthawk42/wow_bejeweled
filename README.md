@@ -6,7 +6,7 @@ This branch is an analysis-only bootstrap for a Mainline-first modernization of 
 
 The preserved 8,401-line Mainline source must be analyzed sequentially, in evidence-backed batches, before runtime work begins. All behavior-critical shortened symbols must be resolved and all batches must be complete before any public Lua API, runtime module, modern TOC, packaging, or release work is added.
 
-Batches 01–16 (lines 1–8,000) are documented. The final batch remains scheduled but not analyzed.
+All 17 batches (lines 1–8,401) are documented. Runtime work remains gated on a cross-batch audit that resolves or classifies the remaining behavior-critical `working`/`unresolved` ledger entries and verifies every retained Retail API contract.
 
 ## Goal
 
@@ -26,6 +26,6 @@ The eventual addon will target current Retail/Mainline World of Warcraft while p
 
 Analysis contributions must proceed in schedule order and cite exact legacy line numbers. Record every shortened identifier by declaration and lexical scope, distinguish evidence from inference, retain unresolved names when proof is incomplete, and update the shared ledger with each batch. Do not edit preserved legacy code or assets.
 
-Runtime contributions are premature until all 8,401 lines have been covered exactly once and behavior-critical symbols are resolved. Future Lua must remain Lua 5.1 compatible and must use current, verified Mainline APIs.
+Runtime contributions remain premature until the completed coverage is converted into a closed behavior-critical symbol audit and implementation-ready API contract set. Future Lua must remain Lua 5.1 compatible and must use current, verified Mainline APIs.
 
 See `ACKNOWLEDGEMENT.md` for attribution and the boundary between preserved legacy material and newly authored MIT-licensed work.

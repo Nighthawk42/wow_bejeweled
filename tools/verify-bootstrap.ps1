@@ -145,9 +145,10 @@ Assert-ReportCoverage 'docs/analysis/lines-6001-6500.md' 6001 6500
 Assert-ReportCoverage 'docs/analysis/lines-6501-7000.md' 6501 7000
 Assert-ReportCoverage 'docs/analysis/lines-7001-7500.md' 7001 7500
 Assert-ReportCoverage 'docs/analysis/lines-7501-8000.md' 7501 8000
+Assert-ReportCoverage 'docs/analysis/lines-8001-8401.md' 8001 8401
 
 $lineCount = (Get-Content -LiteralPath 'Legacy/Bejeweled_Mainline.lua').Count
 Assert-True ($lineCount -eq 8401) "Legacy source has $lineCount lines, expected 8401"
 
 Write-Output "Verified: forbidden files absent; legacy and $($assetPaths.Count) asset hashes match $SourceCommit."
-Write-Output "Verified: strict UTF-8 text, exact 8,401-line schedule, and complete batch-01/02/03/04/05/06/07/08/09/10/11/12/13/14/15/16 line coverage."
+Write-Output "Verified: strict UTF-8 text, exact 8,401-line schedule, and complete batch-01/02/03/04/05/06/07/08/09/10/11/12/13/14/15/16/17 line coverage."
