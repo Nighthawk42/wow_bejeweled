@@ -519,3 +519,61 @@ function Scoring:AdvanceLevel(state, profile, options)
 	end
 	return result
 end
+
+function Scoring:CheckCompletedGameAchievements(profile, totalGames, options)
+	ValidateProfile(profile)
+	assert(type(totalGames) == "number" and totalGames == math.floor(totalGames) and totalGames >= 1, "completed-game total is invalid")
+	options = options or {}
+	local result = {
+		totalGames = totalGames,
+		skillEvents = {},
+	}
+	local skillOptions = {
+		random = options.random or math.random,
+		skillLimit = options.skillLimit,
+	}
+	if totalGames >= 100
+		and not profile.skill["gainAchieve" .. Constants.ACHIEVEMENT_GAME100] then
+		TrySkill(self, result.skillEvents, profile, Constants.SKILL_TYPE_ACHIEVEMENT, Constants.ACHIEVEMENT_GAME100, skillOptions)
+	end
+	if totalGames >= 1000
+		and not profile.skill["gainAchieve" .. Constants.ACHIEVEMENT_GAME1000] then
+		TrySkill(self, result.skillEvents, profile, Constants.SKILL_TYPE_ACHIEVEMENT, Constants.ACHIEVEMENT_GAME1000, skillOptions)
+	end
+	return result
+end
+
+function Scoring:FinalizeGame(state, profile, elapsed, options)
+	assert(type(state) == "table", "game finalization requires game state")
+	ValidateMode(state.gameMode)
+	ValidateProfile(profile)
+	assert(type(elapsed) == "number" and elapsed >= 0, "game finalization elapsed time must be nonnegative")
+	options = options or {}
+	local result = {
+		gameMode = state.gameMode,
+		score = state.score,
+		elapsed = elapsed,
+		metricName = "score",
+		metric = state.score,
+		skillEvents = {},
+	}
+	if state.gameMode ~= Constants.GAME_MODE_CLASSIC then
+		assert(elapsed > 0, "timed game finalization requires positive elapsed time")
+		result.metricName = "points-per-second"
+		result.metric = state.score / elapsed
+		local skillOptions = {
+			random = options.random or math.random,
+			skillLimit = options.skillLimit,
+		}
+		if result.metric >= 250 then
+			TrySkill(self, result.skillEvents, profile, Constants.SKILL_TYPE_TIMED, Constants.SKILL_PPS250, skillOptions)
+		end
+		if result.metric >= 300 then
+			TrySkill(self, result.skillEvents, profile, Constants.SKILL_TYPE_TIMED, Constants.SKILL_PPS300, skillOptions)
+		end
+		if result.metric >= 350 then
+			TrySkill(self, result.skillEvents, profile, Constants.SKILL_TYPE_TIMED, Constants.SKILL_PPS350, skillOptions)
+		end
+	end
+	return result
+end

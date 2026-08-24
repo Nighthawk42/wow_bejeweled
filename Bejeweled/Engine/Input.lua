@@ -82,7 +82,7 @@ function Input:New(grid, gemPool, animations, options)
 	instance.profile = options.profile
 	instance.audio = options.audio
 	instance.random = options.random or grid.random or math.random
-	instance.requireLegalMove = options.requireLegalMove ~= false
+	instance.requireLegalMove = options.requireLegalMove == true
 	instance.maximumRefillAttempts = options.maximumRefillAttempts
 	instance.maximumCascades = options.maximumCascades
 	instance.skillLimit = options.skillLimit
@@ -109,12 +109,10 @@ end
 
 function Input:SetSessionLocked(locked, reason)
 	assert(type(locked) == "boolean", "input session lock state must be Boolean")
-	if self.sessionLocked == locked then
-		return false
-	end
+	local changed = self.sessionLocked ~= locked
 	self.sessionLocked = locked
 	self.sessionLockReason = locked and (reason or "session") or nil
-	if locked then
+	if locked and changed then
 		self:ClearSelection("session-locked")
 	end
 	self.gemPool:SetInteractive(
@@ -123,7 +121,7 @@ function Input:SetSessionLocked(locked, reason)
 			and not self.locked
 			and not self.animations:IsPlaying()
 	)
-	return true
+	return changed
 end
 
 function Input:SetPaused(paused)

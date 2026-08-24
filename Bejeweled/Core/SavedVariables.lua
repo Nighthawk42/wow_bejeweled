@@ -198,6 +198,7 @@ end
 function SavedVariables:CreateDefaultAccount()
 	return {
 		flightTimes = {},
+		played = {},
 	}
 end
 
@@ -304,6 +305,100 @@ function SavedVariables:HasClassicGame(profile)
 		and type(profile.settings) == "table"
 		and profile.settings.classicInProgress
 		and type(profile.settings.savedState) == "table"
+end
+
+function SavedVariables:RecordCompletedGame(accountData, profile, playerName)
+	assert(type(accountData) == "table", "completed-game persistence requires account data")
+	assert(type(profile) == "table" and type(profile.skill) == "table", "completed-game persistence requires profile skills")
+	assert(type(playerName) == "string" and playerName ~= "", "completed-game persistence requires a player name")
+	local played = accountData.played
+	if type(played) ~= "table" then
+		played = {}
+		accountData.played = played
+	end
+	profile.skill.games = (profile.skill.games or 0) + 1
+	played[playerName] = profile.skill.games
+	local totalGames = 0
+	for _, games in pairs(played) do
+		assert(IsNonnegativeInteger(games), "account completed-game count is invalid")
+		totalGames = totalGames + games
+	end
+	return {
+		games = profile.skill.games,
+		totalGames = totalGames,
+	}
+end
+
+function SavedVariables:ClearClassicGame(grid, profile)
+	assert(type(grid) == "table" and type(grid.width) == "number" and type(grid.height) == "number", "classic clear requires a grid")
+	assert(type(profile) == "table" and type(profile.settings) == "table", "classic clear requires profile settings")
+	local hadGame = self:HasClassicGame(profile) and true or false
+	local savedState = profile.settings.savedState
+	if type(savedState) ~= "table" then
+		savedState = {}
+		profile.settings.savedState = savedState
+	end
+	for row = 1, grid.height do
+		local savedRow = savedState[row]
+		if type(savedRow) ~= "table" then
+			savedRow = {}
+			savedState[row] = savedRow
+		end
+		for column = 1, grid.width do
+			savedRow[column] = 0
+		end
+	end
+	local metadata = savedState[grid.height + 1]
+	if type(metadata) ~= "table" then
+		metadata = {}
+		savedState[grid.height + 1] = metadata
+	end
+	for index = 1, math.max(9, #metadata) do
+		metadata[index] = 0
+	end
+	profile.settings.classicInProgress = nil
+	return {
+		status = "cleared",
+		hadGame = hadGame,
+		savedState = savedState,
+	}
+end
+
+function SavedVariables:UpdatePersonalBest(profile, gameMode, metric, playerName)
+	assert(type(profile) == "table" and type(profile.stats) == "table", "personal-best persistence requires profile statistics")
+	assert(type(metric) == "number" and metric >= 0, "personal-best metric must be nonnegative")
+	assert(type(playerName) == "string" and playerName ~= "", "personal-best persistence requires a player name")
+	local modeStats
+	local encodedValue
+	local width
+	if gameMode == addon.Constants.GAME_MODE_CLASSIC then
+		assert(IsNonnegativeInteger(metric), "classic personal best must be an integer")
+		modeStats = profile.stats.classic
+		encodedValue = metric
+		width = 4
+	else
+		assert(
+			gameMode == addon.Constants.GAME_MODE_TIMED
+				or gameMode == addon.Constants.GAME_MODE_FLIGHT_LEARNING,
+			"personal best requires a scored game mode"
+		)
+		modeStats = profile.stats.timed
+		encodedValue = math.floor(metric * 100)
+		width = 3
+	end
+	assert(type(modeStats) == "table", "personal-best mode statistics are missing")
+	local updated = metric > (modeStats.score or 0)
+	if updated then
+		modeStats.score = metric
+		modeStats.data = AuthenticatePayload(EncodeBase70(encodedValue, width), ByteSum(playerName))
+	end
+	return {
+		status = updated and "updated" or "unchanged",
+		updated = updated,
+		metric = metric,
+		best = modeStats.score or 0,
+		data = modeStats.data,
+	}
 end
 
 function SavedVariables:SaveClassicGame(grid, state, profile, playerName, elapsed)

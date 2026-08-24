@@ -1003,6 +1003,7 @@ local session = addon.Session:New(sessionGrid, sessionPool, sessionAnimations, {
 	scoringState = sessionState,
 	timerElapsed = 42.75,
 	deferLevelTransitions = true,
+	detectGameOver = false,
 	inputOptions = {
 		random = MakeRandom(4810),
 		requireLegalMove = false,
@@ -1124,6 +1125,11 @@ sessionState.pointsToLevelUp = 500
 sessionState.level = 1
 sessionState.pointMultiplier = 1
 sessionState.levelPending = true
+FillStablePattern(sessionGrid)
+sessionGrid:Set(1, 1, addon.Constants.HYPER_CONTENTS)
+local transitionPowerContents = sessionGrid:Get(2, 1).contents
+sessionGrid:Set(2, 1, transitionPowerContents, true)
+sessionPool:Project(sessionGrid, true)
 local levelSourceMove = { status = "complete" }
 session:HandleMoveComplete(levelSourceMove)
 assert(session:IsLevelTransitionPending(), "session did not retain the presentation handoff")
@@ -1154,6 +1160,25 @@ AssertEqual(completedLevelTransition.status, "complete", "level-transition compl
 AssertEqual(completedLevelTransition.level, 2, "session-advanced level")
 AssertEqual(completedLevelTransition.pointMultiplier, 1.5, "session-advanced point multiplier")
 AssertEqual(completedLevelTransition.pointsToLevelUp, 1975, "session-advanced level threshold")
+assert(completedLevelTransition.boardReset, "level transition did not regenerate the board")
+AssertEqual(completedLevelTransition.preservedHyperGems, 1, "level transition hyper preservation record")
+AssertEqual(completedLevelTransition.preservedPowerGems, 1, "level transition power preservation record")
+local resetHyperCount = 0
+local resetPowerCount = 0
+for row = 1, addon.Constants.GRID_HEIGHT do
+	for column = 1, addon.Constants.GRID_WIDTH do
+		local resetCell = sessionGrid:Get(column, row)
+		if resetCell.contents == addon.Constants.HYPER_CONTENTS then
+			resetHyperCount = resetHyperCount + 1
+		end
+		if resetCell.bigStar then
+			resetPowerCount = resetPowerCount + 1
+		end
+	end
+end
+AssertEqual(resetHyperCount, 1, "regenerated level board hyper count")
+AssertEqual(resetPowerCount, 1, "regenerated level board power count")
+assert(sessionGrid:FindLegalMove(), "regenerated level board has no legal move")
 assert(not sessionState.levelPending, "completed transition retained the pending level flag")
 assert(not session:IsLevelTransitionPending(), "completed level transition remained active")
 assert(not session:IsLocked(), "completed level transition left input locked")
@@ -1178,7 +1203,186 @@ AssertEqual(#sessionLevelCompleteEvents, 2, "automatic level-transition completi
 AssertEqual(#sessionSaveEvents, 4, "automatic level-transition autosave callback count")
 assert(automaticLevelMove.saveResult, "automatic level transition omitted stable-state autosave")
 end
+
+local function TestGameOverTransitions()
+local gameOverGrid = addon.Grid:New()
+FillStablePattern(gameOverGrid)
+assert(not gameOverGrid:FindLegalMove(), "game-over fixture unexpectedly has a legal move")
+local gameOverPool = addon.GemPool:New(gemPoolParent, {
+	createFrame = CreateGemPoolFrame,
+	createBoardTiles = false,
+})
+gameOverPool:Project(gameOverGrid, true)
+local gameOverAnimations = addon.Animations:New(gameOverPool, {
+	createFrame = CreateGemPoolFrame,
+})
+local gameOverProfile = addon.SavedVariables:CreateDefaultProfile()
+gameOverProfile.skill.skillPoints = 75
+local gameOverAccount = addon.SavedVariables:CreateDefaultAccount()
+gameOverAccount.played.OtherCharacter = 99
+local gameOverState = addon.Scoring:NewState(addon.Constants.GAME_MODE_CLASSIC, {
+	score = 4321,
+	level = 5,
+	pointsToLevelUp = 8000,
+	pointMultiplier = 3,
+	largestCascade = 12,
+	largestCombo = 6,
+	moves = 88,
+})
+local gameOverStarted = {}
+local gameOverCompleted = {}
+local gameOverSounds = {}
+local gameOverSession = addon.Session:New(gameOverGrid, gameOverPool, gameOverAnimations, {
+	profile = gameOverProfile,
+	accountData = gameOverAccount,
+	playerName = "Nighthawk",
+	scoringState = gameOverState,
+	timerElapsed = 75.5,
+	deferGameOverTransitions = true,
+	inputOptions = {
+		random = function() return 1 end,
+		audio = {
+			Play = function(_, soundName)
+				gameOverSounds[#gameOverSounds + 1] = soundName
+			end,
+		},
+	},
+	onGameOverStarted = function(result)
+		gameOverStarted[#gameOverStarted + 1] = result
+	end,
+	onGameOverComplete = function(result)
+		gameOverCompleted[#gameOverCompleted + 1] = result
+	end,
+})
+assert(not gameOverSession:GetInput().requireLegalMove, "runtime input still forces legal cascade refills")
+gameOverSession:SaveClassicGame("game-over-fixture")
+assert(gameOverSession:HasClassicGame(), "game-over fixture did not create a resumable game")
+local terminalMove = { status = "complete" }
+gameOverSession:HandleMoveComplete(terminalMove)
+assert(gameOverSession:IsGameOver(), "no-legal-move board did not end the session")
+assert(gameOverSession:IsGameOverTransitionPending(), "game-over presentation was not deferred")
+assert(not gameOverSession.active, "game-over session remained active")
+assert(gameOverSession:IsLocked(), "game-over transition did not retain the input lock")
+assert(not gameOverPool:GetFrame(1, 1).mouseEnabled, "game-over transition left gems interactive")
+AssertEqual(#gameOverStarted, 1, "game-over start callback count")
+AssertEqual(gameOverStarted[1].cause, "no-legal-move", "game-over cause")
+AssertEqual(gameOverStarted[1].kind, "no-more-moves", "classic game-over presentation kind")
+AssertEqual(gameOverStarted[1].score, 4321, "game-over final score snapshot")
+AssertEqual(gameOverStarted[1].totalGames, 100, "account-wide completed-game count")
+AssertEqual(gameOverProfile.skill.games, 1, "profile completed-game count")
+AssertEqual(gameOverAccount.played.Nighthawk, 1, "account character completed-game count")
+assert(gameOverProfile.skill.gainAchieve3, "100-game achievement was not checked")
+AssertEqual(gameOverSounds[1], "NoMoreMoves", "classic game-over sound")
+AssertEqual(gameOverSounds[2], "WipeBoard", "game-over board-wipe sound")
+assert(not gameOverSession:HasClassicGame(), "completed Classic game remained resumable")
+for row = 1, addon.Constants.GRID_HEIGHT + 1 do
+	for column = 1, #(gameOverProfile.settings.savedState[row]) do
+		AssertEqual(gameOverProfile.settings.savedState[row][column], 0, "cleared Classic save wire value")
+	end
+end
+gameOverStarted[1].score = 0
+terminalMove.gameOverTransition.level = 0
+AssertEqual(gameOverSession:GetGameOverTransition().score, 4321, "callback mutated active game-over record")
+AssertEqual(gameOverSession:GetGameOverTransition().level, 5, "source move mutated active game-over record")
+gameOverSession:Pause("game-over")
+gameOverSession:Resume("game-over")
+assert(gameOverSession:IsLocked(), "pause cycle released the terminal input lock")
+
+local classicSummary = gameOverSession:CompleteGameOver()
+AssertEqual(classicSummary.status, "complete", "game-over completion status")
+AssertEqual(classicSummary.metricName, "score", "classic summary metric name")
+AssertEqual(classicSummary.metric, 4321, "classic summary metric")
+assert(classicSummary.personalBest.updated, "classic personal best was not updated")
+AssertEqual(gameOverProfile.stats.classic.score, 4321, "persisted Classic personal best")
+local classicBestPayload = addon.SavedVariables:VerifyAuthenticatedPayload(
+	gameOverProfile.stats.classic.data,
+	addon.SavedVariables:ByteSum("Nighthawk")
+)
+AssertEqual(addon.SavedVariables:DecodeBase70(classicBestPayload), 4321, "authenticated Classic personal best")
+local retainedClassicData = gameOverProfile.stats.classic.data
+local lowerClassicBest = addon.SavedVariables:UpdatePersonalBest(
+	gameOverProfile,
+	addon.Constants.GAME_MODE_CLASSIC,
+	4000,
+	"Nighthawk"
+)
+assert(not lowerClassicBest.updated, "lower Classic score replaced the personal best")
+AssertEqual(gameOverProfile.stats.classic.data, retainedClassicData, "lower Classic score replaced authenticated data")
+assert(not gameOverSession:IsGameOverTransitionPending(), "completed game-over transition remained pending")
+assert(gameOverSession:IsLocked(), "completed game-over transition released terminal input")
+AssertEqual(gameOverSession:HandleCell(1, 1).status, "locked", "completed session accepted input")
+AssertEqual(#gameOverCompleted, 1, "game-over completion callback count")
+AssertEqual(terminalMove.gameOverComplete.metric, 4321, "source move summary handoff")
+classicSummary.score = 0
+AssertEqual(gameOverSession:GetGameOverSummary().score, 4321, "returned summary mutated retained handoff")
+
+local timedGrid = addon.Grid:New()
+FillStablePattern(timedGrid)
+local timedPool = addon.GemPool:New(gemPoolParent, {
+	createFrame = CreateGemPoolFrame,
+	createBoardTiles = false,
+})
+timedPool:Project(timedGrid, true)
+local timedAnimations = addon.Animations:New(timedPool, {
+	createFrame = CreateGemPoolFrame,
+})
+local timedProfile = addon.SavedVariables:CreateDefaultProfile()
+timedProfile.skill.skillPoints = 225
+local timedAccount = addon.SavedVariables:CreateDefaultAccount()
+local timedSounds = {}
+local timedState = addon.Scoring:NewState(addon.Constants.GAME_MODE_TIMED, {
+	score = 3000,
+	level = 2,
+	largestCascade = 7,
+	largestCombo = 4,
+	moves = 25,
+})
+local timedSession = addon.Session:New(timedGrid, timedPool, timedAnimations, {
+	profile = timedProfile,
+	accountData = timedAccount,
+	playerName = "Nighthawk",
+	gameMode = addon.Constants.GAME_MODE_TIMED,
+	scoringState = timedState,
+	timerElapsed = 9,
+	timeLimit = 10,
+	detectGameOver = false,
+	inputOptions = {
+		random = function() return 1 end,
+		audio = {
+			Play = function(_, soundName)
+				timedSounds[#timedSounds + 1] = soundName
+			end,
+		},
+	},
+})
+AssertEqual(timedSession:AdvanceElapsed(2), 10, "timed session did not clamp at its limit")
+assert(timedSession:IsGameOver(), "expired timed session did not end")
+assert(not timedSession:IsGameOverTransitionPending(), "automatic timed summary remained deferred")
+local timedSummary = timedSession:GetGameOverSummary()
+AssertEqual(timedSummary.cause, "time-expired", "timed game-over cause")
+AssertEqual(timedSummary.kind, "time-up", "timed game-over presentation kind")
+AssertEqual(timedSummary.metricName, "points-per-second", "timed summary metric name")
+AssertEqual(timedSummary.metric, 300, "timed points-per-second metric")
+assert(timedSummary.personalBest.updated, "timed personal best was not updated")
+AssertEqual(timedProfile.stats.timed.score, 300, "persisted timed personal best")
+AssertEqual(timedProfile.stats.timed.played, 1, "timed playtime persistence")
+AssertEqual(timedProfile.stats.played, 1, "total playtime persistence")
+AssertEqual(#timedSummary.skillEvents, 2, "timed PPS skill-check count")
+AssertEqual(timedSummary.skillEvents[1].index, addon.Constants.SKILL_PPS250, "250-PPS skill check")
+AssertEqual(timedSummary.skillEvents[2].index, addon.Constants.SKILL_PPS300, "300-PPS skill check")
+local timedBestPayload = addon.SavedVariables:VerifyAuthenticatedPayload(
+	timedProfile.stats.timed.data,
+	addon.SavedVariables:ByteSum("Nighthawk")
+)
+AssertEqual(addon.SavedVariables:DecodeBase70(timedBestPayload), 30000, "authenticated timed personal best")
+AssertEqual(timedSounds[1], "TimesUp", "timed game-over sound")
+AssertEqual(timedSounds[2], "WipeBoard", "timed board-wipe sound")
+timedPool:SetInteractive(true)
+timedSession:GetInput():SetSessionLocked(true, "terminal-refresh")
+assert(not timedPool:GetFrame(1, 1).mouseEnabled, "idempotent terminal lock did not reassert interaction state")
+end
 TestSessionRestore()
+TestGameOverTransitions()
 
 FillStablePattern(cascadeGrid)
 for x = 2, 5 do
@@ -1554,4 +1758,4 @@ assert(addon.animationFactory == initializedAnimationFactory, "Animations initia
 assert(addon.inputFactory == initializedInputFactory, "Input initialization is not idempotent")
 assert(addon.sessionFactory == initializedSessionFactory, "Session initialization is not idempotent")
 
-print("Runtime verification passed: pause/restore/level-transition sessions, input, cascade animation, gem projection, UI backdrops, audio, SavedVariables, and deterministic gameplay engine.")
+print("Runtime verification passed: pause/restore/level/game-over sessions, input, cascade animation, gem projection, UI backdrops, audio, SavedVariables, and deterministic gameplay engine.")
