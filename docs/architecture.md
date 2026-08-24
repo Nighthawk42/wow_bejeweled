@@ -1,6 +1,6 @@
 # Target architecture (post-analysis)
 
-The analysis phase gate is satisfied. This ownership map now governs runtime implementation; currently implemented modules are `Core/Init.lua`, `Core/Constants.lua`, `Core/SavedVariables.lua`, `Engine/Grid.lua`, and `Engine/Matches.lua`.
+The analysis phase gate is satisfied. This ownership map now governs runtime implementation; currently implemented modules are `Core/Init.lua`, `Core/Constants.lua`, `Core/SavedVariables.lua`, `Engine/Grid.lua`, `Engine/Matches.lua`, and `Engine/Cascade.lua`.
 
 ## Load order and ownership
 
@@ -10,7 +10,7 @@ The analysis phase gate is satisfied. This ownership map now governs runtime imp
 4. `Core/SavedVariables.lua` — defaulting, validation, and eventual proven migrations.
 5. `Engine/Grid.lua` — deterministic grid representation, coordinates, swaps, and legal-move state.
 6. `Engine/Matches.lua` — pure legacy-order match detection, axis-overlap reporting, and power/hyper-gem classification; clearing and scoring remain downstream responsibilities.
-7. `Engine/Cascade.lua` — clears, gravity, refill, and cascade transitions.
+7. `Engine/Cascade.lua` — transactional clears, matched power-gem expansion, spawned-special preservation, fixed-cell gravity, bounded refill, and repeated transitions to a stable board. It emits logical movement/refill records but owns no animation or scoring.
 8. `Engine/Scoring.lua` — score, level, multiplier, skill, and achievement transitions.
 9. `UI/Backdrops.lua` — backdrop-compatible frame construction and shared chrome.
 10. `UI/GemPool.lua` — gem-frame allocation, reuse, and grid-to-frame projection.

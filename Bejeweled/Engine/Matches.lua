@@ -40,13 +40,17 @@ local function IsPreferred(cell, options)
 	return false
 end
 
-local function SelectSpecialCell(primaryCells, intersection, options, random)
+local function SelectSpecialCell(primaryCells, intersection, options, random, specialKind)
 	if intersection then
-		return intersection
+		if specialKind ~= "hyper" or not intersection.bigStar then
+			return intersection
+		end
+		return primaryCells[random(1, #primaryCells)]
 	end
 	for index = 1, #primaryCells do
-		if IsPreferred(primaryCells[index], options) then
-			return primaryCells[index]
+		local cell = primaryCells[index]
+		if IsPreferred(cell, options) and (specialKind ~= "hyper" or not cell.bigStar) then
+			return cell
 		end
 	end
 	return primaryCells[random(1, #primaryCells)]
@@ -85,7 +89,7 @@ local function BuildGroup(axis, contents, primaryCells, crossCells, intersection
 	if specialKind then
 		special = {
 			kind = specialKind,
-			cell = SelectSpecialCell(primaryCells, intersection, options, random),
+			cell = SelectSpecialCell(primaryCells, intersection, options, random, specialKind),
 		}
 	end
 

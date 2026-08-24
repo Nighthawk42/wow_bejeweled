@@ -44,6 +44,7 @@ LoadAddonFile("Bejeweled/Core/Constants.lua", addon)
 LoadAddonFile("Bejeweled/Core/SavedVariables.lua", addon)
 LoadAddonFile("Bejeweled/Engine/Grid.lua", addon)
 LoadAddonFile("Bejeweled/Engine/Matches.lua", addon)
+LoadAddonFile("Bejeweled/Engine/Cascade.lua", addon)
 
 AssertEqual(eventFrame.registeredEvent, "ADDON_LOADED", "initializer event registration")
 AssertEqual(addon.Constants.GRID_WIDTH, 8, "grid width")
@@ -189,6 +190,9 @@ matchGrid:Set(5, 3, 6)
 local longCrossMatch = addon.Matches:Find(matchGrid)
 AssertEqual(longCrossMatch.groups[1].special.kind, "hyper", "five-wide cross classification")
 assert(longCrossMatch.groups[1].special.cell == matchGrid:Get(3, 3), "cross hyper gem was not placed at the intersection")
+matchGrid:Set(3, 3, 6, true)
+local powerOccupiedCross = addon.Matches:Find(matchGrid, { random = function() return 1 end })
+assert(powerOccupiedCross.groups[1].special.cell == matchGrid:Get(3, 1), "hyper gem did not fall back from a power-gem intersection")
 
 matchGrid:Reset()
 for y = 1, 3 do
@@ -230,6 +234,112 @@ for seed = 1, 100 do
 	end
 end
 
+local function FillStablePattern(grid)
+	grid:Reset()
+	for y = 1, addon.Constants.GRID_HEIGHT do
+		for x = 1, addon.Constants.GRID_WIDTH do
+			grid:Set(x, y, ((x + (y * 2)) % addon.Constants.GEM_COLOR_COUNT) + 1)
+		end
+	end
+	assert(not grid:HasAnyMatch(), "stable cascade test pattern contains a match")
+end
+
+local cascadeGrid = addon.Grid:New(MakeRandom(424242))
+FillStablePattern(cascadeGrid)
+for x = 1, 3 do
+	cascadeGrid:Set(x, 8, 1)
+end
+local simpleCascade = addon.Cascade:Step(cascadeGrid, addon.Matches:Find(cascadeGrid), {
+	random = MakeRandom(1234),
+	requireLegalMove = false,
+})
+AssertEqual(simpleCascade.matchedCellCount, 3, "simple cascade match count")
+AssertEqual(simpleCascade.clearCount, 3, "simple cascade clear count")
+AssertEqual(simpleCascade.removedCount, 3, "simple cascade removed count")
+AssertEqual(#simpleCascade.moves, 21, "simple cascade gravity move count")
+AssertEqual(#simpleCascade.refills, 3, "simple cascade refill count")
+AssertEqual(cascadeGrid:Get(1, 8).contents, 2, "first compacted bottom gem")
+AssertEqual(cascadeGrid:Get(2, 8).contents, 3, "second compacted bottom gem")
+AssertEqual(cascadeGrid:Get(3, 8).contents, 4, "third compacted bottom gem")
+
+FillStablePattern(cascadeGrid)
+for x = 2, 5 do
+	cascadeGrid:Set(x, 8, 7)
+end
+local powerTarget = cascadeGrid:Get(4, 8)
+local powerCascade = addon.Cascade:Step(cascadeGrid, addon.Matches:Find(cascadeGrid, {
+	preferredCell = powerTarget,
+}), {
+	random = MakeRandom(2345),
+	requireLegalMove = false,
+})
+AssertEqual(#powerCascade.spawnedSpecials, 1, "power-gem spawn count")
+AssertEqual(powerCascade.spawnedSpecials[1].kind, "power", "power-gem cascade kind")
+AssertEqual(powerCascade.removedCount, 3, "power-gem preserved removal count")
+AssertEqual(cascadeGrid:Get(4, 8).contents, 7, "power-gem preserved color")
+assert(cascadeGrid:Get(4, 8).bigStar, "power gem was not preserved")
+
+FillStablePattern(cascadeGrid)
+for x = 2, 6 do
+	cascadeGrid:Set(x, 8, 5)
+end
+local hyperTarget = cascadeGrid:Get(4, 8)
+local hyperCascade = addon.Cascade:Step(cascadeGrid, addon.Matches:Find(cascadeGrid, {
+	preferredCell = hyperTarget,
+}), {
+	random = MakeRandom(3456),
+	requireLegalMove = false,
+})
+AssertEqual(#hyperCascade.spawnedSpecials, 1, "hyper-gem spawn count")
+AssertEqual(hyperCascade.spawnedSpecials[1].kind, "hyper", "hyper-gem cascade kind")
+AssertEqual(hyperCascade.removedCount, 4, "hyper-gem preserved removal count")
+AssertEqual(cascadeGrid:Get(4, 8).contents, addon.Constants.HYPER_CONTENTS, "hyper gem was not preserved")
+assert(not cascadeGrid:Get(4, 8).bigStar, "hyper gem retained a power marker")
+
+FillStablePattern(cascadeGrid)
+for x = 3, 5 do
+	cascadeGrid:Set(x, 8, 6, x == 4)
+end
+cascadeGrid:Set(5, 7, cascadeGrid:Get(5, 7).contents, true)
+local explosionCascade = addon.Cascade:Step(cascadeGrid, addon.Matches:Find(cascadeGrid), {
+	random = MakeRandom(4567),
+	requireLegalMove = false,
+})
+AssertEqual(explosionCascade.triggeredPowerCount, 2, "chained power-gem trigger count")
+AssertEqual(explosionCascade.clearCount, 11, "chained power-gem neighborhood clear count")
+AssertEqual(explosionCascade.removedCount, 11, "chained power-gem neighborhood removal count")
+
+FillStablePattern(cascadeGrid)
+for x = 1, 3 do
+	cascadeGrid:Set(x, 8, 1)
+end
+local resolvedCascade = addon.Cascade:Resolve(cascadeGrid, {
+	random = MakeRandom(5678),
+	requireLegalMove = false,
+})
+assert(resolvedCascade.stable, "cascade resolution did not report stability")
+assert(resolvedCascade.cascadeCount >= 1, "cascade resolution skipped an existing match")
+assert(not cascadeGrid:HasAnyMatch(), "cascade resolution left a match on the board")
+
+for y = 1, addon.Constants.GRID_HEIGHT do
+	for x = 1, addon.Constants.GRID_WIDTH do
+		cascadeGrid:Set(x, y, 1)
+	end
+end
+local limitedCascadeSucceeded = pcall(function()
+	addon.Cascade:Resolve(cascadeGrid, {
+		random = function() return 1 end,
+		requireLegalMove = false,
+		maximumCascades = 1,
+	})
+end)
+assert(not limitedCascadeSucceeded, "cascade limit did not reject an endless refill")
+for y = 1, addon.Constants.GRID_HEIGHT do
+	for x = 1, addon.Constants.GRID_WIDTH do
+		AssertEqual(cascadeGrid:Get(x, y).contents, 1, "failed cascade resolution was not atomic")
+	end
+end
+
 eventFrame.scripts.OnEvent(eventFrame, "ADDON_LOADED", "AnotherAddon", false)
 assert(not addon.initialized, "foreign ADDON_LOADED initialized the addon")
 eventFrame.scripts.OnEvent(eventFrame, "ADDON_LOADED", "Bejeweled", false)
@@ -240,4 +350,4 @@ local initializedGrid = addon.grid
 addon:Initialize({}, {})
 assert(addon.grid == initializedGrid, "addon initialization is not idempotent")
 
-print("Runtime verification passed: SavedVariables, deterministic 8x8 grid, and pure match discovery.")
+print("Runtime verification passed: SavedVariables and deterministic grid, match, and cascade engines.")
