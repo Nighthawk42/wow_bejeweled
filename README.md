@@ -26,10 +26,11 @@ The repository is organized into dedicated branches for each World of Warcraft c
 ## Feedback & Contributions
 
 - If you encounter bugs, please report them with detailed error messages/traces.
-- Pull requests and contributions are welcome!
+- Contributions and Pull Requests are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for our multi-branch workflow and guidelines.
 
 ## Documentation & License
 
+- [Contributing Guide](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
 - [Acknowledgements](ACKNOWLEDGEMENT.md)
 - [License (MIT)](LICENSE)
