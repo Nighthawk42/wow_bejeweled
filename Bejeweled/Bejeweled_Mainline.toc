@@ -16,3 +16,4 @@ Engine\Matches.lua
 Engine\Cascade.lua
 Engine\Scoring.lua
 UI\Backdrops.lua
+UI\GemPool.lua

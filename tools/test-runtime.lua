@@ -48,6 +48,7 @@ LoadAddonFile("Bejeweled/Engine/Matches.lua", addon)
 LoadAddonFile("Bejeweled/Engine/Cascade.lua", addon)
 LoadAddonFile("Bejeweled/Engine/Scoring.lua", addon)
 LoadAddonFile("Bejeweled/UI/Backdrops.lua", addon)
+LoadAddonFile("Bejeweled/UI/GemPool.lua", addon)
 
 AssertEqual(eventFrame.registeredEvent, "ADDON_LOADED", "initializer event registration")
 AssertEqual(addon.Constants.GRID_WIDTH, 8, "grid width")
@@ -112,6 +113,158 @@ local existingTemplateFrame = addon.Backdrops:CreateFrame({
 })
 assert(existingTemplateFrame, "existing BackdropTemplate frame was not created")
 AssertEqual(backdropCreateArguments[4], "BackdropTemplate", "BackdropTemplate was duplicated")
+
+local function CreateMockTexture(layer)
+	local texture = { layer = layer }
+	function texture:SetWidth(width)
+		self.width = width
+	end
+	function texture:SetHeight(height)
+		self.height = height
+	end
+	function texture:SetPoint(...)
+		self.points = self.points or {}
+		self.points[#self.points + 1] = { ... }
+	end
+	function texture:SetTexture(path)
+		self.path = path
+		return true
+	end
+	function texture:SetTexCoord(left, right, bottom, top)
+		self.texCoord = { left, right, bottom, top }
+	end
+	function texture:SetBlendMode(blendMode)
+		self.blendMode = blendMode
+	end
+	function texture:SetAlpha(alpha)
+		self.alpha = alpha
+	end
+	function texture:Show()
+		self.shown = true
+	end
+	function texture:Hide()
+		self.shown = false
+	end
+	return texture
+end
+
+local gemPoolCreatedFrames = {}
+local function CreateGemPoolFrame(frameType, name, parent, template)
+	local frame = {
+		frameType = frameType,
+		name = name,
+		parent = parent,
+		template = template,
+		scripts = {},
+	}
+	function frame:SetPoint(...)
+		self.points = self.points or {}
+		self.points[#self.points + 1] = { ... }
+	end
+	function frame:ClearAllPoints()
+		self.points = {}
+	end
+	function frame:SetWidth(width)
+		self.width = width
+	end
+	function frame:SetHeight(height)
+		self.height = height
+	end
+	function frame:CreateTexture(name, layer)
+		local texture = CreateMockTexture(layer)
+		self.createdTextures = self.createdTextures or {}
+		self.createdTextures[#self.createdTextures + 1] = texture
+		return texture
+	end
+	function frame:SetAlpha(alpha)
+		self.alpha = alpha
+	end
+	function frame:SetFrameLevel(frameLevel)
+		self.frameLevel = frameLevel
+	end
+	function frame:EnableMouse(enabled)
+		self.mouseEnabled = enabled
+	end
+	function frame:RegisterForDrag(button)
+		self.dragButton = button
+	end
+	function frame:SetScript(scriptName, handler)
+		self.scripts[scriptName] = handler
+	end
+	function frame:Show()
+		self.shown = true
+	end
+	gemPoolCreatedFrames[#gemPoolCreatedFrames + 1] = frame
+	return frame
+end
+
+local gemPoolParent = {
+	GetFrameLevel = function()
+		return 10
+	end,
+}
+local enteredGem
+local gemPool = addon.GemPool:New(gemPoolParent, {
+	createFrame = CreateGemPoolFrame,
+	handlers = {
+		onEnter = function(frame)
+			enteredGem = frame
+		end,
+	},
+})
+AssertEqual(#gemPoolCreatedFrames, 80, "board tile and gem frame allocation count")
+AssertEqual(#gemPool.tiles, 16, "board tile count")
+AssertEqual(gemPool.tiles[1].texture.path, addon.Constants.IMAGE_ROOT .. "board", "board tile texture")
+AssertEqual(gemPool.tiles[1].texture.texCoord[1], 0.046875, "board tile left coordinate")
+AssertEqual(gemPool.tiles[16].points[1][2], 300, "last board tile x position")
+AssertEqual(gemPool.tiles[16].points[1][3], -300, "last board tile y position")
+
+local bottomRightGem = gemPool:GetFrame(8, 8)
+AssertEqual(bottomRightGem.x, 350, "bottom-right gem x position")
+AssertEqual(bottomRightGem.y, 350, "bottom-right gem y position")
+AssertEqual(bottomRightGem.frameLevel, 12, "gem frame level")
+AssertEqual(bottomRightGem.dragButton, "LeftButton", "gem drag registration")
+AssertEqual(bottomRightGem.highlight.blendMode, "ADD", "gem highlight blend mode")
+assert(not bottomRightGem.selector.shown, "gem selector started visible")
+bottomRightGem.scripts.OnEnter(bottomRightGem)
+assert(enteredGem == bottomRightGem, "gem enter handler wiring")
+
+local projectionGrid = addon.Grid:New()
+projectionGrid:Set(2, 3, 4)
+projectionGrid:Set(3, 3, addon.Constants.HYPER_CONTENTS)
+projectionGrid:Set(4, 3, 6, true)
+local firstProjection = gemPool:Project(projectionGrid)
+AssertEqual(firstProjection.changedCount, 3, "initial nonempty gem projection count")
+local redGemFrame = gemPool:GetFrame(2, 3)
+AssertEqual(redGemFrame.texture.path, addon.Constants.IMAGE_ROOT .. "gem_red", "normal gem texture projection")
+AssertEqual(redGemFrame.texture.texCoord[2], 49 / 255, "normal gem idle coordinate")
+AssertEqual(redGemFrame.glow.path, addon.Constants.IMAGE_ROOT .. "highlight_red", "normal gem glow projection")
+local hyperGemFrame = gemPool:GetFrame(3, 3)
+AssertEqual(hyperGemFrame.texture.path, addon.Constants.IMAGE_ROOT .. "hypergem", "hyper gem texture projection")
+AssertEqual(hyperGemFrame.texture.texCoord[2], 0.1, "hyper gem idle coordinate")
+local powerGemFrame = gemPool:GetFrame(4, 3)
+assert(powerGemFrame.projectedBigStar, "power-gem projection marker")
+AssertEqual(powerGemFrame.texture.path, addon.Constants.IMAGE_ROOT .. "gem_orange", "power-gem base texture")
+AssertEqual(gemPool:Project(projectionGrid).changedCount, 0, "unchanged grid projection")
+
+projectionGrid:Set(2, 3, 7)
+local changedProjection = gemPool:Project(projectionGrid)
+AssertEqual(changedProjection.changedCount, 1, "single-cell projection change count")
+AssertEqual(redGemFrame.texture.path, addon.Constants.IMAGE_ROOT .. "gem_green", "changed gem texture projection")
+gemPool:SetInteractive(false)
+assert(not gemPool:GetFrame(1, 1).mouseEnabled, "gem interaction disable")
+gemPool:SetHandlers({ onLeave = function() end })
+assert(gemPool:GetFrame(1, 1).scripts.OnEnter == nil, "removed gem handler remained installed")
+assert(type(gemPool:GetFrame(1, 1).scripts.OnLeave) == "function", "replacement gem handler was not installed")
+redGemFrame.selector:Show()
+redGemFrame.glow:SetAlpha(0.75)
+local resetProjection = gemPool:ResetPresentation(projectionGrid)
+AssertEqual(resetProjection.changedCount, 64, "forced projection after presentation reset")
+assert(not redGemFrame.selector.shown, "presentation reset left selector visible")
+AssertEqual(redGemFrame.glow.alpha, 0, "presentation reset left gem glow visible")
+AssertEqual(redGemFrame.points[1][1], "TOPLEFT", "presentation reset gem anchor")
+AssertEqual(redGemFrame.points[1][2], 50, "presentation reset gem x position")
+AssertEqual(redGemFrame.points[1][3], -100, "presentation reset gem y position")
 
 local playedFiles = {}
 local playedSoundKits = {}
@@ -596,13 +749,16 @@ assert(addon.initialized, "addon initialization did not complete")
 assert(addon.grid, "addon initialization did not create a grid")
 assert(addon.audio, "addon initialization did not create audio")
 assert(addon.backdrops == addon.Backdrops, "addon initialization did not install backdrops")
+assert(addon.gemPoolFactory == addon.GemPool, "addon initialization did not install GemPool")
 assert(eventFrame.registeredEvent == nil, "initializer event was not unregistered")
 local initializedGrid = addon.grid
 local initializedAudio = addon.audio
 local initializedBackdrops = addon.backdrops
+local initializedGemPoolFactory = addon.gemPoolFactory
 addon:Initialize({}, {})
 assert(addon.grid == initializedGrid, "addon initialization is not idempotent")
 assert(addon.audio == initializedAudio, "audio initialization is not idempotent")
 assert(addon.backdrops == initializedBackdrops, "backdrop initialization is not idempotent")
+assert(addon.gemPoolFactory == initializedGemPoolFactory, "GemPool initialization is not idempotent")
 
-print("Runtime verification passed: UI backdrops, audio, SavedVariables, and deterministic gameplay engine.")
+print("Runtime verification passed: gem projection, UI backdrops, audio, SavedVariables, and deterministic gameplay engine.")

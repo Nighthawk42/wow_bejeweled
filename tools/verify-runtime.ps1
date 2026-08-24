@@ -27,7 +27,8 @@ try {
         "Engine\Matches.lua",
         "Engine\Cascade.lua",
         "Engine\Scoring.lua",
-        "UI\Backdrops.lua"
+        "UI\Backdrops.lua",
+        "UI\GemPool.lua"
     )
     $actualFiles = @($toc | Where-Object { $_ -match "\.lua$" })
     if (Compare-Object -ReferenceObject $expectedFiles -DifferenceObject $actualFiles -SyncWindow 0) {
