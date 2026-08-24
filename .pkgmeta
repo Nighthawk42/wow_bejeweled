@@ -1,0 +1,9 @@
+package-as: Bejeweled
+
+ignore:
+  - .github
+  - .gitignore
+  - README.md
+  - CONTRIBUTING.md
+  - ACKNOWLEDGEMENT.md
+  - CHANGELOG.md
