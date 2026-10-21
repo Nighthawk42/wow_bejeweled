@@ -2,6 +2,8 @@
 
 Bejeweled has returned to Azeroth! A game originally made by PopCap Games, Inc., maintained for modern World of Warcraft clients.
 
+> **Retail players:** check out **[Bejeweled Redux](https://github.com/Nighthawk42/wow_bejeweled_redux)**, a ground-up rewrite of this addon for Retail (Midnight) with readable code, Ace3, a new options panel, and Midnight-compatible achievements. It installs as its own addon, so it can sit alongside this one. This repository keeps the original addon and its Classic releases.
+
 ## Client Branches
 
 The repository is organized into dedicated branches for each World of Warcraft client flavor:
