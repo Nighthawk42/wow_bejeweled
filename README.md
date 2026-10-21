@@ -1,8 +1,26 @@
+# ⚠️ This project has moved to Bejeweled Redux
+
+> [!IMPORTANT]
+> **This repository is archived and no longer maintained.** No more updates, fixes or releases will be made here.
+>
+> ## 👉 [**Get Bejeweled Redux →**](https://github.com/Nighthawk42/wow_bejeweled_redux)
+>
+> **[github.com/Nighthawk42/wow_bejeweled_redux](https://github.com/Nighthawk42/wow_bejeweled_redux)**
+
+**Bejeweled Redux** is the new home of Bejeweled for World of Warcraft: a complete rewrite of this addon.
+
+- ✅ **One download for every client:** Retail (Midnight), WoW Forever, Mists of Pandaria Classic, Titan Reforged, TBC Anniversary and Classic Era.
+- ✅ **Built for current WoW:** Midnight-compatible achievements, a new options panel, profiles, and fixes for many old bugs.
+- ✅ **Texture packs:** support for high-resolution and custom art.
+- ✅ **Installs as its own addon**, so it can sit alongside this one while you switch over.
+
+Everything below describes the **original, archived addon**. Its source and old releases stay here for reference only.
+
+---
+
 # Bejeweled for World of Warcraft
 
 Bejeweled has returned to Azeroth! A game originally made by PopCap Games, Inc., maintained for modern World of Warcraft clients.
-
-> **Retail players:** check out **[Bejeweled Redux](https://github.com/Nighthawk42/wow_bejeweled_redux)**, a ground-up rewrite of this addon for Retail (Midnight) with readable code, Ace3, a new options panel, and Midnight-compatible achievements. It installs as its own addon, so it can sit alongside this one. This repository keeps the original addon and its Classic releases.
 
 ## Client Branches
 
